@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
@@ -21,7 +21,7 @@ export class ReminderService {
   ) {}
 
   // A cada 15 min varre quem entra na janela de lembrete.
-  @Cron(CronExpression.EVERY_15_MINUTES)
+  @Cron('0 */15 * * * *')
   async sendDueReminders() {
     const now = DateTime.now();
     const windowEnd = now.plus({ hours: REMINDER_HOURS_BEFORE }).toJSDate();

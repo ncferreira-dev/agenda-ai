@@ -72,7 +72,8 @@ export class AgentService {
       phone,
     };
 
-    const history = (conversation.messages as Anthropic.MessageParam[]) ?? [];
+    // conversation.messages é Json no Prisma; gravamos sempre como MessageParam[].
+    const history = (conversation.messages as unknown as Anthropic.MessageParam[]) ?? [];
     const messages: Anthropic.MessageParam[] = [
       ...history,
       { role: 'user', content: text },
