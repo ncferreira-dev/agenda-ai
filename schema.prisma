@@ -1,0 +1,193 @@
+// ---------------------------------------------------------------------------
+// Schema do sistema de agendamento conversacional
+// Multi-tenant: um Business = um comércio (barbearia, oficina, vet, etc.)
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Um comércio. Tudo é escopado por businessId (multi-tenant simples).
+model Business {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique // usado na URL da página de agendamento
+  timezone  String   @default("America/Sao_Paulo")
+  phone     String? // número de WhatsApp do negócio (o que recebe os agendamentos)
+
+  // Configuração de agenda
+  slotStepMinutes   Int @default(15) // granularidade dos horários ofertados
+  minLeadMinutes    Int @default(60) // antecedência mínima p/ agendar (não deixa marcar daqui a 5 min)
+  maxAdvanceDays    Int @default(60) // até quantos dias pra frente pode agendar
+
+  professionals Professional[]
+  services      Service[]
+  appointments  Appointment[]
+  customers     Customer[]
+  timeBlocks    TimeBlock[]
+  conversations Conversation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Quem executa o serviço (barbeiro, mecânico, esteticista...).
+model Professional {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name     String
+  active   Boolean @default(true)
+
+  workingHours WorkingHour[]
+  services     ProfessionalService[]
+  appointments Appointment[]
+  timeBlocks   TimeBlock[]
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
+}
+
+// Horário de trabalho recorrente por dia da semana.
+// weekday: 0 = domingo ... 6 = sábado (padrão JS getDay / Luxon convertido)
+// startMinute/endMinute: minutos desde 00:00 no fuso do negócio. Ex.: 9h = 540.
+// Permite múltiplas faixas por dia (ex.: 9-12 e 13-18 com intervalo de almoço).
+model WorkingHour {
+  id             String       @id @default(uuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+
+  @@index([professionalId, weekday])
+}
+
+// Serviço ofertado (corte, troca de óleo, banho e tosa...).
+model Service {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name            String
+  durationMinutes Int
+  priceCents      Int     @default(0)
+  active          Boolean @default(true)
+
+  professionals ProfessionalService[]
+  appointments  Appointment[]
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
+}
+
+// Quais profissionais executam quais serviços (N:N).
+model ProfessionalService {
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([professionalId, serviceId])
+}
+
+// Cliente final do comércio (identificado pelo telefone do WhatsApp).
+model Customer {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name  String?
+  phone String // E.164, ex.: 5511999998888
+
+  appointments  Appointment[]
+  conversations Conversation[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([businessId, phone])
+  @@index([businessId])
+}
+
+enum AppointmentStatus {
+  PENDING // criado, aguardando confirmação (se o negócio exigir)
+  CONFIRMED // confirmado
+  CANCELLED // cancelado
+  COMPLETED // atendimento concluído
+  NO_SHOW // cliente faltou
+}
+
+// O agendamento em si. startAt/endAt sempre em UTC; convertemos p/ o fuso na borda.
+model Appointment {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id])
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  serviceId      String
+  service        Service      @relation(fields: [serviceId], references: [id])
+
+  startAt DateTime // UTC
+  endAt   DateTime // UTC
+  status  AppointmentStatus @default(CONFIRMED)
+  notes   String? // a "observação" do cliente
+
+  // Controle de lembretes (pra não disparar duas vezes)
+  reminderSentAt     DateTime?
+  confirmationSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Acelera a query mais quente: conflitos do profissional num intervalo.
+  @@index([professionalId, startAt])
+  @@index([businessId, startAt])
+}
+
+// Bloqueios pontuais: folga, almoço extra, feriado, manutenção.
+// Se professionalId for null, bloqueia o negócio inteiro (ex.: feriado).
+model TimeBlock {
+  id             String        @id @default(uuid())
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  professionalId String?
+  professional   Professional? @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  startAt DateTime // UTC
+  endAt   DateTime // UTC
+  reason  String?
+
+  @@index([businessId, startAt])
+  @@index([professionalId, startAt])
+}
+
+// Estado da conversa de WhatsApp por cliente. Guardamos o histórico
+// pra dar contexto multi-turn ao agente (WhatsApp é conversa, não request único).
+model Conversation {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  phone     String
+  // Histórico no formato de mensagens da Anthropic API (role/content em JSON).
+  messages  Json     @default("[]")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([businessId, phone])
+  @@index([businessId, phone])
+}
