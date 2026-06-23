@@ -3,7 +3,7 @@
 export default function Home() {
   return (
     <main style={{ maxWidth: 480, margin: '80px auto', padding: '0 24px' }}>
-      <h1>Agenda WhatsApp</h1>
+      <h1>agend.ai</h1>
       <p>Página pública de agendamento. Abra a agenda de um negócio pelo slug:</p>
       <p>
         <a href="/barbearia-do-ze" style={{ color: 'var(--accent)' }}>

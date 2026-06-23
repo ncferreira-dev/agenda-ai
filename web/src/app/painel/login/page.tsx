@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <div className={styles.loginWrap}>
       <form className={`${styles.card} ${styles.rise}`} onSubmit={onSubmit}>
-        <p className={styles.mark}>Agenda</p>
+        <p className={styles.mark}>agend.ai</p>
         <h1 className={styles.title}>Painel do dono</h1>
         <p className={styles.subtitle}>Entre pra gerenciar sua agenda.</p>
 

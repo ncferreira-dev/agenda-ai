@@ -1,6 +1,6 @@
-# Agenda WhatsApp
+# agend.ai
 
-Agendamento conversacional por WhatsApp. O cliente fala naturalmente
+SaaS multi-tenant de agendamento conversacional por WhatsApp. O cliente fala naturalmente
 ("quero cortar cabelo sábado de tarde com o João"), um agente Claude entende,
 consulta a agenda real e marca. Lembrete automático antes do horário reduz falta.
 

@@ -4,7 +4,7 @@ Contexto pro Claude Code. Leia antes de gerar ou alterar código.
 
 ## O que é
 
-SaaS multi-tenant de agendamento por WhatsApp pra comércios de serviço
+**agend.ai** — SaaS multi-tenant de agendamento por WhatsApp pra comércios de serviço
 (barbearia, salão, vet, clínica, oficina). O cliente final agenda **conversando
 no WhatsApp** (diferencial) ou por uma **página web**. Lembrete automático antes
 do horário reduz no-show.
