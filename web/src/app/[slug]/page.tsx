@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { notFound } from 'next/navigation';
 import { getBusinessPage } from '@/lib/api';
 import { BookingFlow } from './BookingFlow';
@@ -13,13 +14,47 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     notFound();
   }
 
+  const { business } = data;
+
+  // Injeta a cor do negócio como --accent (sobrescreve o padrão do CSS).
+  const accentStyle = business.accentColor
+    ? ({ ['--accent']: business.accentColor } as CSSProperties)
+    : undefined;
+
   return (
-    <main className={styles.page}>
+    <main className={styles.page} style={accentStyle}>
+      {business.coverUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={styles.cover} src={business.coverUrl} alt="" />
+      )}
+
       <header className={styles.header}>
-        <h1 className={styles.businessName}>{data.business.name}</h1>
+        {business.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className={styles.logo} src={business.logoUrl} alt={business.name} />
+        )}
+        <h1 className={styles.businessName}>{business.name}</h1>
         <p className={styles.tagline}>Agende seu horário</p>
+
+        {business.about && <p className={styles.about}>{business.about}</p>}
+
+        {business.instagramUrl && (
+          <a
+            className={styles.instagram}
+            href={business.instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Instagram ↗
+          </a>
+        )}
       </header>
+
       <BookingFlow slug={slug} data={data} />
+
+      <footer className={styles.footer}>
+        feito com <span className={styles.brand}>agend.ai</span>
+      </footer>
     </main>
   );
 }

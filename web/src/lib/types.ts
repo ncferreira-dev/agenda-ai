@@ -18,6 +18,12 @@ export interface BusinessPage {
     slug: string;
     timezone: string;
     maxAdvanceDays: number;
+    // Branding (Nível 1) — opcionais.
+    logoUrl: string | null;
+    coverUrl: string | null;
+    accentColor: string | null;
+    about: string | null;
+    instagramUrl: string | null;
   };
   services: Service[];
   professionals: Professional[];
