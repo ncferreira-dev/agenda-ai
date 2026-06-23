@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Query, Res, HttpStatus, Inject } from '@ne
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentService } from '../agent/agent.service';
+import { ConfirmationService } from './confirmation.service';
 import { CloudApiProvider, type WhatsAppProvider } from './whatsapp.provider';
 
 // Dedupe simples em memória. Em produção, troque por Redis ou tabela de
@@ -15,6 +16,7 @@ export class WhatsAppController {
   constructor(
     private prisma: PrismaService,
     private agent: AgentService,
+    private confirmation: ConfirmationService,
     provider: CloudApiProvider,
   ) {
     this.provider = provider;
@@ -53,11 +55,19 @@ export class WhatsAppController {
         });
         if (!business) continue;
 
-        const reply = await this.agent.handleMessage({
-          businessId: business.id,
-          phone: msg.from,
-          text: msg.text,
-        });
+        // Resposta de lembrete: um "SIM" confirma direto e encerra (sem agente).
+        const confirmacao = await this.confirmation.tryHandle(
+          business.id,
+          msg.from,
+          msg.text,
+        );
+        const reply =
+          confirmacao ??
+          (await this.agent.handleMessage({
+            businessId: business.id,
+            phone: msg.from,
+            text: msg.text,
+          }));
 
         await this.provider.sendText(msg.from, reply);
       } catch (err) {

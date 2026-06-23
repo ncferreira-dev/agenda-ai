@@ -71,13 +71,17 @@ export default async function AgendaPage() {
                           </div>
                         </div>
                         <div className={styles.rowActions}>
-                          <span
-                            className={`${styles.chip} ${
-                              a.status === 'CONFIRMED' ? styles.chipOk : styles.chipWarn
-                            }`}
-                          >
-                            {a.status === 'CONFIRMED' ? 'confirmado' : 'pendente'}
-                          </span>
+                          {a.confirmedByCustomer ? (
+                            <span className={`${styles.chip} ${styles.chipOk}`}>✓ cliente confirmou</span>
+                          ) : (
+                            <span
+                              className={`${styles.chip} ${
+                                a.status === 'CONFIRMED' ? styles.chipOk : styles.chipWarn
+                              }`}
+                            >
+                              {a.status === 'CONFIRMED' ? 'confirmado' : 'pendente'}
+                            </span>
+                          )}
                           <form action={cancelAppointment}>
                             <input type="hidden" name="id" value={a.id} />
                             <button className={`${styles.linkBtn} ${styles.dangerBtn}`} type="submit">

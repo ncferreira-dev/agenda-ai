@@ -75,6 +75,7 @@ export interface Appointment {
   startAt: string;
   endAt: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
+  confirmedByCustomer: boolean;
   service: string;
   professional: string;
   customer: { name: string | null; phone: string };

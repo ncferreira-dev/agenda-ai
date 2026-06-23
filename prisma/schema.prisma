@@ -171,6 +171,7 @@ model Appointment {
   // Controle de lembretes (pra não disparar duas vezes)
   reminderSentAt     DateTime?
   confirmationSentAt DateTime?
+  customerConfirmedAt DateTime? // quando o cliente respondeu SIM ao lembrete
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
