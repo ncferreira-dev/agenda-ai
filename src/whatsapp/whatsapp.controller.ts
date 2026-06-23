@@ -53,7 +53,13 @@ export class WhatsAppController {
           where: { phone: msg.to },
           select: { id: true },
         });
-        if (!business) continue;
+        if (!business) {
+          // Ajuda a configurar: mostra o número que chegou pra você setar em business.phone.
+          console.warn(
+            `Webhook: nenhum negócio com phone="${msg.to}". Ajuste o phone do negócio pra esse valor.`,
+          );
+          continue;
+        }
 
         // Resposta de lembrete: um "SIM" confirma direto e encerra (sem agente).
         const confirmacao = await this.confirmation.tryHandle(
