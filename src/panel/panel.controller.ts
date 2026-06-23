@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
@@ -21,9 +21,20 @@ export class PanelController {
     return { owner: { id: owner.ownerId, email: owner.email }, business };
   }
 
-  /** Agendamentos do meu negócio. */
+  /** Agendamentos do meu negócio. Filtra por janela (from/to) e status. */
   @Get('appointments')
-  appointments(@CurrentBusiness() businessId: string) {
-    return this.panel.getUpcomingAppointments(businessId);
+  appointments(
+    @CurrentBusiness() businessId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.panel.getAppointments(businessId, { from, to, status });
+  }
+
+  /** Cancela um agendamento do meu negócio. */
+  @Patch('appointments/:id/cancel')
+  cancel(@CurrentBusiness() businessId: string, @Param('id') id: string) {
+    return this.panel.cancel(businessId, id);
   }
 }
