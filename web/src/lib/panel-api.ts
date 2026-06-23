@@ -26,7 +26,18 @@ async function getJson<T>(path: string): Promise<T> {
 
 export interface Me {
   owner: { id: string; email: string };
-  business: { id: string; name: string; slug: string; timezone: string; phone: string | null };
+  business: {
+    id: string;
+    name: string;
+    slug: string;
+    timezone: string;
+    phone: string | null;
+    logoUrl: string | null;
+    coverUrl: string | null;
+    accentColor: string | null;
+    about: string | null;
+    instagramUrl: string | null;
+  };
 }
 
 export interface Service {

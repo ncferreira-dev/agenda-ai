@@ -1,8 +1,10 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { DateTime } from 'luxon';
 import { authFetch } from '@/lib/panel-api';
+import { API_BASE, PANEL_COOKIE } from '@/lib/panel-session';
 
 export interface ActionState {
   ok: boolean;
@@ -149,6 +151,48 @@ export async function deleteBlock(form: FormData): Promise<void> {
   const id = String(form.get('id'));
   await authFetch(`/me/blocks/${id}`, { method: 'DELETE' });
   revalidatePath('/painel/bloqueios');
+}
+
+// --- Aparência / branding ------------------------------------------------
+
+// Envia um arquivo pro backend (/me/uploads) com o token do cookie e devolve a URL.
+async function uploadFile(file: File): Promise<string> {
+  const token = cookies().get(PANEL_COOKIE)?.value;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(`${API_BASE}/me/uploads`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: fd,
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error('upload falhou');
+  const data = (await res.json()) as { url: string };
+  return data.url;
+}
+
+export async function saveAppearance(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const patch: Record<string, string> = {
+    accentColor: String(form.get('accentColor') ?? ''),
+    about: String(form.get('about') ?? ''),
+    instagramUrl: String(form.get('instagramUrl') ?? ''),
+  };
+
+  // Faz upload só se um arquivo novo veio (campos opcionais).
+  const logo = form.get('logo');
+  const cover = form.get('cover');
+  try {
+    if (logo instanceof File && logo.size > 0) patch.logoUrl = await uploadFile(logo);
+    if (cover instanceof File && cover.size > 0) patch.coverUrl = await uploadFile(cover);
+  } catch {
+    return { ok: false, error: 'Falha ao enviar a imagem. Tente um arquivo menor.' };
+  }
+
+  const res = await authFetch('/me/business', { method: 'PATCH', body: JSON.stringify(patch) });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/aparencia');
+  revalidatePath('/painel');
+  return OK;
 }
 
 // --- Agenda --------------------------------------------------------------

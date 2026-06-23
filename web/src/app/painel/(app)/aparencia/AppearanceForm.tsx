@@ -1,0 +1,133 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
+import { saveAppearance, type ActionState } from '../../actions';
+import type { Me } from '@/lib/panel-api';
+import styles from '../../painel.module.css';
+
+const INIT: ActionState = { ok: false };
+const DEFAULT = '#A6432B';
+const PRESETS = ['#A6432B', '#1F4D3A', '#1D4ED8', '#7C3AED', '#B91C1C', '#0F766E', '#C2410C', '#111827'];
+
+function Save() {
+  const { pending } = useFormStatus();
+  return (
+    <button className={`${styles.smallBtn} ${styles.primarySmall}`} type="submit" disabled={pending}>
+      {pending ? 'Salvando…' : 'Salvar aparência'}
+    </button>
+  );
+}
+
+export function AppearanceForm({ business }: { business: Me['business'] }) {
+  const [state, action] = useFormState(saveAppearance, INIT);
+  const [accent, setAccent] = useState(business.accentColor ?? '');
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (state.ok) {
+      setSaved(true);
+      const t = setTimeout(() => setSaved(false), 2200);
+      return () => clearTimeout(t);
+    }
+  }, [state.ok]);
+
+  const shown = accent || DEFAULT;
+
+  return (
+    <form action={action} className={styles.formGrid}>
+      {state.error && <p className={styles.error}>{state.error}</p>}
+
+      {/* COR */}
+      <div className={`${styles.panel} ${styles.panelPad}`}>
+        <h2 className={styles.sectionTitle}>Cor da marca</h2>
+        <p className={styles.rowMeta} style={{ marginBottom: 12 }}>Tematiza sua página pública.</p>
+
+        <input type="hidden" name="accentColor" value={accent} />
+        <div className={styles.swatchRow}>
+          {PRESETS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`${styles.swatch} ${accent.toUpperCase() === c ? styles.swatchActive : ''}`}
+              style={{ background: c }}
+              onClick={() => setAccent(c)}
+              aria-label={c}
+            />
+          ))}
+          <label className={styles.swatchCustom} style={{ borderColor: shown }}>
+            <input
+              type="color"
+              value={shown}
+              onChange={(e) => setAccent(e.target.value.toUpperCase())}
+              style={{ opacity: 0, width: 0, height: 0 }}
+            />
+            +
+          </label>
+        </div>
+        <button type="button" className={styles.linkBtn} onClick={() => setAccent('')}>
+          Usar cor padrão
+        </button>
+
+        {/* preview ao vivo */}
+        <div className={styles.preview} style={{ ['--accent' as string]: shown }}>
+          <span className={styles.previewBtn}>Agendar</span>
+          <span className={styles.previewLink}>Instagram ↗</span>
+          <span className={styles.previewDot} />
+        </div>
+      </div>
+
+      {/* IMAGENS */}
+      <div className={`${styles.panel} ${styles.panelPad}`}>
+        <h2 className={styles.sectionTitle}>Logo e capa</h2>
+        <div className={styles.formRow} style={{ marginTop: 12 }}>
+          <div>
+            <span className={styles.label}>Logo</span>
+            {business.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.thumbLogo} src={business.logoUrl} alt="logo atual" />
+            )}
+            <input className={styles.file} type="file" name="logo" accept="image/*" />
+          </div>
+          <div>
+            <span className={styles.label}>Capa</span>
+            {business.coverUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.thumbCover} src={business.coverUrl} alt="capa atual" />
+            )}
+            <input className={styles.file} type="file" name="cover" accept="image/*" />
+          </div>
+        </div>
+      </div>
+
+      {/* TEXTOS */}
+      <div className={`${styles.panel} ${styles.panelPad}`}>
+        <h2 className={styles.sectionTitle}>Sobre e contato</h2>
+        <label className={`${styles.field} ${styles.gap}`}>
+          <span className={styles.label}>Sobre (aparece na página)</span>
+          <textarea
+            className={styles.input}
+            name="about"
+            rows={3}
+            maxLength={800}
+            defaultValue={business.about ?? ''}
+            placeholder="Conte em uma frase o que seu negócio tem de especial."
+          />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Instagram (URL)</span>
+          <input
+            className={styles.input}
+            name="instagramUrl"
+            defaultValue={business.instagramUrl ?? ''}
+            placeholder="https://instagram.com/seunegocio"
+          />
+        </label>
+      </div>
+
+      <div className={styles.toolbar} style={{ gap: 10, alignItems: 'center' }}>
+        {saved && <span className={`${styles.chip} ${styles.chipOk}`}>salvo ✓</span>}
+        <Save />
+      </div>
+    </form>
+  );
+}
