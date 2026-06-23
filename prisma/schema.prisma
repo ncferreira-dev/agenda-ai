@@ -25,6 +25,7 @@ model Business {
   minLeadMinutes    Int @default(60) // antecedência mínima p/ agendar (não deixa marcar daqui a 5 min)
   maxAdvanceDays    Int @default(60) // até quantos dias pra frente pode agendar
 
+  owners        Owner[]
   professionals Professional[]
   services      Service[]
   appointments  Appointment[]
@@ -34,6 +35,22 @@ model Business {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Dono do negócio: quem acessa o painel (app.*) com login + senha.
+// 1↔1 com Business por ora; o businessId é o que escopa a sessão (JWT carrega ele).
+model Owner {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  email        String @unique
+  passwordHash String // hash argon2; senha em texto nunca é gravada nem logada
+  name         String
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
 }
 
 // Quem executa o serviço (barbeiro, mecânico, esteticista...).
