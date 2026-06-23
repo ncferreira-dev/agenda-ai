@@ -25,6 +25,13 @@ model Business {
   minLeadMinutes    Int @default(60) // antecedência mínima p/ agendar (não deixa marcar daqui a 5 min)
   maxAdvanceDays    Int @default(60) // até quantos dias pra frente pode agendar
 
+  // Personalização (Nível 1) — a "cara do negócio" na página pública.
+  logoUrl      String? // URL da logo
+  coverUrl     String? // URL da capa/hero
+  accentColor  String? // hex "#A6432B"; null cai no padrão
+  about        String? // texto "Sobre"
+  instagramUrl String? // link do Instagram
+
   owners        Owner[]
   professionals Professional[]
   services      Service[]

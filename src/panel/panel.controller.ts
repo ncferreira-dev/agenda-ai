@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
@@ -19,6 +19,23 @@ export class PanelController {
   ) {
     const business = await this.panel.getBusiness(businessId);
     return { owner: { id: owner.ownerId, email: owner.email }, business };
+  }
+
+  /** Atualiza dados e branding do negócio (tela "Aparência"). */
+  @Patch('business')
+  updateBusiness(
+    @CurrentBusiness() businessId: string,
+    @Body()
+    body: {
+      name?: string;
+      accentColor?: string;
+      about?: string;
+      instagramUrl?: string;
+      logoUrl?: string;
+      coverUrl?: string;
+    },
+  ) {
+    return this.panel.updateBusiness(businessId, body);
   }
 
   /** Agendamentos do meu negócio. Filtra por janela (from/to) e status. */

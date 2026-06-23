@@ -68,6 +68,12 @@ export class PublicBookingController {
         slug: business.slug,
         timezone: business.timezone,
         maxAdvanceDays: business.maxAdvanceDays,
+        // Branding (Nível 1) — a página pública usa pra vestir a marca.
+        logoUrl: business.logoUrl,
+        coverUrl: business.coverUrl,
+        accentColor: business.accentColor,
+        about: business.about,
+        instagramUrl: business.instagramUrl,
       },
       services,
       professionals: professionals.map((p) => ({

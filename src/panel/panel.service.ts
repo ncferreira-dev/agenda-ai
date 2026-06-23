@@ -19,12 +19,83 @@ export class PanelService {
     private booking: BookingService,
   ) {}
 
-  /** Dados do negócio do dono logado. */
+  private static readonly BUSINESS_SELECT = {
+    id: true,
+    name: true,
+    slug: true,
+    timezone: true,
+    phone: true,
+    logoUrl: true,
+    coverUrl: true,
+    accentColor: true,
+    about: true,
+    instagramUrl: true,
+  } as const;
+
+  /** Dados do negócio do dono logado (inclui branding). */
   getBusiness(businessId: string) {
     return this.prisma.business.findUniqueOrThrow({
       where: { id: businessId },
-      select: { id: true, name: true, slug: true, timezone: true, phone: true },
+      select: PanelService.BUSINESS_SELECT,
     });
+  }
+
+  /** Atualiza dados/branding do negócio. Só os campos enviados são tocados. */
+  async updateBusiness(
+    businessId: string,
+    input: {
+      name?: string;
+      accentColor?: string;
+      about?: string;
+      instagramUrl?: string;
+      logoUrl?: string;
+      coverUrl?: string;
+    },
+  ) {
+    const data: Record<string, unknown> = {};
+
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      if (!name) throw new BadRequestException('O nome não pode ficar vazio.');
+      data.name = name;
+    }
+    if (input.accentColor !== undefined) {
+      data.accentColor = this.normalizeColor(input.accentColor);
+    }
+    if (input.about !== undefined) {
+      const about = input.about.trim();
+      if (about.length > 800) throw new BadRequestException('O "Sobre" está muito longo (máx. 800).');
+      data.about = about || null;
+    }
+    if (input.instagramUrl !== undefined) data.instagramUrl = this.normalizeUrl(input.instagramUrl);
+    if (input.logoUrl !== undefined) data.logoUrl = this.normalizeUrl(input.logoUrl);
+    if (input.coverUrl !== undefined) data.coverUrl = this.normalizeUrl(input.coverUrl);
+
+    return this.prisma.business.update({
+      where: { id: businessId },
+      data,
+      select: PanelService.BUSINESS_SELECT,
+    });
+  }
+
+  // Hex "#RRGGBB"; vazio limpa (null).
+  private normalizeColor(value: string): string | null {
+    const v = value.trim();
+    if (!v) return null;
+    if (!/^#[0-9a-fA-F]{6}$/.test(v)) {
+      throw new BadRequestException('Cor inválida. Use hex no formato #RRGGBB.');
+    }
+    return v.toUpperCase();
+  }
+
+  // URL http(s); vazio limpa (null).
+  private normalizeUrl(value: string): string | null {
+    const v = value.trim();
+    if (!v) return null;
+    if (!/^https?:\/\//.test(v)) {
+      throw new BadRequestException('URL inválida (precisa começar com http).');
+    }
+    return v;
   }
 
   /**
