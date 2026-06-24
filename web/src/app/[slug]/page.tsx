@@ -30,9 +30,11 @@ export default async function Page({
 
   return (
     <main className={styles.page} style={accentStyle}>
-      {business.coverUrl && (
+      {business.coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className={styles.cover} src={business.coverUrl} alt="" />
+      ) : (
+        <div className={styles.heroGradient} />
       )}
 
       <header className={styles.header}>
@@ -56,6 +58,28 @@ export default async function Page({
           </a>
         )}
       </header>
+
+      <div className={styles.trust}>
+        <div className={styles.trustItem}>
+          <svg className={styles.trustIcon} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+          </svg>
+          <span className={styles.trustLabel}>Confirmação na hora</span>
+        </div>
+        <div className={styles.trustItem}>
+          <svg className={styles.trustIcon} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+          </svg>
+          <span className={styles.trustLabel}>Lembrete no WhatsApp</span>
+        </div>
+        <div className={styles.trustItem}>
+          <svg className={styles.trustIcon} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <span className={styles.trustLabel}>Sem cadastro</span>
+        </div>
+      </div>
 
       {sp.pago === '1' && (
         <div className={`${styles.banner} ${styles.bannerOk}`}>

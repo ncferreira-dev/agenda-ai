@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { getAvailability, createBooking } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult } from '@/lib/types';
 import styles from './booking.module.css';
 
-type Step = 'service' | 'professional' | 'datetime' | 'details' | 'done';
+type Step = 'service' | 'schedule' | 'details' | 'done';
 
 interface DisplaySlot {
   startAt: string;
@@ -16,14 +16,14 @@ interface DisplaySlot {
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-function nextDays(count: number): { iso: string; weekday: string; day: number; month: string }[] {
+function nextDays(count: number): { iso: string; weekday: string; day: number }[] {
   const out = [];
   const base = new Date();
   for (let i = 0; i < count; i++) {
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    out.push({ iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate(), month: MONTHS[d.getMonth()] });
+    out.push({ iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate() });
   }
   return out;
 }
@@ -35,8 +35,22 @@ function formatPrice(cents: number): string {
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('55')) return digits;
-  return `55${digits}`;
+  return digits.startsWith('55') ? digits : `55${digits}`;
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
+}
+
+function PeopleIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+      <path d="M16 6.5a3 3 0 0 1 0 5.6M16.5 14c2.5.3 4 2.2 4 5" />
+    </svg>
+  );
 }
 
 export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }) {
@@ -52,10 +66,11 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
+  // true depois que o cliente escolhe um dia na mão (trava o auto-avanço).
+  const manualDate = useRef(false);
 
   const service = data.services.find((s) => s.id === serviceId) ?? null;
 
-  // Profissionais que executam o serviço escolhido.
   const eligiblePros = useMemo(
     () => (serviceId ? data.professionals.filter((p) => p.serviceIds.includes(serviceId)) : []),
     [serviceId, data.professionals],
@@ -63,39 +78,58 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
 
   const days = useMemo(() => nextDays(Math.min(data.business.maxAdvanceDays, 14)), [data]);
 
-  // Junta os horários: se escolheu profissional, só os dele; se "qualquer",
-  // unifica e guarda qual profissional cobre cada horário.
+  // Busca disponibilidade sempre que muda serviço, dia ou profissional na tela de
+  // agenda. Se o dia escolhido automaticamente vier vazio, pula pro próximo dia
+  // com horário (evita a primeira tela "sem horários", que espanta o cliente).
+  useEffect(() => {
+    if (step !== 'schedule' || !serviceId || !date) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getAvailability({ slug, serviceId, date, professionalId: professionalId ?? undefined })
+      .then((av) => {
+        if (cancelled) return;
+        setAvailability(av);
+        const hasSlots = av.some((p) => p.slots.length > 0);
+        if (!hasSlots && !manualDate.current) {
+          const idx = days.findIndex((d) => d.iso === date);
+          if (idx >= 0 && idx < days.length - 1) {
+            setDate(days[idx + 1].iso); // segue carregando até achar um dia com horário
+            return;
+          }
+        }
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e?.message ?? 'Não consegui carregar os horários.');
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, serviceId, date, professionalId, slug, days]);
+
   const displaySlots: DisplaySlot[] = useMemo(() => {
     const byLabel = new Map<string, DisplaySlot>();
     for (const pa of availability) {
       for (const s of pa.slots) {
-        if (!byLabel.has(s.label)) {
-          byLabel.set(s.label, { ...s, professionalId: pa.professionalId });
-        }
+        if (!byLabel.has(s.label)) byLabel.set(s.label, { ...s, professionalId: pa.professionalId });
       }
     }
     return [...byLabel.values()].sort((a, b) => a.startAt.localeCompare(b.startAt));
   }, [availability]);
 
-  async function pickDate(iso: string) {
-    if (!serviceId) return;
-    setDate(iso);
+  const manha = displaySlots.filter((s) => Number(s.label.slice(0, 2)) < 12);
+  const tarde = displaySlots.filter((s) => Number(s.label.slice(0, 2)) >= 12);
+
+  function pickService(id: string) {
+    setServiceId(id);
+    setProfessionalId(null);
     setSlot(null);
-    setLoading(true);
-    setError(null);
-    try {
-      const avail = await getAvailability({
-        slug,
-        serviceId,
-        date: iso,
-        professionalId: professionalId ?? undefined,
-      });
-      setAvailability(avail);
-    } catch (e: any) {
-      setError(e?.message ?? 'Não consegui carregar os horários.');
-    } finally {
-      setLoading(false);
-    }
+    manualDate.current = false;
+    setDate(days[0].iso);
+    setStep('schedule');
   }
 
   async function confirm() {
@@ -116,7 +150,6 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         phone: normalizePhone(phone),
         notes: notes.trim() || undefined,
       });
-      // Exige sinal: manda pro Checkout do Stripe. Volta em /{slug}?pago=1.
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl;
         return;
@@ -130,8 +163,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     }
   }
 
-  // --- Render por passo ----------------------------------------------------
-
+  // --- Sucesso ------------------------------------------------------------
   if (step === 'done' && result) {
     const when = new Date(result.startAt);
     const whenLabel = `${WEEKDAYS[when.getDay()]}, ${when.getDate()} de ${MONTHS[when.getMonth()]} às ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
@@ -151,119 +183,116 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
 
   return (
     <div className={styles.flow}>
-      <Progress step={step} />
-
       {error && <div className={styles.error}>{error}</div>}
 
+      {/* 1. Serviço */}
       {step === 'service' && (
         <section>
-          <h2 className={styles.stepTitle}>Qual serviço?</h2>
-          <div className={styles.list}>
+          <h2 className={styles.stepTitle}>Escolha o serviço</h2>
+          <div className={styles.serviceList}>
             {data.services.map((s) => (
-              <button
-                key={s.id}
-                className={styles.card}
-                onClick={() => {
-                  setServiceId(s.id);
-                  setProfessionalId(null);
-                  setStep('professional');
-                }}
-              >
-                <span className={styles.cardTitle}>{s.name}</span>
-                <span className={styles.cardMeta}>
-                  {s.durationMinutes} min {formatPrice(s.priceCents) && `· ${formatPrice(s.priceCents)}`}
-                </span>
+              <button key={s.id} className={styles.serviceRow} onClick={() => pickService(s.id)}>
+                <div>
+                  <div className={styles.serviceName}>{s.name}</div>
+                  <div className={styles.serviceMeta}>
+                    {formatPrice(s.priceCents) && (
+                      <span className={styles.servicePrice}>{formatPrice(s.priceCents)}</span>
+                    )}
+                    <span>{s.durationMinutes} min</span>
+                  </div>
+                </div>
+                <span className={styles.agendarBtn}>Agendar</span>
               </button>
             ))}
           </div>
         </section>
       )}
 
-      {step === 'professional' && (
+      {/* 2. Profissional + data + horários (uma tela) */}
+      {step === 'schedule' && service && (
         <section>
-          <button className={styles.back} onClick={() => setStep('service')}>← Voltar</button>
-          <h2 className={styles.stepTitle}>Com quem?</h2>
-          <div className={styles.list}>
+          <button className={styles.back} onClick={() => setStep('service')}>
+            ← {service.name}
+          </button>
+
+          <h2 className={styles.stepTitle}>Selecione o profissional</h2>
+          <div className={styles.avatarRow}>
             <button
-              className={styles.card}
+              className={`${styles.avatar} ${professionalId === null ? styles.avatarSelected : ''}`}
               onClick={() => {
                 setProfessionalId(null);
-                setStep('datetime');
+                setSlot(null);
               }}
             >
-              <span className={styles.cardTitle}>Qualquer profissional</span>
-              <span className={styles.cardMeta}>primeiro horário disponível</span>
+              <span className={styles.avatarCircle}>
+                <PeopleIcon />
+              </span>
+              <span className={styles.avatarName}>Qualquer</span>
             </button>
             {eligiblePros.map((p) => (
               <button
                 key={p.id}
-                className={styles.card}
+                className={`${styles.avatar} ${professionalId === p.id ? styles.avatarSelected : ''}`}
                 onClick={() => {
                   setProfessionalId(p.id);
-                  setStep('datetime');
+                  setSlot(null);
                 }}
               >
-                <span className={styles.cardTitle}>{p.name}</span>
+                <span className={styles.avatarCircle}>{initials(p.name).toUpperCase()}</span>
+                <span className={styles.avatarName}>{p.name}</span>
               </button>
             ))}
           </div>
-        </section>
-      )}
 
-      {step === 'datetime' && (
-        <section>
-          <button className={styles.back} onClick={() => setStep('professional')}>← Voltar</button>
-          <h2 className={styles.stepTitle}>Quando?</h2>
+          <div className={styles.divider} />
+
           <div className={styles.dateStrip}>
             {days.map((d) => (
               <button
                 key={d.iso}
-                className={`${styles.dateChip} ${date === d.iso ? styles.dateChipActive : ''}`}
-                onClick={() => pickDate(d.iso)}
+                className={styles.dateChip}
+                onClick={() => {
+                  manualDate.current = true;
+                  setDate(d.iso);
+                  setSlot(null);
+                }}
               >
                 <span className={styles.dateWeekday}>{d.weekday}</span>
-                <span className={styles.dateDay}>{d.day}</span>
-                <span className={styles.dateMonth}>{d.month}</span>
+                <span className={`${styles.dateNum} ${date === d.iso ? styles.dateNumActive : ''}`}>
+                  {d.day}
+                </span>
               </button>
             ))}
           </div>
 
-          {loading && <p className={styles.hint}>Carregando horários…</p>}
-          {!loading && date && displaySlots.length === 0 && (
-            <p className={styles.hint}>Sem horários nesse dia. Tente outro.</p>
+          <h2 className={styles.stepTitle}>Horários disponíveis</h2>
+          {loading && <p className={styles.hint}>Procurando horários…</p>}
+          {!loading && displaySlots.length === 0 && (
+            <p className={styles.hint}>Sem horários nesse dia — toque em outro dia acima ☝️</p>
           )}
-          <div className={styles.slotGrid}>
-            {displaySlots.map((s) => (
-              <button
-                key={s.startAt}
-                className={`${styles.slot} ${slot?.startAt === s.startAt ? styles.slotActive : ''}`}
-                onClick={() => {
-                  setSlot(s);
-                  setStep('details');
-                }}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+
+          {!loading && manha.length > 0 && (
+            <SlotSection label="Manhã" slots={manha} onPick={(s) => { setSlot(s); setStep('details'); }} active={slot} />
+          )}
+          {!loading && tarde.length > 0 && (
+            <SlotSection label="Tarde" slots={tarde} onPick={(s) => { setSlot(s); setStep('details'); }} active={slot} />
+          )}
         </section>
       )}
 
+      {/* 3. Dados */}
       {step === 'details' && service && slot && (
         <section>
-          <button className={styles.back} onClick={() => setStep('datetime')}>← Voltar</button>
+          <button className={styles.back} onClick={() => setStep('schedule')}>
+            ← Voltar
+          </button>
           <h2 className={styles.stepTitle}>Seus dados</h2>
           <div className={styles.summary}>
             {service.name} · {slot.label}
           </div>
           <label className={styles.label}>
             Nome
-            <input
-              className={styles.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Seu nome"
-            />
+            <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
           </label>
           <label className={styles.label}>
             WhatsApp
@@ -294,17 +323,35 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   );
 }
 
-function Progress({ step }: { step: Step }) {
-  const order: Step[] = ['service', 'professional', 'datetime', 'details'];
-  const current = order.indexOf(step);
+function SlotSection({
+  label,
+  slots,
+  active,
+  onPick,
+}: {
+  label: string;
+  slots: DisplaySlot[];
+  active: DisplaySlot | null;
+  onPick: (s: DisplaySlot) => void;
+}) {
   return (
-    <div className={styles.progress}>
-      {order.map((s, i) => (
-        <span
-          key={s}
-          className={`${styles.progressDot} ${i <= current ? styles.progressDotActive : ''}`}
-        />
-      ))}
+    <div className={styles.daySection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionLabel}>{label}</span>
+        <span className={styles.sectionLine} />
+        <span className={styles.sectionCount}>{slots.length} horários</span>
+      </div>
+      <div className={styles.slotGrid}>
+        {slots.map((s) => (
+          <button
+            key={s.startAt}
+            className={`${styles.slot} ${active?.startAt === s.startAt ? styles.slotActive : ''}`}
+            onClick={() => onPick(s)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
