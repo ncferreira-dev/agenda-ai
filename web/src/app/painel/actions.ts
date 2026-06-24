@@ -195,6 +195,25 @@ export async function saveAppearance(_prev: ActionState, form: FormData): Promis
   return OK;
 }
 
+// --- Pagamentos (sinal) --------------------------------------------------
+
+export async function savePayments(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const requireDeposit = form.get('requireDeposit') === 'on';
+  const depositCents = requireDeposit ? reais(form.get('valor')) : null;
+
+  if (requireDeposit && (!depositCents || depositCents <= 0)) {
+    return { ok: false, error: 'Defina um valor de sinal maior que zero.' };
+  }
+
+  const res = await authFetch('/me/business', {
+    method: 'PATCH',
+    body: JSON.stringify({ requireDeposit, depositCents }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/pagamentos');
+  return OK;
+}
+
 // --- Agenda --------------------------------------------------------------
 
 export async function cancelAppointment(form: FormData): Promise<void> {

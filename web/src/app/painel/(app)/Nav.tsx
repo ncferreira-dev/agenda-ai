@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/painel/profissionais', label: 'Profissionais' },
   { href: '/painel/bloqueios', label: 'Bloqueios' },
   { href: '/painel/aparencia', label: 'Aparência' },
+  { href: '/painel/pagamentos', label: 'Pagamentos' },
 ];
 
 export function Nav({ businessName, slug }: { businessName: string; slug: string }) {

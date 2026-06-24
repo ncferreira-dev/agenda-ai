@@ -116,6 +116,11 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         phone: normalizePhone(phone),
         notes: notes.trim() || undefined,
       });
+      // Exige sinal: manda pro Checkout do Stripe. Volta em /{slug}?pago=1.
+      if (res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+        return;
+      }
       setResult(res);
       setStep('done');
     } catch (e: any) {

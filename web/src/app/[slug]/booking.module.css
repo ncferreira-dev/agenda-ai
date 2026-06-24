@@ -69,6 +69,24 @@
   text-decoration: underline;
 }
 
+.banner {
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+.bannerOk {
+  background: #e3efe7;
+  color: #2f6b4f;
+  border: 1px solid #bfe0cc;
+}
+.bannerWarn {
+  background: #f5ead2;
+  color: #8a5a10;
+  border: 1px solid #e6d2a6;
+}
+
 .footer {
   margin-top: 40px;
   padding-top: 20px;

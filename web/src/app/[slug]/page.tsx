@@ -4,8 +4,15 @@ import { getBusinessPage } from '@/lib/api';
 import { BookingFlow } from './BookingFlow';
 import styles from './booking.module.css';
 
-export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ pago?: string; pagamento?: string }>;
+}) {
   const { slug } = await params;
+  const sp = await searchParams;
 
   let data;
   try {
@@ -49,6 +56,17 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           </a>
         )}
       </header>
+
+      {sp.pago === '1' && (
+        <div className={`${styles.banner} ${styles.bannerOk}`}>
+          Pagamento recebido! Seu horário está confirmado. ✓
+        </div>
+      )}
+      {sp.pagamento === 'cancelado' && (
+        <div className={`${styles.banner} ${styles.bannerWarn}`}>
+          Pagamento não concluído — o horário não foi reservado. Pode tentar de novo.
+        </div>
+      )}
 
       <BookingFlow slug={slug} data={data} />
 

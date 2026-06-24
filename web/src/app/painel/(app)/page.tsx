@@ -71,6 +71,12 @@ export default async function AgendaPage() {
                           </div>
                         </div>
                         <div className={styles.rowActions}>
+                          {a.paymentStatus === 'PENDING' && (
+                            <span className={`${styles.chip} ${styles.chipWarn}`}>aguardando sinal</span>
+                          )}
+                          {a.paymentStatus === 'PAID' && (
+                            <span className={`${styles.chip} ${styles.chipOk}`}>sinal pago</span>
+                          )}
                           {a.confirmedByCustomer ? (
                             <span className={`${styles.chip} ${styles.chipOk}`}>✓ cliente confirmou</span>
                           ) : (

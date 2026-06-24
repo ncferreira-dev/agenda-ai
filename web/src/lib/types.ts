@@ -45,4 +45,7 @@ export interface BookingResult {
   service: string;
   professional: string;
   startAt: string;
+  paymentStatus: 'NONE' | 'PENDING' | 'PAID';
+  // Se o negócio exige sinal, o front redireciona pra cá pra pagar.
+  checkoutUrl: string | null;
 }

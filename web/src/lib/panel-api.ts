@@ -37,6 +37,8 @@ export interface Me {
     accentColor: string | null;
     about: string | null;
     instagramUrl: string | null;
+    requireDeposit: boolean;
+    depositCents: number | null;
   };
 }
 
@@ -75,6 +77,7 @@ export interface Appointment {
   startAt: string;
   endAt: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
+  paymentStatus: 'NONE' | 'PENDING' | 'PAID';
   confirmedByCustomer: boolean;
   service: string;
   professional: string;

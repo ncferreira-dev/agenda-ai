@@ -149,6 +149,7 @@ export class PanelService {
       startAt: a.startAt.toISOString(),
       endAt: a.endAt.toISOString(),
       status: a.status,
+      paymentStatus: a.paymentStatus,
       confirmedByCustomer: a.customerConfirmedAt !== null,
       service: a.service.name,
       professional: a.professional.name,

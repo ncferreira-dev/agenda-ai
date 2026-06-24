@@ -760,6 +760,34 @@ textarea.input {
   font-family: inherit;
 }
 
+/* =========================================================================
+   PAGAMENTOS (toggle do sinal)
+   ========================================================================= */
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+.switchRow input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.switchTitle {
+  display: block;
+  font-weight: 600;
+  font-size: 15.5px;
+}
+.switchHint {
+  display: block;
+  color: var(--muted);
+  font-size: 13.5px;
+  margin-top: 2px;
+}
+
 /* animações de entrada */
 @keyframes rise {
   from {
