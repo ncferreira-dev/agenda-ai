@@ -9,6 +9,7 @@ const LINKS = [
   { href: '/painel/servicos', label: 'Serviços' },
   { href: '/painel/profissionais', label: 'Profissionais' },
   { href: '/painel/bloqueios', label: 'Bloqueios' },
+  { href: '/painel/negocio', label: 'Negócio' },
   { href: '/painel/aparencia', label: 'Aparência' },
   { href: '/painel/pagamentos', label: 'Pagamentos' },
   { href: '/painel/perfil', label: 'Perfil' },

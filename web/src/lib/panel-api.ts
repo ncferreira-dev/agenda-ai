@@ -40,6 +40,9 @@ export interface Me {
     slug: string;
     timezone: string;
     phone: string | null;
+    slotStepMinutes: number;
+    minLeadMinutes: number;
+    maxAdvanceDays: number;
     logoUrl: string | null;
     coverUrl: string | null;
     accentColor: string | null;

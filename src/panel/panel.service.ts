@@ -25,6 +25,9 @@ export class PanelService {
     slug: true,
     timezone: true,
     phone: true,
+    slotStepMinutes: true,
+    minLeadMinutes: true,
+    maxAdvanceDays: true,
     logoUrl: true,
     coverUrl: true,
     accentColor: true,
@@ -33,6 +36,20 @@ export class PanelService {
     requireDeposit: true,
     depositCents: true,
   } as const;
+
+  // Fusos suportados (Brasil). Evita gravar timezone inválido (quebraria o motor).
+  private static readonly TIMEZONES = [
+    'America/Sao_Paulo',
+    'America/Bahia',
+    'America/Fortaleza',
+    'America/Recife',
+    'America/Manaus',
+    'America/Cuiaba',
+    'America/Campo_Grande',
+    'America/Belem',
+    'America/Rio_Branco',
+    'America/Noronha',
+  ];
 
   /** Dados do negócio do dono logado (inclui branding). */
   getBusiness(businessId: string) {
@@ -54,9 +71,34 @@ export class PanelService {
       coverUrl?: string;
       requireDeposit?: boolean;
       depositCents?: number | null;
+      phone?: string;
+      timezone?: string;
+      slotStepMinutes?: number;
+      minLeadMinutes?: number;
+      maxAdvanceDays?: number;
     },
   ) {
     const data: Record<string, unknown> = {};
+
+    if (input.phone !== undefined) {
+      const digits = input.phone.replace(/\D/g, '');
+      data.phone = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : null;
+    }
+    if (input.timezone !== undefined) {
+      if (!PanelService.TIMEZONES.includes(input.timezone)) {
+        throw new BadRequestException('Fuso horário inválido.');
+      }
+      data.timezone = input.timezone;
+    }
+    if (input.slotStepMinutes !== undefined) {
+      data.slotStepMinutes = this.requireRange(input.slotStepMinutes, 5, 120, 'passo dos horários');
+    }
+    if (input.minLeadMinutes !== undefined) {
+      data.minLeadMinutes = this.requireRange(input.minLeadMinutes, 0, 10080, 'antecedência mínima');
+    }
+    if (input.maxAdvanceDays !== undefined) {
+      data.maxAdvanceDays = this.requireRange(input.maxAdvanceDays, 1, 365, 'janela de agendamento');
+    }
 
     if (input.requireDeposit !== undefined) data.requireDeposit = Boolean(input.requireDeposit);
     if (input.depositCents !== undefined) {
@@ -101,6 +143,13 @@ export class PanelService {
       throw new BadRequestException('Cor inválida. Use hex no formato #RRGGBB.');
     }
     return v.toUpperCase();
+  }
+
+  private requireRange(value: number, min: number, max: number, label: string): number {
+    if (!Number.isInteger(value) || value < min || value > max) {
+      throw new BadRequestException(`Valor de ${label} deve ser um inteiro entre ${min} e ${max}.`);
+    }
+    return value;
   }
 
   // URL http(s); vazio limpa (null).

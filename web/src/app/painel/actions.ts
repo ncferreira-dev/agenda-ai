@@ -195,6 +195,23 @@ export async function saveAppearance(_prev: ActionState, form: FormData): Promis
   return OK;
 }
 
+// --- Negócio (config operacional) ----------------------------------------
+
+export async function saveBusiness(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const body = {
+    name: String(form.get('name') ?? ''),
+    phone: String(form.get('phone') ?? ''),
+    timezone: String(form.get('timezone') ?? ''),
+    slotStepMinutes: Number(form.get('slotStepMinutes')),
+    minLeadMinutes: Number(form.get('minLeadMinutes')),
+    maxAdvanceDays: Number(form.get('maxAdvanceDays')),
+  };
+  const res = await authFetch('/me/business', { method: 'PATCH', body: JSON.stringify(body) });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/negocio');
+  return OK;
+}
+
 // --- Perfil do dono ------------------------------------------------------
 
 export async function saveProfile(_prev: ActionState, form: FormData): Promise<ActionState> {

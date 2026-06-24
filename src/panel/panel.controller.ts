@@ -54,6 +54,11 @@ export class PanelController {
       coverUrl?: string;
       requireDeposit?: boolean;
       depositCents?: number | null;
+      phone?: string;
+      timezone?: string;
+      slotStepMinutes?: number;
+      minLeadMinutes?: number;
+      maxAdvanceDays?: number;
     },
   ) {
     return this.panel.updateBusiness(businessId, body);
