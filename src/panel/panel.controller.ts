@@ -17,8 +17,27 @@ export class PanelController {
     @CurrentOwner() owner: AuthenticatedOwner,
     @CurrentBusiness() businessId: string,
   ) {
-    const business = await this.panel.getBusiness(businessId);
-    return { owner: { id: owner.ownerId, email: owner.email }, business };
+    const [profile, business] = await Promise.all([
+      this.panel.getOwner(owner.ownerId),
+      this.panel.getBusiness(businessId),
+    ]);
+    return { owner: profile, business };
+  }
+
+  /** Atualiza o perfil do dono (nome, telefone, CPF, CEP, foto). */
+  @Patch('profile')
+  updateProfile(
+    @CurrentOwner() owner: AuthenticatedOwner,
+    @Body()
+    body: {
+      name?: string;
+      phone?: string;
+      cpf?: string;
+      cep?: string;
+      photoUrl?: string;
+    },
+  ) {
+    return this.panel.updateOwner(owner.ownerId, body);
   }
 
   /** Atualiza dados e branding do negócio (tela "Aparência"). */

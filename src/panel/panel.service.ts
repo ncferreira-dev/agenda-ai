@@ -113,6 +113,89 @@ export class PanelService {
     return v;
   }
 
+  // --- Perfil do dono ----------------------------------------------------
+
+  private static readonly OWNER_SELECT = {
+    id: true,
+    email: true,
+    name: true,
+    phone: true,
+    cpf: true,
+    cep: true,
+    photoUrl: true,
+  } as const;
+
+  getOwner(ownerId: string) {
+    return this.prisma.owner.findUniqueOrThrow({
+      where: { id: ownerId },
+      select: PanelService.OWNER_SELECT,
+    });
+  }
+
+  async updateOwner(
+    ownerId: string,
+    input: {
+      name?: string;
+      phone?: string;
+      cpf?: string;
+      cep?: string;
+      photoUrl?: string;
+    },
+  ) {
+    const data: Record<string, unknown> = {};
+
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      if (!name) throw new BadRequestException('O nome não pode ficar vazio.');
+      data.name = name;
+    }
+    if (input.phone !== undefined) data.phone = this.normalizePhone(input.phone);
+    if (input.cep !== undefined) data.cep = this.normalizeCep(input.cep);
+    if (input.cpf !== undefined) data.cpf = this.normalizeCpf(input.cpf);
+    if (input.photoUrl !== undefined) data.photoUrl = this.normalizeUrl(input.photoUrl);
+
+    return this.prisma.owner.update({
+      where: { id: ownerId },
+      data,
+      select: PanelService.OWNER_SELECT,
+    });
+  }
+
+  private normalizePhone(value: string): string | null {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.length < 10 || digits.length > 13) {
+      throw new BadRequestException('Telefone inválido.');
+    }
+    return digits.startsWith('55') ? digits : `55${digits}`;
+  }
+
+  private normalizeCep(value: string): string | null {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.length !== 8) throw new BadRequestException('CEP deve ter 8 dígitos.');
+    return digits;
+  }
+
+  // Valida CPF (11 dígitos + dígitos verificadores). Vazio limpa (null).
+  private normalizeCpf(value: string): string | null {
+    const cpf = value.replace(/\D/g, '');
+    if (!cpf) return null;
+    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
+      throw new BadRequestException('CPF inválido.');
+    }
+    const calcDigit = (len: number): number => {
+      let sum = 0;
+      for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
+      const rest = (sum * 10) % 11;
+      return rest === 10 ? 0 : rest;
+    };
+    if (calcDigit(9) !== Number(cpf[9]) || calcDigit(10) !== Number(cpf[10])) {
+      throw new BadRequestException('CPF inválido.');
+    }
+    return cpf;
+  }
+
   /**
    * Agendamentos DO negócio (não de um cliente). Sem filtro, lista os ativos
    * de agora pra frente (dia/semana é só estreitar from/to no painel).

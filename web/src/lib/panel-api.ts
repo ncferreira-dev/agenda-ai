@@ -25,7 +25,15 @@ async function getJson<T>(path: string): Promise<T> {
 // --- Tipos ---------------------------------------------------------------
 
 export interface Me {
-  owner: { id: string; email: string };
+  owner: {
+    id: string;
+    email: string;
+    name: string;
+    phone: string | null;
+    cpf: string | null;
+    cep: string | null;
+    photoUrl: string | null;
+  };
   business: {
     id: string;
     name: string;

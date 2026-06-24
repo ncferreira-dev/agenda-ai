@@ -788,6 +788,47 @@ textarea.input {
   margin-top: 2px;
 }
 
+/* =========================================================================
+   PERFIL (foto do dono)
+   ========================================================================= */
+.profileTop {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.avatarUpload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+.avatarPhoto {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+.avatarFallback {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-display), serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+.avatarEdit {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* animações de entrada */
 @keyframes rise {
   from {

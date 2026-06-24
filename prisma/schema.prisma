@@ -59,6 +59,12 @@ model Owner {
   passwordHash String // hash argon2; senha em texto nunca é gravada nem logada
   name         String
 
+  // Perfil do dono
+  phone    String? // E.164
+  cpf      String? // só dígitos
+  cep      String? // só dígitos
+  photoUrl String? // foto de perfil
+
   createdAt DateTime @default(now())
 
   @@index([businessId])

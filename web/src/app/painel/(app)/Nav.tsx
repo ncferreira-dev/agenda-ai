@@ -11,6 +11,7 @@ const LINKS = [
   { href: '/painel/bloqueios', label: 'Bloqueios' },
   { href: '/painel/aparencia', label: 'Aparência' },
   { href: '/painel/pagamentos', label: 'Pagamentos' },
+  { href: '/painel/perfil', label: 'Perfil' },
 ];
 
 export function Nav({ businessName, slug }: { businessName: string; slug: string }) {

@@ -195,6 +195,29 @@ export async function saveAppearance(_prev: ActionState, form: FormData): Promis
   return OK;
 }
 
+// --- Perfil do dono ------------------------------------------------------
+
+export async function saveProfile(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const patch: Record<string, string> = {
+    name: String(form.get('name') ?? ''),
+    phone: String(form.get('phone') ?? ''),
+    cpf: String(form.get('cpf') ?? ''),
+    cep: String(form.get('cep') ?? ''),
+  };
+
+  const photo = form.get('photo');
+  try {
+    if (photo instanceof File && photo.size > 0) patch.photoUrl = await uploadFile(photo);
+  } catch {
+    return { ok: false, error: 'Falha ao enviar a foto. Tente um arquivo menor.' };
+  }
+
+  const res = await authFetch('/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/perfil');
+  return OK;
+}
+
 // --- Pagamentos (sinal) --------------------------------------------------
 
 export async function savePayments(_prev: ActionState, form: FormData): Promise<ActionState> {
