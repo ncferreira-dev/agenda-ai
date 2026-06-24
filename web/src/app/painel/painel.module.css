@@ -163,6 +163,84 @@
   font-size: 13.5px;
 }
 
+/* --- Botões de login social --- */
+.social {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 10px;
+  border: 1px solid transparent;
+  transition: filter 0.15s, background 0.15s;
+}
+.social:hover {
+  filter: brightness(0.98);
+}
+.socialGoogle {
+  background: #fff;
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.socialApple {
+  background: #111;
+  color: #fff;
+}
+.socialFacebook {
+  background: #1877f2;
+  color: #fff;
+}
+.socialEmail {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.orRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 14px;
+}
+.orLine {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.orText {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.notice {
+  margin: 0 0 14px;
+  padding: 10px 13px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+}
+
+.methodBack {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.methodBack:hover {
+  color: var(--ink);
+}
+
 /* =========================================================================
    SHELL (nav + conteúdo)
    ========================================================================= */
