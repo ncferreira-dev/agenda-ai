@@ -119,7 +119,7 @@ export class PublicBookingController {
     const business = await this.resolveBusiness(slug);
 
     const customer = await this.booking.findOrCreateCustomer(business.id, phone, name);
-    const appt = await this.booking.createAppointment({
+    const { appointment: appt, checkoutUrl } = await this.booking.createAppointment({
       businessId: business.id,
       customerId: customer.id,
       professionalId,
@@ -133,6 +133,9 @@ export class PublicBookingController {
       service: appt.service.name,
       professional: appt.professional.name,
       startAt: appt.startAt.toISOString(),
+      paymentStatus: appt.paymentStatus,
+      // Se exige sinal, o front redireciona pra cá pra pagar e confirmar.
+      checkoutUrl: checkoutUrl ?? null,
     };
   }
 }

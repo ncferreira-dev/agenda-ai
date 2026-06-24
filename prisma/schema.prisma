@@ -32,6 +32,10 @@ model Business {
   about        String? // texto "Sobre"
   instagramUrl String? // link do Instagram
 
+  // Sinal (Fase 5) — cobrança no ato pra derrubar no-show.
+  requireDeposit Boolean @default(false)
+  depositCents   Int? // valor fixo do sinal por negócio
+
   owners        Owner[]
   professionals Professional[]
   services      Service[]
@@ -142,6 +146,12 @@ model Customer {
   @@index([businessId])
 }
 
+enum PaymentStatus {
+  NONE // não exige sinal
+  PENDING // aguardando pagamento do sinal
+  PAID // sinal pago
+}
+
 enum AppointmentStatus {
   PENDING // criado, aguardando confirmação (se o negócio exigir)
   CONFIRMED // confirmado
@@ -172,6 +182,13 @@ model Appointment {
   reminderSentAt     DateTime?
   confirmationSentAt DateTime?
   customerConfirmedAt DateTime? // quando o cliente respondeu SIM ao lembrete
+
+  // Sinal (Fase 5)
+  paymentStatus   PaymentStatus @default(NONE)
+  depositCents    Int? // valor do sinal cobrado neste agendamento
+  stripeSessionId String? // Checkout Session do Stripe
+  paidAt          DateTime?
+  holdExpiresAt   DateTime? // se PENDING não pagar até aqui, libera o horário
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

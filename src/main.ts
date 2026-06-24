@@ -11,7 +11,8 @@ export const UPLOADS_DIR = join(process.cwd(), 'uploads');
 async function bootstrap(): Promise<void> {
   mkdirSync(UPLOADS_DIR, { recursive: true });
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: true preserva o corpo cru pro webhook do Stripe validar a assinatura.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   // Libera o frontend Next (página pública) a chamar a API do navegador.
   app.enableCors({

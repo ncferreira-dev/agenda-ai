@@ -30,6 +30,8 @@ export class PanelService {
     accentColor: true,
     about: true,
     instagramUrl: true,
+    requireDeposit: true,
+    depositCents: true,
   } as const;
 
   /** Dados do negócio do dono logado (inclui branding). */
@@ -50,9 +52,22 @@ export class PanelService {
       instagramUrl?: string;
       logoUrl?: string;
       coverUrl?: string;
+      requireDeposit?: boolean;
+      depositCents?: number | null;
     },
   ) {
     const data: Record<string, unknown> = {};
+
+    if (input.requireDeposit !== undefined) data.requireDeposit = Boolean(input.requireDeposit);
+    if (input.depositCents !== undefined) {
+      if (input.depositCents === null) {
+        data.depositCents = null;
+      } else if (!Number.isInteger(input.depositCents) || input.depositCents < 0) {
+        throw new BadRequestException('O valor do sinal deve ser um inteiro em centavos (>= 0).');
+      } else {
+        data.depositCents = input.depositCents;
+      }
+    }
 
     if (input.name !== undefined) {
       const name = input.name.trim();

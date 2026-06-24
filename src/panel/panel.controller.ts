@@ -33,6 +33,8 @@ export class PanelController {
       instagramUrl?: string;
       logoUrl?: string;
       coverUrl?: string;
+      requireDeposit?: boolean;
+      depositCents?: number | null;
     },
   ) {
     return this.panel.updateBusiness(businessId, body);
