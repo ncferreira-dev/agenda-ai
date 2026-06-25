@@ -26,6 +26,17 @@ export default async function AgendaPage() {
     (grupos.get(key) ?? grupos.set(key, []).get(key)!).push(a);
   }
 
+  // Resumo: hoje, próximos 7 dias e receita prevista (dos ativos à frente).
+  const hojeKey = DateTime.now().setZone(tz).toFormat('yyyy-MM-dd');
+  const limite7 = DateTime.now().setZone(tz).plus({ days: 7 });
+  const hojeCount = (grupos.get(hojeKey) ?? []).length;
+  const semanaCount = appts.filter((a) => DateTime.fromISO(a.startAt).setZone(tz) <= limite7).length;
+  const receitaCents = appts.reduce((s, a) => s + a.priceCents, 0);
+  const receita = (receitaCents / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+
   const origin = process.env.NEXT_PUBLIC_SITE_ORIGIN ?? 'http://localhost:3001';
 
   return (
@@ -35,6 +46,21 @@ export default async function AgendaPage() {
           <p className={styles.eyebrow}>Painel</p>
           <h1 className={styles.h1}>Agenda</h1>
           <p className={styles.lead}>Seus próximos atendimentos, do mais cedo ao mais tarde.</p>
+        </div>
+      </div>
+
+      <div className={styles.stats}>
+        <div className={styles.statCard}>
+          <span className={styles.statNum}>{hojeCount}</span>
+          <span className={styles.statLabel}>hoje</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statNum}>{semanaCount}</span>
+          <span className={styles.statLabel}>próximos 7 dias</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statNum}>{receita}</span>
+          <span className={styles.statLabel}>receita prevista</span>
         </div>
       </div>
 

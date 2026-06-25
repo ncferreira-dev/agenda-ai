@@ -277,7 +277,7 @@ export class PanelService {
       where: { businessId, status, startAt },
       orderBy: { startAt: 'asc' },
       include: {
-        service: { select: { name: true } },
+        service: { select: { name: true, priceCents: true } },
         professional: { select: { name: true } },
         customer: { select: { name: true, phone: true } },
       },
@@ -291,6 +291,7 @@ export class PanelService {
       paymentStatus: a.paymentStatus,
       confirmedByCustomer: a.customerConfirmedAt !== null,
       service: a.service.name,
+      priceCents: a.service.priceCents,
       professional: a.professional.name,
       customer: { name: a.customer.name, phone: a.customer.phone },
     }));

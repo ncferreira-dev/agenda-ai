@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { saveProfile, type ActionState } from '../../actions';
+import { MaskedInput } from '../../MaskedInput';
 import type { Me } from '@/lib/panel-api';
 import styles from '../../painel.module.css';
 
@@ -69,17 +70,17 @@ export function ProfileForm({ owner }: { owner: Me['owner'] }) {
       <div className={styles.formRow}>
         <label className={styles.field}>
           <span className={styles.label}>Telefone</span>
-          <input className={styles.input} name="phone" defaultValue={owner.phone ?? ''} placeholder="(11) 99999-9999" inputMode="tel" />
+          <MaskedInput kind="phone" className={styles.input} name="phone" defaultValue={owner.phone} placeholder="(11) 99999-9999" />
         </label>
         <label className={styles.field}>
           <span className={styles.label}>CEP</span>
-          <input className={styles.input} name="cep" defaultValue={owner.cep ?? ''} placeholder="00000-000" inputMode="numeric" />
+          <MaskedInput kind="cep" className={styles.input} name="cep" defaultValue={owner.cep} placeholder="00000-000" />
         </label>
       </div>
 
       <label className={styles.field}>
         <span className={styles.label}>CPF</span>
-        <input className={styles.input} name="cpf" defaultValue={owner.cpf ?? ''} placeholder="000.000.000-00" inputMode="numeric" />
+        <MaskedInput kind="cpf" className={styles.input} name="cpf" defaultValue={owner.cpf} placeholder="000.000.000-00" />
       </label>
 
       <div className={styles.toolbar} style={{ gap: 10, alignItems: 'center' }}>

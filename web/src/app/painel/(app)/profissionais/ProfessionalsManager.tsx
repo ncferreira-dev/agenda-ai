@@ -9,6 +9,7 @@ import {
   type ActionState,
 } from '../../actions';
 import type { Professional, Service, WorkingHour } from '@/lib/panel-api';
+import { MaskedInput } from '../../MaskedInput';
 import { HoursEditor } from './HoursEditor';
 import styles from '../../painel.module.css';
 
@@ -57,11 +58,11 @@ function IdentityFields({ pro }: { pro?: Professional }) {
       <div className={styles.formRow}>
         <label className={styles.field}>
           <span className={styles.label}>Telefone</span>
-          <input className={styles.input} name="phone" defaultValue={pro?.phone ?? ''} placeholder="(11) 99999-9999" inputMode="tel" />
+          <MaskedInput kind="phone" className={styles.input} name="phone" defaultValue={pro?.phone} placeholder="(11) 99999-9999" />
         </label>
         <label className={styles.field}>
           <span className={styles.label}>CPF</span>
-          <input className={styles.input} name="cpf" defaultValue={pro?.cpf ?? ''} placeholder="000.000.000-00" inputMode="numeric" />
+          <MaskedInput kind="cpf" className={styles.input} name="cpf" defaultValue={pro?.cpf} placeholder="000.000.000-00" />
         </label>
       </div>
     </>

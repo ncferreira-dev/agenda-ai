@@ -189,6 +189,11 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       {step === 'service' && (
         <section>
           <h2 className={styles.stepTitle}>Escolha o serviço</h2>
+          {data.services.length === 0 && (
+            <p className={styles.hint}>
+              Este negócio ainda está montando a agenda. Volte em breve! 🙂
+            </p>
+          )}
           <div className={styles.serviceList}>
             {data.services.map((s) => (
               <button key={s.id} className={styles.serviceRow} onClick={() => pickService(s.id)}>

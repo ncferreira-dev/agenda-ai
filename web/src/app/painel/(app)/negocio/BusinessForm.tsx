@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { saveBusiness, type ActionState } from '../../actions';
+import { MaskedInput } from '../../MaskedInput';
 import type { Me } from '@/lib/panel-api';
 import styles from '../../painel.module.css';
 
@@ -54,7 +55,7 @@ export function BusinessForm({ business }: { business: Me['business'] }) {
         <div className={styles.formRow}>
           <label className={styles.field}>
             <span className={styles.label}>WhatsApp do negócio</span>
-            <input className={styles.input} name="phone" defaultValue={business.phone ?? ''} placeholder="5511999998888" inputMode="tel" />
+            <MaskedInput kind="phone" className={styles.input} name="phone" defaultValue={business.phone} placeholder="(11) 99999-8888" />
           </label>
           <label className={styles.field}>
             <span className={styles.label}>Fuso horário</span>

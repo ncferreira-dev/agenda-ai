@@ -95,6 +95,7 @@ export interface Appointment {
   paymentStatus: 'NONE' | 'PENDING' | 'PAID';
   confirmedByCustomer: boolean;
   service: string;
+  priceCents: number;
   professional: string;
   customer: { name: string | null; phone: string };
 }
