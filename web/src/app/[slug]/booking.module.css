@@ -97,6 +97,19 @@
   font-size: 15px;
 }
 
+.address {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+.address:hover {
+  color: var(--ink);
+}
+
 .about {
   margin: 12px 0 0;
   color: #5a5a5e;

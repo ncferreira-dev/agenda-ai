@@ -55,6 +55,7 @@ export class PanelController {
       requireDeposit?: boolean;
       depositCents?: number | null;
       phone?: string;
+      address?: string;
       timezone?: string;
       slotStepMinutes?: number;
       minLeadMinutes?: number;

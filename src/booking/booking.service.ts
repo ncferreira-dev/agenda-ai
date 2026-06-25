@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from '../payments/stripe.service';
 
 const HOLD_MINUTES = 15; // janela pra pagar o sinal antes de liberar o horário
+const FAR_FUTURE_DAYS = 60; // > 2 meses: exige sinal mesmo sem o toggle ligado
+const FAR_FUTURE_DEPOSIT_PCT = 0.3; // sinal padrão p/ data distante quando o negócio não definiu valor
 
 @Injectable()
 export class BookingService {
@@ -131,10 +133,20 @@ export class BookingService {
           throw new ConflictException('Esse horário não está mais disponível.');
         }
 
-        const deposit =
-          business.requireDeposit && business.depositCents && business.depositCents > 0
-            ? business.depositCents
-            : null;
+        // Sinal: ligado pelo dono OU automático pra datas > 2 meses (anti no-show).
+        // Valor: o que o dono definiu; se não definiu, 30% do preço pra data distante.
+        // Só cobra se o Stripe estiver configurado (senão segue sem sinal).
+        const farFuture = startAt.getTime() > Date.now() + FAR_FUTURE_DAYS * 86_400_000;
+        let deposit: number | null = null;
+        if ((business.requireDeposit || farFuture) && this.stripe.enabled) {
+          deposit =
+            business.depositCents && business.depositCents > 0
+              ? business.depositCents
+              : farFuture
+                ? Math.round(service.priceCents * FAR_FUTURE_DEPOSIT_PCT)
+                : null;
+          if (!deposit || deposit <= 0) deposit = null;
+        }
 
         const appointment = await tx.appointment.create({
           data: {

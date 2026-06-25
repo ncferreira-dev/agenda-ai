@@ -4,6 +4,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 export interface ProfessionalInput {
   name: string;
   serviceIds?: string[];
+  phone?: string;
+  cpf?: string;
+  photoUrl?: string;
 }
 
 export interface WorkingHourInput {
@@ -22,12 +25,23 @@ export class ProfessionalsService {
     const pros = await this.prisma.professional.findMany({
       where: { businessId },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, active: true, services: { select: { serviceId: true } } },
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        phone: true,
+        cpf: true,
+        photoUrl: true,
+        services: { select: { serviceId: true } },
+      },
     });
     return pros.map((p) => ({
       id: p.id,
       name: p.name,
       active: p.active,
+      phone: p.phone,
+      cpf: p.cpf,
+      photoUrl: p.photoUrl,
       serviceIds: p.services.map((s) => s.serviceId),
     }));
   }
@@ -40,6 +54,9 @@ export class ProfessionalsService {
       data: {
         businessId,
         name,
+        phone: this.normalizePhone(input.phone),
+        cpf: this.normalizeCpf(input.cpf),
+        photoUrl: this.normalizeUrl(input.photoUrl),
         services: serviceIds.length
           ? { create: serviceIds.map((serviceId) => ({ serviceId })) }
           : undefined,
@@ -59,6 +76,9 @@ export class ProfessionalsService {
     const data: Record<string, unknown> = {};
     if (input.name !== undefined) data.name = this.requireName(input.name);
     if (input.active !== undefined) data.active = Boolean(input.active);
+    if (input.phone !== undefined) data.phone = this.normalizePhone(input.phone);
+    if (input.cpf !== undefined) data.cpf = this.normalizeCpf(input.cpf);
+    if (input.photoUrl !== undefined) data.photoUrl = this.normalizeUrl(input.photoUrl);
 
     // Se vier serviceIds, substitui o conjunto de vínculos por completo.
     if (input.serviceIds !== undefined) {
@@ -121,6 +141,39 @@ export class ProfessionalsService {
       select: { id: true },
     });
     if (!found) throw new NotFoundException('Profissional não encontrado.');
+  }
+
+  private normalizePhone(value?: string): string | null {
+    if (value === undefined) return null;
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.length < 10 || digits.length > 13) throw new BadRequestException('Telefone inválido.');
+    return digits.startsWith('55') ? digits : `55${digits}`;
+  }
+
+  private normalizeUrl(value?: string): string | null {
+    if (value === undefined) return null;
+    const v = value.trim();
+    if (!v) return null;
+    if (!/^https?:\/\//.test(v)) throw new BadRequestException('URL de foto inválida.');
+    return v;
+  }
+
+  private normalizeCpf(value?: string): string | null {
+    if (value === undefined) return null;
+    const cpf = value.replace(/\D/g, '');
+    if (!cpf) return null;
+    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) throw new BadRequestException('CPF inválido.');
+    const digit = (len: number): number => {
+      let sum = 0;
+      for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
+      const rest = (sum * 10) % 11;
+      return rest === 10 ? 0 : rest;
+    };
+    if (digit(9) !== Number(cpf[9]) || digit(10) !== Number(cpf[10])) {
+      throw new BadRequestException('CPF inválido.');
+    }
+    return cpf;
   }
 
   private requireName(name: unknown): string {

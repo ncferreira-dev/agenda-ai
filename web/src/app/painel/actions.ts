@@ -64,14 +64,26 @@ export async function setServiceActive(form: FormData): Promise<void> {
 
 // --- Profissionais -------------------------------------------------------
 
+async function professionalBody(form: FormData): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = {
+    name: String(form.get('name') ?? '').trim(),
+    serviceIds: form.getAll('serviceIds').map(String),
+    phone: String(form.get('phone') ?? ''),
+    cpf: String(form.get('cpf') ?? ''),
+  };
+  const photo = form.get('photo');
+  if (photo instanceof File && photo.size > 0) body.photoUrl = await uploadFile(photo);
+  return body;
+}
+
 export async function createProfessional(_prev: ActionState, form: FormData): Promise<ActionState> {
-  const res = await authFetch('/me/professionals', {
-    method: 'POST',
-    body: JSON.stringify({
-      name: String(form.get('name') ?? '').trim(),
-      serviceIds: form.getAll('serviceIds').map(String),
-    }),
-  });
+  let body: Record<string, unknown>;
+  try {
+    body = await professionalBody(form);
+  } catch {
+    return { ok: false, error: 'Falha ao enviar a foto.' };
+  }
+  const res = await authFetch('/me/professionals', { method: 'POST', body: JSON.stringify(body) });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível criar.') };
   revalidatePath('/painel/profissionais');
   return OK;
@@ -79,13 +91,13 @@ export async function createProfessional(_prev: ActionState, form: FormData): Pr
 
 export async function updateProfessional(_prev: ActionState, form: FormData): Promise<ActionState> {
   const id = String(form.get('id'));
-  const res = await authFetch(`/me/professionals/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      name: String(form.get('name') ?? '').trim(),
-      serviceIds: form.getAll('serviceIds').map(String),
-    }),
-  });
+  let body: Record<string, unknown>;
+  try {
+    body = await professionalBody(form);
+  } catch {
+    return { ok: false, error: 'Falha ao enviar a foto.' };
+  }
+  const res = await authFetch(`/me/professionals/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
   revalidatePath('/painel/profissionais');
   return OK;
@@ -201,6 +213,7 @@ export async function saveBusiness(_prev: ActionState, form: FormData): Promise<
   const body = {
     name: String(form.get('name') ?? ''),
     phone: String(form.get('phone') ?? ''),
+    address: String(form.get('address') ?? ''),
     timezone: String(form.get('timezone') ?? ''),
     slotStepMinutes: Number(form.get('slotStepMinutes')),
     minLeadMinutes: Number(form.get('minLeadMinutes')),

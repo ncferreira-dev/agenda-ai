@@ -238,7 +238,12 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
                   setSlot(null);
                 }}
               >
-                <span className={styles.avatarCircle}>{initials(p.name).toUpperCase()}</span>
+                {p.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className={styles.avatarCircle} src={p.photoUrl} alt={p.name} />
+                ) : (
+                  <span className={styles.avatarCircle}>{initials(p.name).toUpperCase()}</span>
+                )}
                 <span className={styles.avatarName}>{p.name}</span>
               </button>
             ))}

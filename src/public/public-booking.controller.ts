@@ -56,6 +56,7 @@ export class PublicBookingController {
       select: {
         id: true,
         name: true,
+        photoUrl: true, // público; phone/cpf NÃO são expostos
         services: { select: { serviceId: true } },
       },
       orderBy: { name: 'asc' },
@@ -68,6 +69,7 @@ export class PublicBookingController {
         slug: business.slug,
         timezone: business.timezone,
         maxAdvanceDays: business.maxAdvanceDays,
+        address: business.address,
         // Branding (Nível 1) — a página pública usa pra vestir a marca.
         logoUrl: business.logoUrl,
         coverUrl: business.coverUrl,
@@ -79,6 +81,7 @@ export class PublicBookingController {
       professionals: professionals.map((p) => ({
         id: p.id,
         name: p.name,
+        photoUrl: p.photoUrl,
         serviceIds: p.services.map((s) => s.serviceId),
       })),
     };

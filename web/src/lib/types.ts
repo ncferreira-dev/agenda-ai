@@ -8,6 +8,7 @@ export interface Service {
 export interface Professional {
   id: string;
   name: string;
+  photoUrl: string | null;
   serviceIds: string[];
 }
 
@@ -18,6 +19,7 @@ export interface BusinessPage {
     slug: string;
     timezone: string;
     maxAdvanceDays: number;
+    address: string | null;
     // Branding (Nível 1) — opcionais.
     logoUrl: string | null;
     coverUrl: string | null;

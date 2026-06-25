@@ -19,6 +19,7 @@ model Business {
   slug      String   @unique // usado na URL da página de agendamento
   timezone  String   @default("America/Sao_Paulo")
   phone     String? // número de WhatsApp do negócio (o que recebe os agendamentos)
+  address   String? // endereço do local de trabalho (mostrado pro cliente)
 
   // Configuração de agenda
   slotStepMinutes   Int @default(15) // granularidade dos horários ofertados
@@ -78,6 +79,11 @@ model Professional {
 
   name     String
   active   Boolean @default(true)
+
+  // Perfil do profissional — a foto aparece pro cliente na página de agendamento.
+  phone    String? // E.164 (uso interno)
+  cpf      String? // só dígitos (uso interno)
+  photoUrl String? // foto de perfil (pública)
 
   workingHours WorkingHour[]
   services     ProfessionalService[]

@@ -67,8 +67,13 @@ export function BusinessForm({ business }: { business: Me['business'] }) {
             </select>
           </label>
         </div>
+        <label className={styles.field}>
+          <span className={styles.label}>Endereço (local de trabalho)</span>
+          <input className={styles.input} name="address" defaultValue={business.address ?? ''} placeholder="Rua, número, bairro, cidade" />
+        </label>
         <p className={styles.rowMeta}>
-          O WhatsApp é o número que recebe os agendamentos (usado pra rotear as mensagens).
+          O WhatsApp é o número que recebe os agendamentos. O endereço aparece pro cliente na página
+          de agendamento, com link pro mapa.
         </p>
       </div>
 

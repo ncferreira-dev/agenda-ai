@@ -25,6 +25,7 @@ export class PanelService {
     slug: true,
     timezone: true,
     phone: true,
+    address: true,
     slotStepMinutes: true,
     minLeadMinutes: true,
     maxAdvanceDays: true,
@@ -72,6 +73,7 @@ export class PanelService {
       requireDeposit?: boolean;
       depositCents?: number | null;
       phone?: string;
+      address?: string;
       timezone?: string;
       slotStepMinutes?: number;
       minLeadMinutes?: number;
@@ -80,6 +82,11 @@ export class PanelService {
   ) {
     const data: Record<string, unknown> = {};
 
+    if (input.address !== undefined) {
+      const address = input.address.trim();
+      if (address.length > 200) throw new BadRequestException('Endereço muito longo (máx. 200).');
+      data.address = address || null;
+    }
     if (input.phone !== undefined) {
       const digits = input.phone.replace(/\D/g, '');
       data.phone = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : null;

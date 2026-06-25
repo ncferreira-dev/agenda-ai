@@ -907,6 +907,38 @@ textarea.input {
   font-weight: 600;
 }
 
+/* --- Avatar do profissional (lista + form) --- */
+.proAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+.proAvatarText {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+}
+.proAvatarBig {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
 /* animações de entrada */
 @keyframes rise {
   from {

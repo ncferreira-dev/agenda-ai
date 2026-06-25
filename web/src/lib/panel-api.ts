@@ -40,6 +40,7 @@ export interface Me {
     slug: string;
     timezone: string;
     phone: string | null;
+    address: string | null;
     slotStepMinutes: number;
     minLeadMinutes: number;
     maxAdvanceDays: number;
@@ -65,6 +66,9 @@ export interface Professional {
   id: string;
   name: string;
   active: boolean;
+  phone: string | null;
+  cpf: string | null;
+  photoUrl: string | null;
   serviceIds: string[];
 }
 

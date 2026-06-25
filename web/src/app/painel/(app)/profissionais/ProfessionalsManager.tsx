@@ -23,6 +23,51 @@ function Submit({ label }: { label: string }) {
   );
 }
 
+function proInitials(name: string): string {
+  const p = name.trim().split(/\s+/);
+  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
+}
+
+// Foto (aparece pro cliente) + telefone + CPF. Usado no criar e no editar.
+function IdentityFields({ pro }: { pro?: Professional }) {
+  const [preview, setPreview] = useState<string | null>(pro?.photoUrl ?? null);
+  return (
+    <>
+      <label className={styles.field}>
+        <span className={styles.label}>Foto (aparece pro cliente)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.thumbLogo} src={preview} alt="" style={{ margin: 0 }} />
+          ) : (
+            <span className={styles.proAvatarBig}>{pro ? proInitials(pro.name) : '+'}</span>
+          )}
+          <input
+            className={styles.file}
+            type="file"
+            name="photo"
+            accept="image/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) setPreview(URL.createObjectURL(f));
+            }}
+          />
+        </div>
+      </label>
+      <div className={styles.formRow}>
+        <label className={styles.field}>
+          <span className={styles.label}>Telefone</span>
+          <input className={styles.input} name="phone" defaultValue={pro?.phone ?? ''} placeholder="(11) 99999-9999" inputMode="tel" />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>CPF</span>
+          <input className={styles.input} name="cpf" defaultValue={pro?.cpf ?? ''} placeholder="000.000.000-00" inputMode="numeric" />
+        </label>
+      </div>
+    </>
+  );
+}
+
 function ServiceChecks({ services, selected }: { services: Service[]; selected: string[] }) {
   return (
     <div className={styles.checks}>
@@ -51,6 +96,7 @@ function CreateForm({ services }: { services: Service[] }) {
         <span className={styles.label}>Nome</span>
         <input className={styles.input} name="name" placeholder="João" required />
       </label>
+      <IdentityFields />
       {services.length > 0 && (
         <label className={styles.field}>
           <span className={styles.label}>Faz quais serviços</span>
@@ -86,6 +132,7 @@ function EditForm({
         <span className={styles.label}>Nome</span>
         <input className={styles.input} name="name" defaultValue={pro.name} required />
       </label>
+      <IdentityFields pro={pro} />
       <label className={styles.field}>
         <span className={styles.label}>Faz quais serviços</span>
         <ServiceChecks services={services} selected={pro.serviceIds} />
@@ -128,15 +175,23 @@ export function ProfessionalsManager({
           professionals.map((p) => (
             <div key={p.id} className={styles.panel}>
               <div className={styles.row}>
-                <div className={styles.rowMain}>
-                  <div className={styles.rowName}>
-                    {p.name}
-                    {!p.active && <span className={`${styles.chip} ${styles.chipOff}`}>inativo</span>}
-                  </div>
-                  <div className={styles.rowMeta}>
-                    {p.serviceIds.length
-                      ? p.serviceIds.map((id) => <span key={id} className={styles.tag} style={{ marginRight: 6 }}>{serviceName(id)}</span>)
-                      : 'sem serviços vinculados'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  {p.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className={styles.proAvatar} src={p.photoUrl} alt="" />
+                  ) : (
+                    <span className={`${styles.proAvatar} ${styles.proAvatarText}`}>{proInitials(p.name)}</span>
+                  )}
+                  <div className={styles.rowMain}>
+                    <div className={styles.rowName}>
+                      {p.name}
+                      {!p.active && <span className={`${styles.chip} ${styles.chipOff}`}>inativo</span>}
+                    </div>
+                    <div className={styles.rowMeta}>
+                      {p.serviceIds.length
+                        ? p.serviceIds.map((id) => <span key={id} className={styles.tag} style={{ marginRight: 6 }}>{serviceName(id)}</span>)
+                        : 'sem serviços vinculados'}
+                    </div>
                   </div>
                 </div>
                 <div className={styles.rowActions}>
