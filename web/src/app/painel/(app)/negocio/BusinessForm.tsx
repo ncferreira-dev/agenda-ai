@@ -93,6 +93,10 @@ export function BusinessForm({ business }: { business: Me['business'] }) {
             <span className={styles.label}>Janela (dias à frente)</span>
             <input className={styles.input} name="maxAdvanceDays" type="number" min={1} max={365} defaultValue={business.maxAdvanceDays} />
           </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Lembrete (horas antes)</span>
+            <input className={styles.input} name="reminderHoursBefore" type="number" min={1} max={168} defaultValue={business.reminderHoursBefore} />
+          </label>
         </div>
         <p className={styles.rowMeta}>
           Passo = de quanto em quanto tempo os horários são ofertados. Antecedência = quanto antes o cliente

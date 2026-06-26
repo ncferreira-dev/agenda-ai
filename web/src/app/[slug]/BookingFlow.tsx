@@ -62,6 +62,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   const [slot, setSlot] = useState<DisplaySlot | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +150,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         startAt: slot.startAt,
         name: name.trim(),
         phone: normalizePhone(phone),
+        email: email.trim() || undefined,
         notes: notes.trim() || undefined,
       });
       if (res.checkoutUrl) {
@@ -344,6 +346,17 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
               onChange={(e) => setPhone(e.target.value)}
               placeholder="(11) 99999-9999"
               inputMode="tel"
+            />
+          </label>
+          <label className={styles.label}>
+            E-mail (opcional, pra confirmação)
+            <input
+              className={styles.input}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="voce@email.com"
+              inputMode="email"
             />
           </label>
           <label className={styles.label}>

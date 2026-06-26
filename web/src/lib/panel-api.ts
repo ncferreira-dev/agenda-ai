@@ -44,6 +44,7 @@ export interface Me {
     slotStepMinutes: number;
     minLeadMinutes: number;
     maxAdvanceDays: number;
+    reminderHoursBefore: number;
     logoUrl: string | null;
     coverUrl: string | null;
     accentColor: string | null;

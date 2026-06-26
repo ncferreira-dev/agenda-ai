@@ -60,6 +60,7 @@ export class PanelController {
       slotStepMinutes?: number;
       minLeadMinutes?: number;
       maxAdvanceDays?: number;
+      reminderHoursBefore?: number;
     },
   ) {
     return this.panel.updateBusiness(businessId, body);
@@ -80,6 +81,19 @@ export class PanelController {
   @Patch('appointments/:id/cancel')
   cancel(@CurrentBusiness() businessId: string, @Param('id') id: string) {
     return this.panel.cancel(businessId, id);
+  }
+
+  /** Marca um atendimento como concluído (COMPLETED) ou falta (NO_SHOW). */
+  @Patch('appointments/:id/status')
+  setStatus(
+    @CurrentBusiness() businessId: string,
+    @Param('id') id: string,
+    @Body() body: { status?: string },
+  ) {
+    if (body?.status !== 'COMPLETED' && body?.status !== 'NO_SHOW') {
+      throw new BadRequestException('status deve ser COMPLETED ou NO_SHOW.');
+    }
+    return this.panel.setAppointmentStatus(businessId, id, body.status);
   }
 
   /** Relatório de faturamento num período (ISO de/até). */

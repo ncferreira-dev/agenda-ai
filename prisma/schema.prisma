@@ -25,6 +25,7 @@ model Business {
   slotStepMinutes   Int @default(15) // granularidade dos horários ofertados
   minLeadMinutes    Int @default(60) // antecedência mínima p/ agendar (não deixa marcar daqui a 5 min)
   maxAdvanceDays    Int @default(60) // até quantos dias pra frente pode agendar
+  reminderHoursBefore Int @default(24) // quantas horas antes disparar o lembrete
 
   // Personalização (Nível 1) — a "cara do negócio" na página pública.
   logoUrl      String? // URL da logo
@@ -148,6 +149,7 @@ model Customer {
 
   name  String?
   phone String // E.164, ex.: 5511999998888
+  email String? // opcional, p/ e-mail de confirmação
 
   appointments  Appointment[]
   conversations Conversation[]

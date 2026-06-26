@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +29,7 @@ export class PanelService {
     slotStepMinutes: true,
     minLeadMinutes: true,
     maxAdvanceDays: true,
+    reminderHoursBefore: true,
     logoUrl: true,
     coverUrl: true,
     accentColor: true,
@@ -78,9 +79,14 @@ export class PanelService {
       slotStepMinutes?: number;
       minLeadMinutes?: number;
       maxAdvanceDays?: number;
+      reminderHoursBefore?: number;
     },
   ) {
     const data: Record<string, unknown> = {};
+
+    if (input.reminderHoursBefore !== undefined) {
+      data.reminderHoursBefore = this.requireRange(input.reminderHoursBefore, 1, 168, 'lembrete (horas)');
+    }
 
     if (input.address !== undefined) {
       const address = input.address.trim();
@@ -300,6 +306,16 @@ export class PanelService {
   /** Cancela um agendamento do negócio. Reusa o BookingService (já scopa). */
   cancel(businessId: string, appointmentId: string) {
     return this.booking.cancelAppointment(businessId, appointmentId);
+  }
+
+  /** Marca o atendimento como concluído ou falta (no-show). */
+  async setAppointmentStatus(businessId: string, id: string, status: 'COMPLETED' | 'NO_SHOW') {
+    const appt = await this.prisma.appointment.findFirst({
+      where: { id, businessId },
+      select: { id: true },
+    });
+    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+    return this.prisma.appointment.update({ where: { id }, data: { status } });
   }
 
   /**

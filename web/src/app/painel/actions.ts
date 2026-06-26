@@ -218,6 +218,7 @@ export async function saveBusiness(_prev: ActionState, form: FormData): Promise<
     slotStepMinutes: Number(form.get('slotStepMinutes')),
     minLeadMinutes: Number(form.get('minLeadMinutes')),
     maxAdvanceDays: Number(form.get('maxAdvanceDays')),
+    reminderHoursBefore: Number(form.get('reminderHoursBefore')),
   };
   const res = await authFetch('/me/business', { method: 'PATCH', body: JSON.stringify(body) });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
@@ -272,5 +273,15 @@ export async function savePayments(_prev: ActionState, form: FormData): Promise<
 export async function cancelAppointment(form: FormData): Promise<void> {
   const id = String(form.get('id'));
   await authFetch(`/me/appointments/${id}/cancel`, { method: 'PATCH' });
+  revalidatePath('/painel');
+}
+
+export async function setAppointmentStatus(form: FormData): Promise<void> {
+  const id = String(form.get('id'));
+  const status = String(form.get('status'));
+  await authFetch(`/me/appointments/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
   revalidatePath('/painel');
 }

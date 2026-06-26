@@ -9,7 +9,7 @@ import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
 // de o dono pagar todo mês. Roda de tempos em tempos e marca o que já enviou.
 // ---------------------------------------------------------------------------
 
-const REMINDER_HOURS_BEFORE = 24;
+const MAX_REMINDER_HOURS = 168; // teto de busca (7 dias); cada negócio usa o seu
 
 @Injectable()
 export class ReminderService {
@@ -24,9 +24,10 @@ export class ReminderService {
   @Cron('0 */15 * * * *')
   async sendDueReminders() {
     const now = DateTime.now();
-    const windowEnd = now.plus({ hours: REMINDER_HOURS_BEFORE }).toJSDate();
+    const windowEnd = now.plus({ hours: MAX_REMINDER_HOURS }).toJSDate();
 
-    const due = await this.prisma.appointment.findMany({
+    // Busca candidatos numa janela ampla e filtra pelo lembrete de cada negócio.
+    const candidates = await this.prisma.appointment.findMany({
       where: {
         status: 'CONFIRMED',
         reminderSentAt: null,
@@ -34,6 +35,9 @@ export class ReminderService {
       },
       include: { customer: true, service: true, professional: true, business: true },
     });
+    const due = candidates.filter(
+      (a) => DateTime.fromJSDate(a.startAt) <= now.plus({ hours: a.business.reminderHoursBefore }),
+    );
 
     for (const appt of due) {
       try {

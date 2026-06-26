@@ -40,6 +40,7 @@ export async function createBooking(params: {
   startAt: string;
   name: string;
   phone: string;
+  email?: string;
   notes?: string;
 }): Promise<BookingResult> {
   const { slug, ...body } = params;

@@ -24,6 +24,7 @@ interface CreateBookingBody {
   startAt: string; // ISO com offset, exatamente como veio de /availability
   name: string;
   phone: string; // E.164, ex.: 5511999998888
+  email?: string;
   notes?: string;
 }
 
@@ -163,14 +164,19 @@ export class PublicBookingController {
   /** Cria o agendamento. */
   @Post('bookings')
   async createBooking(@Param('slug') slug: string, @Body() body: CreateBookingBody) {
-    const { serviceId, professionalId, startAt, name, phone, notes } = body;
+    const { serviceId, professionalId, startAt, name, phone, email, notes } = body;
     if (!serviceId || !professionalId || !startAt || !phone) {
       throw new BadRequestException('Faltam dados pra agendar.');
     }
     const business = await this.resolveBusiness(slug);
 
     // Normaliza no servidor (não confia no formato do cliente) — telefone em E.164.
-    const customer = await this.booking.findOrCreateCustomer(business.id, this.normalizePhone(phone), name);
+    const customer = await this.booking.findOrCreateCustomer(
+      business.id,
+      this.normalizePhone(phone),
+      name,
+      email?.trim() || undefined,
+    );
     const { appointment: appt, checkoutUrl } = await this.booking.createAppointment({
       businessId: business.id,
       customerId: customer.id,

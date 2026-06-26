@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from '../payments/stripe.service';
 import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
+import { MailService } from '../mail/mail.service';
 
 const HOLD_MINUTES = 15; // janela pra pagar o sinal antes de liberar o horário
 const FAR_FUTURE_DAYS = 60; // > 2 meses: exige sinal mesmo sem o toggle ligado
@@ -16,14 +17,18 @@ export class BookingService {
     private prisma: PrismaService,
     private stripe: StripeService,
     private whatsapp: CloudApiProvider,
+    private mail: MailService,
   ) {}
 
-  /** Acha o cliente pelo telefone ou cria. Atualiza o nome se vier. */
-  async findOrCreateCustomer(businessId: string, phone: string, name?: string) {
+  /** Acha o cliente pelo telefone ou cria. Atualiza nome/email se vierem. */
+  async findOrCreateCustomer(businessId: string, phone: string, name?: string, email?: string) {
+    const update: { name?: string; email?: string } = {};
+    if (name) update.name = name;
+    if (email) update.email = email;
     return this.prisma.customer.upsert({
       where: { businessId_phone: { businessId, phone } },
-      create: { businessId, phone, name },
-      update: name ? { name } : {},
+      create: { businessId, phone, name, email },
+      update,
     });
   }
 
@@ -82,9 +87,36 @@ export class BookingService {
       return { appointment: created.appointment, checkoutUrl: checkout.url };
     }
 
-    // Já confirmado (sem sinal): avisa o(s) dono(s) no WhatsApp. Fire-and-forget.
+    // Já confirmado (sem sinal): avisa o dono (WhatsApp) e o cliente (e-mail). Fire-and-forget.
     void this.notifyOwnersNewBooking(created.appointment);
+    void this.sendCustomerEmail(created.appointment);
     return { appointment: created.appointment, checkoutUrl: undefined as string | undefined };
+  }
+
+  /** E-mail de confirmação pro cliente (se ele deu email e o SMTP estiver ligado). */
+  private async sendCustomerEmail(appt: {
+    businessId: string;
+    startAt: Date;
+    service: { name: string };
+    professional: { name: string };
+    customer: { email: string | null };
+  }): Promise<void> {
+    if (!this.mail.enabled || !appt.customer.email) return;
+    const business = await this.prisma.business.findUniqueOrThrow({
+      where: { id: appt.businessId },
+      select: { name: true, timezone: true, address: true },
+    });
+    const when = DateTime.fromJSDate(appt.startAt)
+      .setZone(business.timezone)
+      .setLocale('pt-BR')
+      .toFormat("cccc, dd/LL 'às' HH:mm");
+    await this.mail.sendBookingConfirmation(appt.customer.email, {
+      businessName: business.name,
+      service: appt.service.name,
+      professional: appt.professional.name,
+      when,
+      address: business.address,
+    });
   }
 
   /**
