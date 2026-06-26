@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Query,
   Body,
@@ -38,6 +39,53 @@ export class PublicBookingController {
     const business = await this.prisma.business.findUnique({ where: { slug } });
     if (!business) throw new NotFoundException('Estabelecimento não encontrado.');
     return business;
+  }
+
+  private normalizePhone(raw: string): string {
+    const d = (raw ?? '').replace(/\D/g, '');
+    return d.startsWith('55') ? d : `55${d}`;
+  }
+
+  /** Próximos agendamentos do cliente (identificado pelo telefone). */
+  @Get('appointments')
+  async myAppointments(@Param('slug') slug: string, @Query('phone') phone?: string) {
+    if (!phone) throw new BadRequestException('Informe o telefone.');
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.prisma.customer.findUnique({
+      where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(phone) } },
+    });
+    if (!customer) return [];
+    const appts = await this.booking.getUpcomingForCustomer(business.id, customer.id);
+    return appts.map((a) => ({
+      id: a.id,
+      service: a.service.name,
+      professional: a.professional.name,
+      startAt: a.startAt.toISOString(),
+      status: a.status,
+    }));
+  }
+
+  /** Cancela um agendamento do próprio cliente (confere telefone + negócio). */
+  @Patch('appointments/:id/cancel')
+  async cancelMine(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() body: { phone: string },
+  ) {
+    if (!body?.phone) throw new BadRequestException('Informe o telefone.');
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.prisma.customer.findUnique({
+      where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(body.phone) } },
+    });
+    const appt = customer
+      ? await this.prisma.appointment.findFirst({
+          where: { id, businessId: business.id, customerId: customer.id },
+          select: { id: true },
+        })
+      : null;
+    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+    await this.booking.cancelAppointment(business.id, id);
+    return { id, cancelled: true };
   }
 
   /** Dados pra renderizar a página: negócio + serviços + profissionais. */
@@ -121,7 +169,8 @@ export class PublicBookingController {
     }
     const business = await this.resolveBusiness(slug);
 
-    const customer = await this.booking.findOrCreateCustomer(business.id, phone, name);
+    // Normaliza no servidor (não confia no formato do cliente) — telefone em E.164.
+    const customer = await this.booking.findOrCreateCustomer(business.id, this.normalizePhone(phone), name);
     const { appointment: appt, checkoutUrl } = await this.booking.createAppointment({
       businessId: business.id,
       customerId: customer.id,

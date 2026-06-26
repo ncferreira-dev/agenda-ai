@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { getAvailability, createBooking } from '@/lib/api';
-import type { BusinessPage, ProfessionalAvailability, BookingResult } from '@/lib/types';
+import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
+import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
 import styles from './booking.module.css';
 
 type Step = 'service' | 'schedule' | 'details' | 'done';
@@ -66,6 +66,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
+  const [view, setView] = useState<'book' | 'mine'>('book');
   // true depois que o cliente escolhe um dia na mão (trava o auto-avanço).
   const manualDate = useRef(false);
 
@@ -166,7 +167,16 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   // --- Sucesso ------------------------------------------------------------
   if (step === 'done' && result) {
     const when = new Date(result.startAt);
-    const whenLabel = `${WEEKDAYS[when.getDay()]}, ${when.getDate()} de ${MONTHS[when.getMonth()]} às ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
+    const whenLabel = `${WEEKDAYS[when.getDay()]}, ${when.getDate()} de ${MONTHS[when.getMonth()]} às ${pad(when.getHours())}:${pad(when.getMinutes())}`;
+    const dur = service?.durationMinutes ?? 30;
+    const end = new Date(when.getTime() + dur * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const gcal =
+      `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+      `&text=${encodeURIComponent(`${result.service} — ${data.business.name}`)}` +
+      `&dates=${fmt(when)}/${fmt(end)}` +
+      `&details=${encodeURIComponent(`Com ${result.professional}`)}` +
+      (data.business.address ? `&location=${encodeURIComponent(data.business.address)}` : '');
     return (
       <div className={styles.success}>
         <div className={styles.successMark}>✓</div>
@@ -176,9 +186,26 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
           <br />
           {whenLabel}
         </p>
+        {data.business.address && (
+          <a
+            className={styles.successAddr}
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.business.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            📍 {data.business.address}
+          </a>
+        )}
+        <a className={styles.calBtn} href={gcal} target="_blank" rel="noopener noreferrer">
+          Adicionar ao calendário
+        </a>
         <p className={styles.successNote}>Você vai receber um lembrete antes do horário.</p>
       </div>
     );
+  }
+
+  if (view === 'mine') {
+    return <MyAppointmentsView slug={slug} onBack={() => setView('book')} />;
   }
 
   return (
@@ -188,7 +215,12 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       {/* 1. Serviço */}
       {step === 'service' && (
         <section>
-          <h2 className={styles.stepTitle}>Escolha o serviço</h2>
+          <div className={styles.serviceHead}>
+            <h2 className={styles.stepTitle}>Escolha o serviço</h2>
+            <button className={styles.linkAction} onClick={() => setView('mine')} type="button">
+              Meus agendamentos
+            </button>
+          </div>
           {data.services.length === 0 && (
             <p className={styles.hint}>
               Este negócio ainda está montando a agenda. Volte em breve! 🙂
@@ -328,6 +360,102 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
             {loading ? 'Agendando…' : 'Confirmar agendamento'}
           </button>
         </section>
+      )}
+    </div>
+  );
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function MyAppointmentsView({ slug, onBack }: { slug: string; onBack: () => void }) {
+  const [phone, setPhone] = useState('');
+  const [list, setList] = useState<MyAppointment[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  async function buscar(e: React.FormEvent) {
+    e.preventDefault();
+    if (phone.replace(/\D/g, '').length < 10) {
+      setError('Informe um telefone válido.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      setList(await getMyAppointments(slug, phone));
+    } catch (err: any) {
+      setError(err?.message ?? 'Não consegui buscar.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function cancelar(id: string) {
+    if (confirmingId !== id) {
+      setConfirmingId(id);
+      return;
+    }
+    try {
+      await cancelMyAppointment(slug, id, phone);
+      setList((l) => l?.filter((a) => a.id !== id) ?? null);
+      setConfirmingId(null);
+    } catch (err: any) {
+      setError(err?.message ?? 'Não consegui cancelar.');
+    }
+  }
+
+  return (
+    <div className={styles.flow}>
+      <button className={styles.back} onClick={onBack}>
+        ← Agendar
+      </button>
+      <h2 className={styles.stepTitle}>Meus agendamentos</h2>
+      {error && <div className={styles.error}>{error}</div>}
+
+      <form onSubmit={buscar}>
+        <label className={styles.label}>
+          Seu WhatsApp
+          <input
+            className={styles.input}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="(11) 99999-9999"
+            inputMode="tel"
+          />
+        </label>
+        <button className={styles.buttonPrimary} type="submit" disabled={loading}>
+          {loading ? 'Buscando…' : 'Ver meus horários'}
+        </button>
+      </form>
+
+      {list && list.length === 0 && (
+        <p className={styles.hint}>Nenhum horário ativo nesse telefone.</p>
+      )}
+      {list && list.length > 0 && (
+        <div className={styles.serviceList} style={{ marginTop: 18 }}>
+          {list.map((a) => {
+            const w = new Date(a.startAt);
+            const when = `${WEEKDAYS[w.getDay()]}, ${w.getDate()} de ${MONTHS[w.getMonth()]} às ${pad(w.getHours())}:${pad(w.getMinutes())}`;
+            return (
+              <div key={a.id} className={styles.serviceRow} style={{ cursor: 'default' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div className={styles.serviceName}>{a.service}</div>
+                  <div className={styles.serviceMeta}>com {a.professional} · {when}</div>
+                </div>
+                <button
+                  className={`${styles.cancelBtn} ${confirmingId === a.id ? styles.cancelBtnArmed : ''}`}
+                  onClick={() => cancelar(a.id)}
+                  type="button"
+                >
+                  {confirmingId === a.id ? 'Confirmar?' : 'Cancelar'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

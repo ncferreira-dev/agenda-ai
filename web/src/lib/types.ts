@@ -42,6 +42,14 @@ export interface ProfessionalAvailability {
   slots: Slot[];
 }
 
+export interface MyAppointment {
+  id: string;
+  service: string;
+  professional: string;
+  startAt: string;
+  status: string;
+}
+
 export interface BookingResult {
   id: string;
   service: string;

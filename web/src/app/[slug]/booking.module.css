@@ -165,6 +165,40 @@
   margin: 22px 0 14px;
 }
 
+.serviceHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.linkAction {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cancelBtn {
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: #b3261e;
+  border-radius: 12px;
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cancelBtnArmed {
+  background: #b3261e;
+  color: #fff;
+  border-color: #b3261e;
+}
+
 .back {
   display: inline-flex;
   align-items: center;
@@ -495,6 +529,25 @@
   line-height: 1.5;
   margin: 0 0 16px;
 }
+.successAddr {
+  display: inline-block;
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+.calBtn {
+  display: inline-block;
+  padding: 12px 22px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+
 .successNote {
   font-size: 14px;
   color: var(--muted);

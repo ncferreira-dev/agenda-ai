@@ -1,5 +1,6 @@
+import Link from 'next/link';
 import { DateTime } from 'luxon';
-import { getMe, listAppointments, type Appointment } from '@/lib/panel-api';
+import { getMe, listAppointments, listServices, listProfessionals, type Appointment } from '@/lib/panel-api';
 import { cancelAppointment } from '../actions';
 import { CopyLink } from './CopyLink';
 import styles from '../painel.module.css';
@@ -17,7 +18,16 @@ export default async function AgendaPage() {
   if (!me) return null; // o layout já redireciona
   const tz = me.business.timezone;
 
-  const appts = await listAppointments(); // ativos, de agora pra frente
+  const [appts, services, professionals] = await Promise.all([
+    listAppointments(), // ativos, de agora pra frente
+    listServices(),
+    listProfessionals(),
+  ]);
+
+  // Onboarding: o que ainda falta pro negócio receber agendamentos.
+  const temServico = services.some((s) => s.active);
+  const temProf = professionals.some((p) => p.active);
+  const setupPronto = temServico && temProf;
 
   // Agrupa por dia no fuso do negócio.
   const grupos = new Map<string, Appointment[]>();
@@ -48,6 +58,27 @@ export default async function AgendaPage() {
           <p className={styles.lead}>Seus próximos atendimentos, do mais cedo ao mais tarde.</p>
         </div>
       </div>
+
+      {!setupPronto && (
+        <div className={`${styles.panel} ${styles.panelPad} ${styles.onboard}`}>
+          <h2 className={styles.sectionTitle}>Primeiros passos</h2>
+          <p className={styles.rowMeta} style={{ marginBottom: 14 }}>
+            Faltam alguns passos pra sua agenda receber clientes.
+          </p>
+          <Link href="/painel/servicos" className={`${styles.onboardStep} ${temServico ? styles.onboardDone : ''}`}>
+            <span className={styles.onboardCheck}>{temServico ? '✓' : '1'}</span>
+            <span>Cadastrar seus serviços</span>
+          </Link>
+          <Link href="/painel/profissionais" className={`${styles.onboardStep} ${temProf ? styles.onboardDone : ''}`}>
+            <span className={styles.onboardCheck}>{temProf ? '✓' : '2'}</span>
+            <span>Adicionar profissionais e horários</span>
+          </Link>
+          <Link href="/painel/aparencia" className={styles.onboardStep}>
+            <span className={styles.onboardCheck}>3</span>
+            <span>Personalizar a página (logo, cor) — opcional</span>
+          </Link>
+        </div>
+      )}
 
       <div className={styles.stats}>
         <div className={styles.statCard}>

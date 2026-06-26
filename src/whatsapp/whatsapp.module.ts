@@ -2,13 +2,11 @@ import { Module } from '@nestjs/common';
 import { AgentModule } from '../agent/agent.module';
 import { WhatsAppController } from './whatsapp.controller';
 import { ConfirmationService } from './confirmation.service';
-import { CloudApiProvider } from './whatsapp.provider';
+import { MessagingModule } from './messaging.module';
 
-// CloudApiProvider é exportado porque o ReminderService também envia mensagens.
 @Module({
-  imports: [AgentModule],
+  imports: [AgentModule, MessagingModule],
   controllers: [WhatsAppController],
-  providers: [CloudApiProvider, ConfirmationService],
-  exports: [CloudApiProvider],
+  providers: [ConfirmationService],
 })
 export class WhatsAppModule {}

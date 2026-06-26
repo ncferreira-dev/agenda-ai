@@ -2,6 +2,7 @@ import type {
   BusinessPage,
   ProfessionalAvailability,
   BookingResult,
+  MyAppointment,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3000';
@@ -48,4 +49,19 @@ export async function createBooking(params: {
     body: JSON.stringify(body),
   });
   return handle<BookingResult>(res);
+}
+
+export async function getMyAppointments(slug: string, phone: string): Promise<MyAppointment[]> {
+  const qs = new URLSearchParams({ phone });
+  const res = await fetch(`${API_BASE}/b/${slug}/appointments?${qs}`, { cache: 'no-store' });
+  return handle<MyAppointment[]>(res);
+}
+
+export async function cancelMyAppointment(slug: string, id: string, phone: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/b/${slug}/appointments/${id}/cancel`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  await handle(res);
 }
