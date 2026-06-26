@@ -907,6 +907,16 @@ textarea.input {
   font-weight: 600;
 }
 
+/* --- Divulgar: QR code --- */
+.qr {
+  width: 240px;
+  height: 240px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  margin: 0 auto 14px;
+  display: block;
+}
+
 /* --- Agenda: visão semana --- */
 .week {
   display: grid;

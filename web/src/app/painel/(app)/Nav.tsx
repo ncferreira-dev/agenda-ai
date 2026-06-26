@@ -7,6 +7,7 @@ import styles from '../painel.module.css';
 const LINKS = [
   { href: '/painel', label: 'Agenda', exact: true },
   { href: '/painel/relatorio', label: 'Faturamento' },
+  { href: '/painel/divulgar', label: 'Divulgar' },
   { href: '/painel/servicos', label: 'Serviços' },
   { href: '/painel/profissionais', label: 'Profissionais' },
   { href: '/painel/bloqueios', label: 'Bloqueios' },
