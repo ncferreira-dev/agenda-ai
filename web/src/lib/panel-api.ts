@@ -111,6 +111,16 @@ export async function getMe(): Promise<Me | null> {
   return res.json() as Promise<Me>;
 }
 
+export interface CustomerRow {
+  id: string;
+  name: string | null;
+  phone: string;
+  email: string | null;
+  totalAppointments: number;
+  lastAt: string | null;
+}
+export const listCustomers = () => getJson<CustomerRow[]>('/me/customers');
+
 export const listServices = () => getJson<Service[]>('/me/services');
 export const listProfessionals = () => getJson<Professional[]>('/me/professionals');
 export const getWorkingHours = (id: string) =>

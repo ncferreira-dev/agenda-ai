@@ -308,6 +308,30 @@ export class PanelService {
     return this.booking.cancelAppointment(businessId, appointmentId);
   }
 
+  /** Lista os clientes do negócio com contagem de agendamentos e o último. */
+  async listCustomers(businessId: string) {
+    const customers = await this.prisma.customer.findMany({
+      where: { businessId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        _count: { select: { appointments: true } },
+        appointments: { select: { startAt: true }, orderBy: { startAt: 'desc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return customers.map((c) => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      totalAppointments: c._count.appointments,
+      lastAt: c.appointments[0]?.startAt.toISOString() ?? null,
+    }));
+  }
+
   /** Marca o atendimento como concluído ou falta (no-show). */
   async setAppointmentStatus(businessId: string, id: string, status: 'COMPLETED' | 'NO_SHOW') {
     const appt = await this.prisma.appointment.findFirst({

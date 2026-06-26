@@ -96,6 +96,12 @@ export class PanelController {
     return this.panel.setAppointmentStatus(businessId, id, body.status);
   }
 
+  /** Lista de clientes do negócio. */
+  @Get('customers')
+  customers(@CurrentBusiness() businessId: string) {
+    return this.panel.listCustomers(businessId);
+  }
+
   /** Relatório de faturamento num período (ISO de/até). */
   @Get('report')
   report(

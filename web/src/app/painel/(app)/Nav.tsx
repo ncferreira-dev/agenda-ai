@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/painel/divulgar', label: 'Divulgar' },
   { href: '/painel/servicos', label: 'Serviços' },
   { href: '/painel/profissionais', label: 'Profissionais' },
+  { href: '/painel/clientes', label: 'Clientes' },
   { href: '/painel/bloqueios', label: 'Bloqueios' },
   { href: '/painel/negocio', label: 'Negócio' },
   { href: '/painel/aparencia', label: 'Aparência' },
