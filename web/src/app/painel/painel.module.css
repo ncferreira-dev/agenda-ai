@@ -947,6 +947,61 @@ textarea.input {
   text-decoration: line-through;
 }
 
+/* --- Relatório de faturamento --- */
+.periodTabs {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--paper-2);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 18px;
+}
+.periodTab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.periodTabActive {
+  background: var(--ink);
+  color: var(--surface);
+}
+.reportRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.reportName {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.reportVal {
+  font-family: var(--font-display), serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.reportCount {
+  color: var(--muted);
+  font-weight: 400;
+  font-family: var(--font-body), sans-serif;
+  font-size: 13px;
+}
+.bar {
+  height: 8px;
+  background: var(--paper-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
 /* --- Resumo da agenda --- */
 .stats {
   display: flex;

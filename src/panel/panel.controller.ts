@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
@@ -80,5 +80,20 @@ export class PanelController {
   @Patch('appointments/:id/cancel')
   cancel(@CurrentBusiness() businessId: string, @Param('id') id: string) {
     return this.panel.cancel(businessId, id);
+  }
+
+  /** Relatório de faturamento num período (ISO de/até). */
+  @Get('report')
+  report(
+    @CurrentBusiness() businessId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const f = new Date(from);
+    const t = new Date(to);
+    if (isNaN(f.getTime()) || isNaN(t.getTime())) {
+      throw new BadRequestException('Período inválido (use ISO em from/to).');
+    }
+    return this.panel.getRevenueReport(businessId, f, t);
   }
 }

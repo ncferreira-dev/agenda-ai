@@ -116,6 +116,25 @@ export const getWorkingHours = (id: string) =>
   getJson<WorkingHour[]>(`/me/professionals/${id}/working-hours`);
 export const listBlocks = () => getJson<Block[]>('/me/blocks');
 
+export interface ReportBreakdown {
+  name: string;
+  count: number;
+  cents: number;
+}
+export interface Report {
+  totalCount: number;
+  totalCents: number;
+  realizedCents: number;
+  scheduledCents: number;
+  byService: ReportBreakdown[];
+  byProfessional: ReportBreakdown[];
+}
+
+export function getReport(from: string, to: string) {
+  const qs = new URLSearchParams({ from, to });
+  return getJson<Report>(`/me/report?${qs}`);
+}
+
 export function listAppointments(params: { from?: string; to?: string; status?: string } = {}) {
   const qs = new URLSearchParams();
   if (params.from) qs.set('from', params.from);

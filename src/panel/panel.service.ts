@@ -302,6 +302,60 @@ export class PanelService {
     return this.booking.cancelAppointment(businessId, appointmentId);
   }
 
+  /**
+   * Relatório de faturamento num período [from, to). Conta agendamentos ativos
+   * (CONFIRMED/COMPLETED), separa realizado (passado) de previsto (futuro) e
+   * quebra por serviço e por profissional.
+   */
+  async getRevenueReport(businessId: string, from: Date, to: Date) {
+    const appts = await this.prisma.appointment.findMany({
+      where: {
+        businessId,
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
+        startAt: { gte: from, lt: to },
+      },
+      select: {
+        startAt: true,
+        service: { select: { name: true, priceCents: true } },
+        professional: { select: { name: true } },
+      },
+    });
+
+    const now = new Date();
+    let totalCents = 0;
+    let realizedCents = 0;
+    const byService = new Map<string, { count: number; cents: number }>();
+    const byProfessional = new Map<string, { count: number; cents: number }>();
+    const bump = (m: Map<string, { count: number; cents: number }>, key: string, cents: number) => {
+      const cur = m.get(key) ?? { count: 0, cents: 0 };
+      cur.count += 1;
+      cur.cents += cents;
+      m.set(key, cur);
+    };
+
+    for (const a of appts) {
+      const cents = a.service.priceCents;
+      totalCents += cents;
+      if (a.startAt < now) realizedCents += cents;
+      bump(byService, a.service.name, cents);
+      bump(byProfessional, a.professional.name, cents);
+    }
+
+    const toList = (m: Map<string, { count: number; cents: number }>) =>
+      [...m.entries()]
+        .map(([name, v]) => ({ name, count: v.count, cents: v.cents }))
+        .sort((a, b) => b.cents - a.cents);
+
+    return {
+      totalCount: appts.length,
+      totalCents,
+      realizedCents,
+      scheduledCents: totalCents - realizedCents,
+      byService: toList(byService),
+      byProfessional: toList(byProfessional),
+    };
+  }
+
   // Default: agendamentos ativos. Se vier status, valida contra o enum.
   private parseStatus(status?: string): Prisma.EnumAppointmentStatusFilter {
     if (!status) {
