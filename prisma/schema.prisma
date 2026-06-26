@@ -150,6 +150,7 @@ model Customer {
   name  String?
   phone String // E.164, ex.: 5511999998888
   email String? // opcional, p/ e-mail de confirmação
+  ownerNote String? // observação PRIVADA do dono sobre o cliente (nunca exposta)
 
   appointments  Appointment[]
   conversations Conversation[]

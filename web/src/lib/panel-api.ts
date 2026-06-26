@@ -116,6 +116,7 @@ export interface CustomerRow {
   name: string | null;
   phone: string;
   email: string | null;
+  ownerNote: string | null;
   totalAppointments: number;
   lastAt: string | null;
 }

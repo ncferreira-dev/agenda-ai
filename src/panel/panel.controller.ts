@@ -102,6 +102,16 @@ export class PanelController {
     return this.panel.listCustomers(businessId);
   }
 
+  /** Salva a observação privada sobre um cliente. */
+  @Patch('customers/:id')
+  updateCustomer(
+    @CurrentBusiness() businessId: string,
+    @Param('id') id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.panel.updateCustomerNote(businessId, id, body?.note ?? '');
+  }
+
   /** Relatório de faturamento num período (ISO de/até). */
   @Get('report')
   report(

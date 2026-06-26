@@ -907,6 +907,16 @@ textarea.input {
   font-weight: 600;
 }
 
+/* --- Clientes: nota privada --- */
+.customerNote {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  background: var(--paper-2);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
 /* --- Divulgar: QR code --- */
 .qr {
   width: 240px;

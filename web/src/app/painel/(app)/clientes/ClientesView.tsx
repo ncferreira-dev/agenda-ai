@@ -1,14 +1,81 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import type { CustomerRow } from '@/lib/panel-api';
+import { saveCustomerNote, type ActionState } from '../../actions';
 import { maskFormat } from '../../MaskedInput';
 import styles from '../../painel.module.css';
+
+const INIT: ActionState = { ok: false };
 
 function lastLabel(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function SaveNote() {
+  const { pending } = useFormStatus();
+  return (
+    <button className={`${styles.smallBtn} ${styles.primarySmall}`} type="submit" disabled={pending}>
+      {pending ? 'Salvando…' : 'Salvar'}
+    </button>
+  );
+}
+
+function CustomerRowItem({ c }: { c: CustomerRow }) {
+  const [editing, setEditing] = useState(false);
+  const [state, action] = useFormState(saveCustomerNote, INIT);
+  useEffect(() => {
+    if (state.ok) setEditing(false);
+  }, [state.ok]);
+
+  return (
+    <div className={styles.row} style={{ display: 'block' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div className={styles.rowMain}>
+          <div className={styles.rowName}>{c.name ?? 'Sem nome'}</div>
+          <div className={styles.rowMeta}>
+            {maskFormat('phone', c.phone)}
+            {c.email ? ` · ${c.email}` : ''}
+          </div>
+        </div>
+        <div className={styles.rowActions} style={{ gap: 16 }}>
+          <span className={styles.rowMeta}>{c.totalAppointments} agend.</span>
+          <span className={styles.rowMeta}>último: {lastLabel(c.lastAt)}</span>
+          <button className={styles.smallBtn} type="button" onClick={() => setEditing((v) => !v)}>
+            {c.ownerNote ? 'Editar nota' : 'Nota'}
+          </button>
+        </div>
+      </div>
+
+      {!editing && c.ownerNote && (
+        <p className={styles.customerNote}>📝 {c.ownerNote}</p>
+      )}
+
+      {editing && (
+        <form action={action} style={{ marginTop: 10 }}>
+          <input type="hidden" name="id" value={c.id} />
+          {state.error && <p className={styles.rowMeta} style={{ color: '#8f3417' }}>{state.error}</p>}
+          <textarea
+            className={styles.input}
+            name="note"
+            rows={2}
+            maxLength={500}
+            defaultValue={c.ownerNote ?? ''}
+            placeholder="Observação privada (só você vê): preferências, alergias, etc."
+          />
+          <div className={styles.toolbar} style={{ gap: 8 }}>
+            <button className={styles.smallBtn} type="button" onClick={() => setEditing(false)}>
+              Cancelar
+            </button>
+            <SaveNote />
+          </div>
+        </form>
+      )}
+    </div>
+  );
 }
 
 export function ClientesView({ customers }: { customers: CustomerRow[] }) {
@@ -42,21 +109,7 @@ export function ClientesView({ customers }: { customers: CustomerRow[] }) {
             {customers.length === 0 ? 'Nenhum cliente ainda — eles aparecem ao agendar.' : 'Nada encontrado.'}
           </p>
         ) : (
-          filtered.map((c) => (
-            <div key={c.id} className={styles.row}>
-              <div className={styles.rowMain}>
-                <div className={styles.rowName}>{c.name ?? 'Sem nome'}</div>
-                <div className={styles.rowMeta}>
-                  {maskFormat('phone', c.phone)}
-                  {c.email ? ` · ${c.email}` : ''}
-                </div>
-              </div>
-              <div className={styles.rowActions} style={{ gap: 16 }}>
-                <span className={styles.rowMeta}>{c.totalAppointments} agend.</span>
-                <span className={styles.rowMeta}>último: {lastLabel(c.lastAt)}</span>
-              </div>
-            </div>
-          ))
+          filtered.map((c) => <CustomerRowItem key={c.id} c={c} />)
         )}
       </div>
     </>

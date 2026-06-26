@@ -317,6 +317,7 @@ export class PanelService {
         name: true,
         phone: true,
         email: true,
+        ownerNote: true,
         _count: { select: { appointments: true } },
         appointments: { select: { startAt: true }, orderBy: { startAt: 'desc' }, take: 1 },
       },
@@ -327,9 +328,26 @@ export class PanelService {
       name: c.name,
       phone: c.phone,
       email: c.email,
+      ownerNote: c.ownerNote,
       totalAppointments: c._count.appointments,
       lastAt: c.appointments[0]?.startAt.toISOString() ?? null,
     }));
+  }
+
+  /** Salva a observação privada do dono sobre um cliente (scoped por negócio). */
+  async updateCustomerNote(businessId: string, customerId: string, note: string) {
+    const found = await this.prisma.customer.findFirst({
+      where: { id: customerId, businessId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Cliente não encontrado.');
+    const trimmed = note.trim();
+    if (trimmed.length > 500) throw new BadRequestException('Observação muito longa (máx. 500).');
+    return this.prisma.customer.update({
+      where: { id: customerId },
+      data: { ownerNote: trimmed || null },
+      select: { id: true, ownerNote: true },
+    });
   }
 
   /** Marca o atendimento como concluído ou falta (no-show). */

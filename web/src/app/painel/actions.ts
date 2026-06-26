@@ -226,6 +226,20 @@ export async function saveBusiness(_prev: ActionState, form: FormData): Promise<
   return OK;
 }
 
+// --- Clientes ------------------------------------------------------------
+
+export async function saveCustomerNote(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const id = String(form.get('id'));
+  const note = String(form.get('note') ?? '');
+  const res = await authFetch(`/me/customers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/clientes');
+  return OK;
+}
+
 // --- Perfil do dono ------------------------------------------------------
 
 export async function saveProfile(_prev: ActionState, form: FormData): Promise<ActionState> {
