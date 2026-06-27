@@ -16,14 +16,14 @@ interface DisplaySlot {
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-function nextDays(count: number): { iso: string; weekday: string; day: number }[] {
+function nextDays(count: number): { iso: string; weekday: string; day: number; wd: number }[] {
   const out = [];
   const base = new Date();
   for (let i = 0; i < count; i++) {
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    out.push({ iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate() });
+    out.push({ iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate(), wd: d.getDay() });
   }
   return out;
 }
@@ -79,6 +79,16 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   );
 
   const days = useMemo(() => nextDays(Math.min(data.business.maxAdvanceDays, 14)), [data]);
+  // Dias da semana fechados (bloqueio recorrente do negócio o dia todo).
+  const closedWeekdays = useMemo(
+    () => new Set(data.business.closedWeekdays ?? []),
+    [data.business.closedWeekdays],
+  );
+  // 1º dia atendido (pula os fechados) — usado como ponto de partida.
+  const firstOpen = useMemo(
+    () => (days.find((d) => !closedWeekdays.has(d.wd)) ?? days[0]).iso,
+    [days, closedWeekdays],
+  );
 
   // Busca disponibilidade sempre que muda serviço, dia ou profissional na tela de
   // agenda. Se o dia escolhido automaticamente vier vazio, pula pro próximo dia
@@ -95,8 +105,10 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         const hasSlots = av.some((p) => p.slots.length > 0);
         if (!hasSlots && !manualDate.current) {
           const idx = days.findIndex((d) => d.iso === date);
-          if (idx >= 0 && idx < days.length - 1) {
-            setDate(days[idx + 1].iso); // segue carregando até achar um dia com horário
+          // pula direto pro próximo dia atendido (ignora fechados)
+          const next = idx >= 0 ? days.slice(idx + 1).find((d) => !closedWeekdays.has(d.wd)) : undefined;
+          if (next) {
+            setDate(next.iso); // segue carregando até achar um dia com horário
             return;
           }
         }
@@ -110,7 +122,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     return () => {
       cancelled = true;
     };
-  }, [step, serviceId, date, professionalId, slug, days]);
+  }, [step, serviceId, date, professionalId, slug, days, closedWeekdays]);
 
   const displaySlots: DisplaySlot[] = useMemo(() => {
     const byLabel = new Map<string, DisplaySlot>();
@@ -130,7 +142,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     setProfessionalId(null);
     setSlot(null);
     manualDate.current = false;
-    setDate(days[0].iso);
+    setDate(firstOpen);
     setStep('schedule');
   }
 
@@ -291,22 +303,29 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
           <div className={styles.divider} />
 
           <div className={styles.dateStrip}>
-            {days.map((d) => (
-              <button
-                key={d.iso}
-                className={styles.dateChip}
-                onClick={() => {
-                  manualDate.current = true;
-                  setDate(d.iso);
-                  setSlot(null);
-                }}
-              >
-                <span className={styles.dateWeekday}>{d.weekday}</span>
-                <span className={`${styles.dateNum} ${date === d.iso ? styles.dateNumActive : ''}`}>
-                  {d.day}
-                </span>
-              </button>
-            ))}
+            {days.map((d) => {
+              const closed = closedWeekdays.has(d.wd);
+              return (
+                <button
+                  key={d.iso}
+                  className={`${styles.dateChip} ${closed ? styles.dateChipClosed : ''}`}
+                  disabled={closed}
+                  title={closed ? 'Fechado' : undefined}
+                  onClick={() => {
+                    if (closed) return;
+                    manualDate.current = true;
+                    setDate(d.iso);
+                    setSlot(null);
+                  }}
+                >
+                  <span className={styles.dateWeekday}>{d.weekday}</span>
+                  <span className={`${styles.dateNum} ${date === d.iso ? styles.dateNumActive : ''}`}>
+                    {d.day}
+                  </span>
+                  {closed && <span className={styles.dateClosedTag}>fechado</span>}
+                </button>
+              );
+            })}
           </div>
 
           <h2 className={styles.stepTitle}>Horários disponíveis</h2>

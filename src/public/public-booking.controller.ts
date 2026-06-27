@@ -111,6 +111,14 @@ export class PublicBookingController {
       orderBy: { name: 'asc' },
     });
 
+    // Dias da semana totalmente fechados: aquele em que um bloqueio recorrente do
+    // NEGÓCIO INTEIRO (professionalId null) cobre todo o expediente de todos os
+    // profissionais ativos. A página pública marca esses dias como "Fechado".
+    const closedWeekdays = await this.computeClosedWeekdays(
+      business.id,
+      professionals.map((p) => p.id),
+    );
+
     return {
       business: {
         id: business.id,
@@ -119,6 +127,7 @@ export class PublicBookingController {
         timezone: business.timezone,
         maxAdvanceDays: business.maxAdvanceDays,
         address: business.address,
+        closedWeekdays,
         // Branding (Nível 1) — a página pública usa pra vestir a marca.
         logoUrl: business.logoUrl,
         coverUrl: business.coverUrl,
@@ -134,6 +143,56 @@ export class PublicBookingController {
         serviceIds: p.services.map((s) => s.serviceId),
       })),
     };
+  }
+
+  /**
+   * Quais dias da semana (0=domingo … 6=sábado) estão totalmente fechados por
+   * bloqueio recorrente do negócio inteiro. Um dia é "fechado" quando há expediente
+   * mas TODA faixa de trabalho (de todos os profissionais ativos) está coberta por
+   * bloqueios recorrentes sem profissional (professionalId null). Dias sem expediente
+   * NÃO entram aqui (não é um fechamento por bloqueio, e o engine já os deixa vazios).
+   */
+  private async computeClosedWeekdays(
+    businessId: string,
+    professionalIds: string[],
+  ): Promise<number[]> {
+    if (professionalIds.length === 0) return [];
+
+    const [workingHours, businessBlocks] = await Promise.all([
+      this.prisma.workingHour.findMany({
+        where: { professionalId: { in: professionalIds } },
+        select: { weekday: true, startMinute: true, endMinute: true },
+      }),
+      this.prisma.recurringBlock.findMany({
+        where: { businessId, professionalId: null },
+        select: { weekday: true, startMinute: true, endMinute: true },
+      }),
+    ]);
+
+    const closed: number[] = [];
+    for (let wd = 0; wd < 7; wd++) {
+      const work = workingHours.filter((w) => w.weekday === wd);
+      if (work.length === 0) continue; // sem expediente nesse dia: não é "fechado por bloqueio"
+
+      // Une os bloqueios do dia (intervalos que se tocam viram um só).
+      const merged: Array<[number, number]> = [];
+      const intervals = businessBlocks
+        .filter((b) => b.weekday === wd)
+        .map((b) => [b.startMinute, b.endMinute] as [number, number])
+        .sort((a, b) => a[0] - b[0]);
+      for (const [s, e] of intervals) {
+        const last = merged[merged.length - 1];
+        if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+        else merged.push([s, e]);
+      }
+
+      // Fechado se toda faixa de trabalho cabe dentro de um bloqueio unido.
+      const allCovered = work.every((w) =>
+        merged.some(([bs, be]) => bs <= w.startMinute && be >= w.endMinute),
+      );
+      if (allCovered) closed.push(wd);
+    }
+    return closed;
   }
 
   /** Horários livres de um serviço numa data. */

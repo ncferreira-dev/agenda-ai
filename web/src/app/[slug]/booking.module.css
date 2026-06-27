@@ -376,6 +376,29 @@
   color: #fff;
 }
 
+/* Dia fechado por bloqueio recorrente do negócio: apagado e não clicável. */
+.dateChipClosed {
+  cursor: not-allowed;
+}
+.dateChipClosed .dateWeekday,
+.dateChipClosed .dateNum {
+  color: var(--muted);
+  opacity: 0.45;
+}
+.dateChipClosed .dateNum {
+  background: none;
+  text-decoration: line-through;
+}
+.dateClosedTag {
+  min-height: 12px;
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* --- Seções Manhã / Tarde --- */
 .daySection {
   margin-top: 22px;
