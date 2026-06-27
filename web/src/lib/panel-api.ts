@@ -88,6 +88,15 @@ export interface Block {
   professionalId: string | null;
 }
 
+export interface RecurringBlock {
+  id: string;
+  weekday: number; // 0 = domingo … 6 = sábado
+  startMinute: number;
+  endMinute: number;
+  reason: string | null;
+  professionalId: string | null;
+}
+
 export interface Appointment {
   id: string;
   startAt: string;
@@ -127,6 +136,8 @@ export const listProfessionals = () => getJson<Professional[]>('/me/professional
 export const getWorkingHours = (id: string) =>
   getJson<WorkingHour[]>(`/me/professionals/${id}/working-hours`);
 export const listBlocks = () => getJson<Block[]>('/me/blocks');
+export const listRecurringBlocks = () =>
+  getJson<RecurringBlock[]>('/me/recurring-blocks');
 
 export interface ReportBreakdown {
   name: string;

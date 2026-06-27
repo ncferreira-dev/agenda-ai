@@ -165,6 +165,43 @@ export async function deleteBlock(form: FormData): Promise<void> {
   revalidatePath('/painel/bloqueios');
 }
 
+export async function createRecurringBlock(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const weekday = Number(form.get('weekday'));
+  const start = String(form.get('start') ?? '');
+  const end = String(form.get('end') ?? '');
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    return { ok: false, error: 'Escolha um dia da semana.' };
+  }
+  if (!start || !end) {
+    return { ok: false, error: 'Informe início e fim.' };
+  }
+
+  const professionalId = String(form.get('professionalId') ?? '');
+  const res = await authFetch('/me/recurring-blocks', {
+    method: 'POST',
+    body: JSON.stringify({
+      weekday,
+      start,
+      end,
+      reason: String(form.get('reason') ?? '').trim() || undefined,
+      professionalId: professionalId || undefined,
+    }),
+  });
+  if (!res.ok)
+    return { ok: false, error: await readError(res, 'Não foi possível criar o bloqueio recorrente.') };
+  revalidatePath('/painel/bloqueios');
+  return OK;
+}
+
+export async function deleteRecurringBlock(form: FormData): Promise<void> {
+  const id = String(form.get('id'));
+  await authFetch(`/me/recurring-blocks/${id}`, { method: 'DELETE' });
+  revalidatePath('/painel/bloqueios');
+}
+
 // --- Aparência / branding ------------------------------------------------
 
 // Envia um arquivo pro backend (/me/uploads) com o token do cookie e devolve a URL.

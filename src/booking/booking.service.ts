@@ -180,7 +180,7 @@ export class BookingService {
         const service = await tx.service.findUniqueOrThrow({ where: { id: serviceId } });
         const business = await tx.business.findUniqueOrThrow({
           where: { id: businessId },
-          select: { slug: true, requireDeposit: true, depositCents: true },
+          select: { slug: true, requireDeposit: true, depositCents: true, timezone: true },
         });
         const startAt = start.toUTC().toJSDate();
         const endAt = start.plus({ minutes: service.durationMinutes }).toUTC().toJSDate();
@@ -210,6 +210,26 @@ export class BookingService {
           select: { id: true },
         });
         if (blocked) {
+          throw new ConflictException('Esse horário não está mais disponível.');
+        }
+
+        // Recheck: cai dentro de um bloqueio recorrente (folga/almoço semanal)?
+        // Comparamos em minutos-do-dia, no fuso do negócio, pro mesmo dia da semana.
+        const local = start.setZone(business.timezone);
+        const weekday = local.weekday % 7; // 0=domingo … 6=sábado
+        const startMin = local.hour * 60 + local.minute;
+        const endMin = startMin + service.durationMinutes;
+        const recurringHit = await tx.recurringBlock.findFirst({
+          where: {
+            businessId,
+            weekday,
+            OR: [{ professionalId }, { professionalId: null }],
+            startMinute: { lt: endMin },
+            endMinute: { gt: startMin },
+          },
+          select: { id: true },
+        });
+        if (recurringHit) {
           throw new ConflictException('Esse horário não está mais disponível.');
         }
 

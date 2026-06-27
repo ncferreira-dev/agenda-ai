@@ -44,6 +44,7 @@ model Business {
   appointments  Appointment[]
   customers     Customer[]
   timeBlocks    TimeBlock[]
+  recurringBlocks RecurringBlock[]
   conversations Conversation[]
 
   createdAt DateTime @default(now())
@@ -90,6 +91,7 @@ model Professional {
   services     ProfessionalService[]
   appointments Appointment[]
   timeBlocks   TimeBlock[]
+  recurringBlocks RecurringBlock[]
 
   createdAt DateTime @default(now())
 
@@ -228,6 +230,29 @@ model TimeBlock {
 
   @@index([businessId, startAt])
   @@index([professionalId, startAt])
+}
+
+// Bloqueio RECORRENTE por dia da semana (almoço fixo, folga semanal, dia fechado).
+// Diferente do TimeBlock (pontual): este se repete toda semana naquele weekday.
+// weekday: 0 = domingo ... 6 = sábado (mesmo padrão do WorkingHour).
+// startMinute/endMinute: minutos desde 00:00 no fuso do negócio. Ex.: 12h = 720.
+// professionalId null = bloqueia o negócio inteiro nesse dia/horário.
+model RecurringBlock {
+  id             String        @id @default(uuid())
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  professionalId String?
+  professional   Professional? @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  reason      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, weekday])
+  @@index([professionalId, weekday])
 }
 
 // Estado da conversa de WhatsApp por cliente. Guardamos o histórico

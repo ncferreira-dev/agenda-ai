@@ -9,6 +9,24 @@ export interface BlockInput {
   professionalId?: string; // null/ausente = bloqueia o negócio todo
 }
 
+export interface RecurringBlockInput {
+  weekday: number; // 0 = domingo ... 6 = sábado
+  start: string; // 'HH:mm' no fuso do negócio
+  end: string; // 'HH:mm' no fuso do negócio
+  reason?: string;
+  professionalId?: string; // null/ausente = bloqueia o negócio todo
+}
+
+// 'HH:mm' -> minutos desde 00:00. Devolve null se inválido.
+function parseMinutes(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((hhmm ?? '').trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
 @Injectable()
 export class BlocksService {
   constructor(private prisma: PrismaService) {}
@@ -65,6 +83,75 @@ export class BlocksService {
     });
     if (!found) throw new NotFoundException('Bloqueio não encontrado.');
     await this.prisma.timeBlock.delete({ where: { id } });
+    return { id, removed: true };
+  }
+
+  // --- Bloqueios recorrentes (repetem toda semana no mesmo dia/horário) -------
+
+  listRecurring(businessId: string) {
+    return this.prisma.recurringBlock.findMany({
+      where: { businessId },
+      orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }],
+      select: {
+        id: true,
+        weekday: true,
+        startMinute: true,
+        endMinute: true,
+        reason: true,
+        professionalId: true,
+      },
+    });
+  }
+
+  async createRecurring(businessId: string, input: RecurringBlockInput) {
+    const weekday = Number(input?.weekday);
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+      throw new BadRequestException('Dia da semana inválido (0=domingo … 6=sábado).');
+    }
+    const startMinute = parseMinutes(input?.start);
+    const endMinute = parseMinutes(input?.end);
+    if (startMinute === null || endMinute === null) {
+      throw new BadRequestException('Horários devem estar no formato HH:mm.');
+    }
+    if (endMinute <= startMinute) {
+      throw new BadRequestException('O fim deve ser depois do início.');
+    }
+
+    if (input.professionalId) {
+      const pro = await this.prisma.professional.findFirst({
+        where: { id: input.professionalId, businessId },
+        select: { id: true },
+      });
+      if (!pro) throw new BadRequestException('Profissional não pertence ao negócio.');
+    }
+
+    return this.prisma.recurringBlock.create({
+      data: {
+        businessId,
+        professionalId: input.professionalId ?? null,
+        weekday,
+        startMinute,
+        endMinute,
+        reason: input.reason?.trim() || null,
+      },
+      select: {
+        id: true,
+        weekday: true,
+        startMinute: true,
+        endMinute: true,
+        reason: true,
+        professionalId: true,
+      },
+    });
+  }
+
+  async removeRecurring(businessId: string, id: string) {
+    const found = await this.prisma.recurringBlock.findFirst({
+      where: { id, businessId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Bloqueio recorrente não encontrado.');
+    await this.prisma.recurringBlock.delete({ where: { id } });
     return { id, removed: true };
   }
 }

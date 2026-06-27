@@ -7,7 +7,7 @@ import { ServicesController } from './services/services.controller';
 import { ServicesService } from './services/services.service';
 import { ProfessionalsController } from './professionals/professionals.controller';
 import { ProfessionalsService } from './professionals/professionals.service';
-import { BlocksController } from './blocks/blocks.controller';
+import { BlocksController, RecurringBlocksController } from './blocks/blocks.controller';
 import { BlocksService } from './blocks/blocks.service';
 import { UploadsController } from './uploads.controller';
 
@@ -19,6 +19,7 @@ import { UploadsController } from './uploads.controller';
     ServicesController,
     ProfessionalsController,
     BlocksController,
+    RecurringBlocksController,
     UploadsController,
   ],
   providers: [PanelService, ServicesService, ProfessionalsService, BlocksService],

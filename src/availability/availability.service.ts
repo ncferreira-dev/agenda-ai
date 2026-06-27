@@ -57,6 +57,16 @@ export class AvailabilityService {
     const windowStart = dayStart.toJSDate();
     const windowEnd = dayEnd.toJSDate();
 
+    // Dia da semana desse dia (0=domingo … 6=sábado), p/ casar com os recorrentes.
+    const jsWeekday = dayStart.weekday % 7;
+
+    // Bloqueios recorrentes que caem nesse dia da semana (negócio todo + por profissional).
+    // Materializa cada um como um intervalo ocupado concreto naquele dia.
+    const recurring = await this.prisma.recurringBlock.findMany({
+      where: { businessId, weekday: jsWeekday },
+      select: { startMinute: true, endMinute: true, professionalId: true },
+    });
+
     const result: ProfessionalAvailability[] = [];
 
     for (const link of links) {
@@ -92,7 +102,16 @@ export class AvailabilityService {
         select: { startAt: true, endAt: true },
       });
 
-      const busy: BusyInterval[] = [...appts, ...blocks];
+      // Recorrentes que valem pra este profissional (dele ou do negócio todo),
+      // virados em intervalos concretos do dia.
+      const recurringBusy: BusyInterval[] = recurring
+        .filter((r) => r.professionalId === null || r.professionalId === pro.id)
+        .map((r) => ({
+          startAt: dayStart.plus({ minutes: r.startMinute }).toUTC().toJSDate(),
+          endAt: dayStart.plus({ minutes: r.endMinute }).toUTC().toJSDate(),
+        }));
+
+      const busy: BusyInterval[] = [...appts, ...blocks, ...recurringBusy];
 
       const slots: Slot[] = computeAvailableSlots({
         date,
