@@ -15,6 +15,9 @@ const INIT: ActionState = { ok: false };
 // 0 = domingo … 6 = sábado (mesmo padrão do backend/Luxon convertido).
 const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
+// Concordância de gênero: domingo e sábado são masculinos ("todo"), o resto feminino ("toda").
+const artigo = (weekday: number) => (weekday === 0 || weekday === 6 ? 'Todo' : 'Toda');
+
 function hhmm(min: number) {
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -103,7 +106,7 @@ export function RecurringBlocksManager({
             <div key={b.id} className={styles.row}>
               <div className={styles.rowMain}>
                 <div className={styles.rowName}>
-                  Toda {DIAS[b.weekday]} · {hhmm(b.startMinute)}–{hhmm(b.endMinute)}
+                  {artigo(b.weekday)} {DIAS[b.weekday]} · {hhmm(b.startMinute)}–{hhmm(b.endMinute)}
                   <span className={styles.tag}>{nome(b.professionalId)}</span>
                 </div>
                 {b.reason && <div className={styles.rowMeta}>{b.reason}</div>}
