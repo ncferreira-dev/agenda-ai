@@ -38,6 +38,11 @@ export class PanelService {
     profession: true,
     requireDeposit: true,
     depositCents: true,
+    notifyWhatsApp: true,
+    notifyEmail: true,
+    notifyDailySummary: true,
+    ownerWhatsApp: true,
+    ownerEmail: true,
   } as const;
 
   // Fusos suportados (Brasil). Evita gravar timezone inválido (quebraria o motor).
@@ -75,6 +80,11 @@ export class PanelService {
       coverUrl?: string;
       requireDeposit?: boolean;
       depositCents?: number | null;
+      notifyWhatsApp?: boolean;
+      notifyEmail?: boolean;
+      notifyDailySummary?: boolean;
+      ownerWhatsApp?: string;
+      ownerEmail?: string;
       phone?: string;
       address?: string;
       timezone?: string;
@@ -114,6 +124,12 @@ export class PanelService {
     if (input.maxAdvanceDays !== undefined) {
       data.maxAdvanceDays = this.requireRange(input.maxAdvanceDays, 1, 365, 'janela de agendamento');
     }
+
+    if (input.notifyWhatsApp !== undefined) data.notifyWhatsApp = Boolean(input.notifyWhatsApp);
+    if (input.notifyEmail !== undefined) data.notifyEmail = Boolean(input.notifyEmail);
+    if (input.notifyDailySummary !== undefined) data.notifyDailySummary = Boolean(input.notifyDailySummary);
+    if (input.ownerWhatsApp !== undefined) data.ownerWhatsApp = this.normalizePhone(input.ownerWhatsApp);
+    if (input.ownerEmail !== undefined) data.ownerEmail = this.normalizeEmail(input.ownerEmail);
 
     if (input.requireDeposit !== undefined) data.requireDeposit = Boolean(input.requireDeposit);
     if (input.depositCents !== undefined) {
@@ -170,6 +186,16 @@ export class PanelService {
       throw new BadRequestException(`Valor de ${label} deve ser um inteiro entre ${min} e ${max}.`);
     }
     return value;
+  }
+
+  // E-mail simples; vazio limpa (null).
+  private normalizeEmail(value: string): string | null {
+    const v = value.trim().toLowerCase();
+    if (!v) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      throw new BadRequestException('E-mail inválido.');
+    }
+    return v;
   }
 
   // URL http(s); vazio limpa (null).

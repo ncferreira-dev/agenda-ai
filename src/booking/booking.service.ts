@@ -2,8 +2,8 @@ import { Injectable, BadRequestException, ConflictException, Logger } from '@nes
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from '../payments/stripe.service';
-import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const HOLD_MINUTES = 15; // janela pra pagar o sinal antes de liberar o horário
 const FAR_FUTURE_DAYS = 60; // > 2 meses: exige sinal mesmo sem o toggle ligado
@@ -16,8 +16,8 @@ export class BookingService {
   constructor(
     private prisma: PrismaService,
     private stripe: StripeService,
-    private whatsapp: CloudApiProvider,
     private mail: MailService,
+    private notifications: NotificationsService,
   ) {}
 
   /** Acha o cliente pelo telefone ou cria. Atualiza nome/email se vierem. */
@@ -87,8 +87,8 @@ export class BookingService {
       return { appointment: created.appointment, checkoutUrl: checkout.url };
     }
 
-    // Já confirmado (sem sinal): avisa o dono (WhatsApp) e o cliente (e-mail). Fire-and-forget.
-    void this.notifyOwnersNewBooking(created.appointment);
+    // Já confirmado (sem sinal): avisa o dono (canais ligados) e o cliente (e-mail). Fire-and-forget.
+    void this.notifications.notifyNewBooking(created.appointment.id);
     void this.sendCustomerEmail(created.appointment);
     return { appointment: created.appointment, checkoutUrl: undefined as string | undefined };
   }
@@ -117,48 +117,6 @@ export class BookingService {
       when,
       address: business.address,
     });
-  }
-
-  /**
-   * Avisa os donos (no WhatsApp cadastrado no perfil) que entrou um agendamento.
-   * Só envia se o WhatsApp estiver configurado e o dono tiver telefone. Nunca
-   * derruba o fluxo de booking.
-   */
-  private async notifyOwnersNewBooking(appt: {
-    businessId: string;
-    startAt: Date;
-    service: { name: string };
-    professional: { name: string };
-    customer: { name: string | null; phone: string };
-  }): Promise<void> {
-    try {
-      if (!process.env.WHATSAPP_TOKEN) return;
-      const business = await this.prisma.business.findUniqueOrThrow({
-        where: { id: appt.businessId },
-        select: { name: true, timezone: true },
-      });
-      const owners = await this.prisma.owner.findMany({
-        where: { businessId: appt.businessId, phone: { not: null } },
-        select: { phone: true },
-      });
-      if (owners.length === 0) return;
-
-      const when = DateTime.fromJSDate(appt.startAt)
-        .setZone(business.timezone)
-        .setLocale('pt-BR')
-        .toFormat("cccc, dd/LL 'às' HH:mm");
-      const text =
-        `🗓️ Novo agendamento na ${business.name}\n` +
-        `${appt.service.name} com ${appt.professional.name}\n` +
-        `${when}\n` +
-        `Cliente: ${appt.customer.name ?? 'sem nome'} (${appt.customer.phone})`;
-
-      for (const o of owners) {
-        if (o.phone) await this.whatsapp.sendText(o.phone, text).catch(() => undefined);
-      }
-    } catch (err) {
-      this.logger.warn(`Falha ao avisar dono de novo agendamento: ${(err as Error).message}`);
-    }
   }
 
   /**

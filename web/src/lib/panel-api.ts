@@ -53,6 +53,11 @@ export interface Me {
     profession: string | null;
     requireDeposit: boolean;
     depositCents: number | null;
+    notifyWhatsApp: boolean;
+    notifyEmail: boolean;
+    notifyDailySummary: boolean;
+    ownerWhatsApp: string | null;
+    ownerEmail: string | null;
   };
 }
 

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { PaymentsModule } from '../payments/payments.module';
-import { MessagingModule } from '../whatsapp/messaging.module';
 import { MailModule } from '../mail/mail.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { BookingService } from './booking.service';
 
 @Module({
-  imports: [PaymentsModule, MessagingModule, MailModule],
+  imports: [PaymentsModule, MailModule, NotificationsModule],
   providers: [BookingService],
   exports: [BookingService],
 })

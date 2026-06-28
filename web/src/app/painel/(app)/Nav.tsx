@@ -15,6 +15,7 @@ const LINKS = [
   { href: '/painel/negocio', label: 'Negócio' },
   { href: '/painel/aparencia', label: 'Aparência' },
   { href: '/painel/pagamentos', label: 'Pagamentos' },
+  { href: '/painel/notificacoes', label: 'Notificações' },
   { href: '/painel/perfil', label: 'Perfil' },
 ];
 

@@ -12,6 +12,7 @@ import type { Request, Response } from 'express';
 import type Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from './stripe.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // Webhook do Stripe. Precisa do corpo CRU pra validar a assinatura
 // (NestFactory é criado com rawBody: true em main.ts).
@@ -22,6 +23,7 @@ export class PaymentsController {
   constructor(
     private prisma: PrismaService,
     private stripe: StripeService,
+    private notifications: NotificationsService,
   ) {}
 
   @Post()
@@ -47,7 +49,11 @@ export class PaymentsController {
           where: { id: appointmentId, paymentStatus: 'PENDING' },
           data: { paymentStatus: 'PAID', status: 'CONFIRMED', paidAt: new Date() },
         });
-        if (r.count) this.logger.log(`Sinal pago, agendamento confirmado: ${appointmentId}`);
+        if (r.count) {
+          this.logger.log(`Sinal pago, agendamento confirmado: ${appointmentId}`);
+          // Agora que confirmou (sinal pago), avisa o dono. Fire-and-forget.
+          void this.notifications.notifyNewBooking(appointmentId);
+        }
       }
     }
 

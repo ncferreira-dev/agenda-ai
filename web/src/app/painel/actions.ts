@@ -353,6 +353,24 @@ export async function savePayments(_prev: ActionState, form: FormData): Promise<
   return OK;
 }
 
+// --- Notificações pro dono ----------------------------------------------
+
+export async function saveNotifications(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const res = await authFetch('/me/business', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      notifyWhatsApp: form.get('notifyWhatsApp') === 'on',
+      notifyEmail: form.get('notifyEmail') === 'on',
+      notifyDailySummary: form.get('notifyDailySummary') === 'on',
+      ownerWhatsApp: String(form.get('ownerWhatsApp') ?? '').trim(),
+      ownerEmail: String(form.get('ownerEmail') ?? '').trim(),
+    }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/notificacoes');
+  return OK;
+}
+
 // --- Agenda --------------------------------------------------------------
 
 export async function cancelAppointment(form: FormData): Promise<void> {

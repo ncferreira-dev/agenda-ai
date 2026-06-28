@@ -39,6 +39,14 @@ model Business {
   requireDeposit Boolean @default(false)
   depositCents   Int? // valor fixo do sinal por negócio
 
+  // Notificações pro dono (novo agendamento + resumo diário).
+  notifyWhatsApp     Boolean   @default(true)  // avisar o dono no WhatsApp
+  notifyEmail        Boolean   @default(false) // avisar o dono por e-mail
+  notifyDailySummary Boolean   @default(false) // resumo da agenda toda manhã
+  ownerWhatsApp      String?   // WhatsApp do dono p/ avisos (E.164); null = usa o do perfil
+  ownerEmail         String?   // e-mail do dono p/ avisos; null = usa o do perfil
+  lastDailySummaryAt DateTime? // trava do resumo diário (não manda 2x no mesmo dia)
+
   owners        Owner[]
   professionals Professional[]
   services      Service[]

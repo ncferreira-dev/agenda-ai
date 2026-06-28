@@ -58,4 +58,59 @@ export class MailService {
       this.logger.warn(`Falha ao enviar e-mail de confirmação: ${(err as Error).message}`);
     }
   }
+
+  /** Avisa o dono (best-effort) que entrou um agendamento novo. No-op sem SMTP. */
+  async sendOwnerNewBooking(
+    to: string,
+    data: { businessName: string; service: string; professional: string; when: string; customer: string },
+  ): Promise<void> {
+    if (!this.transporter || !to) return;
+    const linhas = [
+      `Novo agendamento na ${data.businessName}.`,
+      ``,
+      `Serviço: ${data.service}`,
+      `Profissional: ${data.professional}`,
+      `Quando: ${data.when}`,
+      `Cliente: ${data.customer}`,
+    ];
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to,
+        subject: `Novo agendamento: ${data.service} (${data.when})`,
+        text: linhas.join('\n'),
+      });
+    } catch (err) {
+      this.logger.warn(`Falha ao avisar dono por e-mail: ${(err as Error).message}`);
+    }
+  }
+
+  /** Manda ao dono (best-effort) o resumo da agenda do dia. No-op sem SMTP. */
+  async sendOwnerDailySummary(
+    to: string,
+    data: {
+      businessName: string;
+      dateLabel: string;
+      items: { hora: string; service: string; professional: string; customer: string }[];
+    },
+  ): Promise<void> {
+    if (!this.transporter || !to) return;
+    const linhas = [
+      `Sua agenda de ${data.dateLabel} na ${data.businessName}:`,
+      ``,
+      ...data.items.map((i) => `${i.hora}  ${i.service} com ${i.professional} (${i.customer})`),
+      ``,
+      `${data.items.length} agendamento(s).`,
+    ];
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to,
+        subject: `Agenda de hoje na ${data.businessName}`,
+        text: linhas.join('\n'),
+      });
+    } catch (err) {
+      this.logger.warn(`Falha ao enviar resumo diário: ${(err as Error).message}`);
+    }
+  }
 }

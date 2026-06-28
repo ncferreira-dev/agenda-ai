@@ -55,6 +55,11 @@ export class PanelController {
       coverUrl?: string;
       requireDeposit?: boolean;
       depositCents?: number | null;
+      notifyWhatsApp?: boolean;
+      notifyEmail?: boolean;
+      notifyDailySummary?: boolean;
+      ownerWhatsApp?: string;
+      ownerEmail?: string;
       phone?: string;
       address?: string;
       timezone?: string;
