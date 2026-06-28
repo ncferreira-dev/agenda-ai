@@ -25,7 +25,7 @@ export const PROFESSION_PRESETS: ProfessionPreset[] = [
     label: 'Barbearia',
     followUpDays: 21,
     message:
-      'Oi {nome}! Já faz um tempinho do seu {servico} na {negocio} ✂️ Tá na hora de dar aquele tapa no visual — quer marcar? É só me chamar por aqui.',
+      'Oi {nome}! Já faz um tempinho do seu {servico} na {negocio} ✂️ Tá na hora de dar aquele tapa no visual. Quer marcar? É só me chamar por aqui.',
     keywords: ['barbearia', 'barbeiro', 'corte', 'barba', 'cabelo masculino', 'degrade', 'degradê'],
   },
   {

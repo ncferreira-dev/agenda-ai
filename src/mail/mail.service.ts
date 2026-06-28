@@ -51,7 +51,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: this.from,
         to,
-        subject: `Agendamento confirmado — ${data.businessName}`,
+        subject: `Agendamento confirmado na ${data.businessName}`,
         text: linhas.join('\n'),
       });
     } catch (err) {

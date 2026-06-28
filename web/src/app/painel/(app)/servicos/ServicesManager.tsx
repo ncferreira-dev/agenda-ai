@@ -115,7 +115,7 @@ function FollowUpFields({
           defaultValue={defaultMessage ?? ''}
         />
         <span className={styles.rowMeta} style={{ marginTop: 4 }}>
-          Use {'{nome}'}, {'{servico}'} e {'{negocio}'} — são trocados na hora do envio.
+          Use {'{nome}'}, {'{servico}'} e {'{negocio}'}. São trocados na hora do envio.
         </span>
       </label>
     </details>

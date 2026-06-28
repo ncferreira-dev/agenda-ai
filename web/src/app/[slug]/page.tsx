@@ -103,7 +103,7 @@ export default async function Page({
       )}
       {sp.pagamento === 'cancelado' && (
         <div className={`${styles.banner} ${styles.bannerWarn}`}>
-          Pagamento não concluído — o horário não foi reservado. Pode tentar de novo.
+          Pagamento não concluído. O horário não foi reservado, pode tentar de novo.
         </div>
       )}
 

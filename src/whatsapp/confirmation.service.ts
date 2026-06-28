@@ -80,7 +80,7 @@ export class ConfirmationService {
       .toFormat("cccc, dd/LL 'às' HH:mm");
     const primeiroNome = customer.name ? ` ${customer.name.split(' ')[0]}` : '';
 
-    return `Confirmado${primeiroNome}! Te espero ${quando} — ${appt.service.name} com ${appt.professional.name}. 🙌`;
+    return `Confirmado${primeiroNome}! Te espero ${quando} pra ${appt.service.name} com ${appt.professional.name}. 🙌`;
   }
 
   private isAffirmation(text: string): boolean {

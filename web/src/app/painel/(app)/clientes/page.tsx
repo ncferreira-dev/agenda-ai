@@ -13,7 +13,7 @@ export default async function ClientesPage() {
         <div>
           <p className={styles.eyebrow}>Painel</p>
           <h1 className={styles.h1}>Clientes</h1>
-          <p className={styles.lead}>Quem já agendou com você — {customers.length} no total.</p>
+          <p className={styles.lead}>Quem já agendou com você ({customers.length} no total).</p>
         </div>
       </div>
 

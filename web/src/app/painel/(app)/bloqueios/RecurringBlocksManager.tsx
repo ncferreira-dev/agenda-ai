@@ -54,7 +54,7 @@ export function RecurringBlocksManager({
       <form ref={ref} action={action} className={`${styles.panel} ${styles.panelPad}`}>
         <h2 className={styles.sectionTitle}>Novo bloqueio recorrente</h2>
         <p className={styles.rowMeta} style={{ marginBottom: 6 }}>
-          Repete toda semana — almoço fixo, folga semanal, dia fechado.
+          Repete toda semana: almoço fixo, folga semanal, dia fechado.
         </p>
         {state.error && <p className={styles.error} style={{ marginTop: 12 }}>{state.error}</p>}
 

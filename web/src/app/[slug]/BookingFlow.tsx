@@ -187,7 +187,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const gcal =
       `https://calendar.google.com/calendar/render?action=TEMPLATE` +
-      `&text=${encodeURIComponent(`${result.service} — ${data.business.name}`)}` +
+      `&text=${encodeURIComponent(`${result.service} na ${data.business.name}`)}` +
       `&dates=${fmt(when)}/${fmt(end)}` +
       `&details=${encodeURIComponent(`Com ${result.professional}`)}` +
       (data.business.address ? `&location=${encodeURIComponent(data.business.address)}` : '');
@@ -331,7 +331,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
           <h2 className={styles.stepTitle}>Horários disponíveis</h2>
           {loading && <p className={styles.hint}>Procurando horários…</p>}
           {!loading && displaySlots.length === 0 && (
-            <p className={styles.hint}>Sem horários nesse dia — toque em outro dia acima ☝️</p>
+            <p className={styles.hint}>Sem horários nesse dia. Toque em outro dia acima ☝️</p>
           )}
 
           {!loading && manha.length > 0 && (

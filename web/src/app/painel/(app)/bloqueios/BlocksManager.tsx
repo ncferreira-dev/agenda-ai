@@ -41,7 +41,7 @@ export function BlocksManager({
       <form ref={ref} action={action} className={`${styles.panel} ${styles.panelPad}`}>
         <h2 className={styles.sectionTitle}>Novo bloqueio</h2>
         <p className={styles.rowMeta} style={{ marginBottom: 6 }}>
-          Folga, almoço extra, feriado — esse intervalo some da agenda.
+          Folga, almoço extra, feriado: esse intervalo some da agenda.
         </p>
         {state.error && <p className={styles.error} style={{ marginTop: 12 }}>{state.error}</p>}
 

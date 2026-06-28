@@ -106,7 +106,7 @@ export function ClientesView({ customers }: { customers: CustomerRow[] }) {
       <div className={styles.panel}>
         {filtered.length === 0 ? (
           <p className={styles.empty}>
-            {customers.length === 0 ? 'Nenhum cliente ainda — eles aparecem ao agendar.' : 'Nada encontrado.'}
+            {customers.length === 0 ? 'Nenhum cliente ainda. Eles aparecem ao agendar.' : 'Nada encontrado.'}
           </p>
         ) : (
           filtered.map((c) => <CustomerRowItem key={c.id} c={c} />)

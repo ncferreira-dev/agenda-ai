@@ -84,7 +84,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
         <div>
           <p className={styles.eyebrow}>Painel</p>
           <h1 className={styles.h1}>Agenda</h1>
-          <p className={styles.lead}>Seus atendimentos — em lista ou na visão da semana.</p>
+          <p className={styles.lead}>Seus atendimentos em lista ou na visão da semana.</p>
         </div>
         <div className={styles.periodTabs}>
           <Link href="/painel?v=lista" className={`${styles.periodTab} ${view === 'lista' ? styles.periodTabActive : ''}`}>Lista</Link>
@@ -103,7 +103,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
             <span className={styles.onboardCheck}>{temProf ? '✓' : '2'}</span><span>Adicionar profissionais e horários</span>
           </Link>
           <Link href="/painel/aparencia" className={styles.onboardStep}>
-            <span className={styles.onboardCheck}>3</span><span>Personalizar a página (logo, cor) — opcional</span>
+            <span className={styles.onboardCheck}>3</span><span>Personalizar a página (logo, cor), opcional</span>
           </Link>
         </div>
       )}

@@ -33,7 +33,7 @@ export default async function BloqueiosPage() {
 
       <h2 className={styles.sectionTitle} style={{ marginTop: 8 }}>Pontuais</h2>
       <p className={styles.lead} style={{ marginTop: 0 }}>
-        Uma data específica — folga, feriado, manutenção.
+        Uma data específica: folga, feriado, manutenção.
       </p>
       <BlocksManager
         blocks={blocks}
@@ -43,7 +43,7 @@ export default async function BloqueiosPage() {
 
       <h2 className={styles.sectionTitle} style={{ marginTop: 28 }}>Recorrentes</h2>
       <p className={styles.lead} style={{ marginTop: 0 }}>
-        Repetem toda semana — almoço fixo, folga semanal, dia fechado.
+        Repetem toda semana: almoço fixo, folga semanal, dia fechado.
       </p>
       <RecurringBlocksManager blocks={recurring} professionals={ativos} />
     </div>
