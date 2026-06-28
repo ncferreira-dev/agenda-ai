@@ -33,6 +33,7 @@ model Business {
   accentColor  String? // hex "#A6432B"; null cai no padrão
   about        String? // texto "Sobre"
   instagramUrl String? // link do Instagram
+  profession   String? // profissão/ramo (ex.: "barbearia"); contexto pra sugestão de follow-up por IA
 
   // Sinal (Fase 5) — cobrança no ato pra derrubar no-show.
   requireDeposit Boolean @default(false)
@@ -125,6 +126,10 @@ model Service {
   priceCents      Int     @default(0)
   active          Boolean @default(true)
 
+  // Follow-up de retorno: convidar o cliente a refazer o serviço depois de um tempo.
+  followUpDays    Int?    // a cada quantos dias reconvidar; null = sem follow-up
+  followUpMessage String? // mensagem tailored (placeholders {nome}/{servico}/{negocio}); null = template genérico
+
   professionals ProfessionalService[]
   appointments  Appointment[]
 
@@ -199,6 +204,7 @@ model Appointment {
   reminderSentAt     DateTime?
   confirmationSentAt DateTime?
   customerConfirmedAt DateTime? // quando o cliente respondeu SIM ao lembrete
+  followUpSentAt     DateTime? // quando disparou o convite de retorno (trava anti-duplo)
 
   // Sinal (Fase 5)
   paymentStatus   PaymentStatus @default(NONE)

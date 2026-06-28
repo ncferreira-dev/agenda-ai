@@ -35,6 +35,7 @@ export class PanelService {
     accentColor: true,
     about: true,
     instagramUrl: true,
+    profession: true,
     requireDeposit: true,
     depositCents: true,
   } as const;
@@ -69,6 +70,7 @@ export class PanelService {
       accentColor?: string;
       about?: string;
       instagramUrl?: string;
+      profession?: string;
       logoUrl?: string;
       coverUrl?: string;
       requireDeposit?: boolean;
@@ -136,6 +138,11 @@ export class PanelService {
       const about = input.about.trim();
       if (about.length > 800) throw new BadRequestException('O "Sobre" está muito longo (máx. 800).');
       data.about = about || null;
+    }
+    if (input.profession !== undefined) {
+      const profession = input.profession.trim();
+      if (profession.length > 80) throw new BadRequestException('Profissão muito longa (máx. 80).');
+      data.profession = profession || null;
     }
     if (input.instagramUrl !== undefined) data.instagramUrl = this.normalizeUrl(input.instagramUrl);
     if (input.logoUrl !== undefined) data.logoUrl = this.normalizeUrl(input.logoUrl);

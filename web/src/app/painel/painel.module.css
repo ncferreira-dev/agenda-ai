@@ -1202,3 +1202,27 @@ textarea.input {
     justify-content: flex-start;
   }
 }
+
+/* =========================================================================
+   FOLLOW-UP DE RETORNO (bloco no form de serviço)
+   ========================================================================= */
+.followUp {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line, #e6dccb);
+}
+.followUpSummary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--ink-soft, #5b5043);
+  list-style: none;
+  user-select: none;
+}
+.followUpSummary::before {
+  content: '↳ ';
+  color: var(--accent);
+}
+.followUp[open] .followUpSummary {
+  margin-bottom: 6px;
+}

@@ -26,6 +26,7 @@
     "@nestjs/schedule": "^4.1.1",
     "@prisma/client": "^5.20.0",
     "argon2": "^0.44.0",
+    "dotenv": "^17.4.2",
     "luxon": "^3.5.0",
     "nodemailer": "^9.0.1",
     "passport": "^0.7.0",

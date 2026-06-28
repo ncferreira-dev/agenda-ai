@@ -1,11 +1,11 @@
-import { listServices } from '@/lib/panel-api';
+import { getMe, listServices } from '@/lib/panel-api';
 import { ServicesManager } from './ServicesManager';
 import styles from '../../painel.module.css';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ServicosPage() {
-  const services = await listServices();
+  const [services, me] = await Promise.all([listServices(), getMe()]);
 
   return (
     <div className={styles.rise}>
@@ -17,7 +17,7 @@ export default async function ServicosPage() {
         </div>
       </div>
 
-      <ServicesManager services={services} />
+      <ServicesManager services={services} profession={me?.business.profession ?? null} />
     </div>
   );
 }

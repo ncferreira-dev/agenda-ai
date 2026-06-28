@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import 'dotenv/config'; // carrega o .env em process.env (ANTHROPIC_API_KEY, WhatsApp, JWT…)
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { NestFactory } from '@nestjs/core';

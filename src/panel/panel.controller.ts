@@ -50,6 +50,7 @@ export class PanelController {
       accentColor?: string;
       about?: string;
       instagramUrl?: string;
+      profession?: string;
       logoUrl?: string;
       coverUrl?: string;
       requireDeposit?: boolean;

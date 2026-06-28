@@ -50,6 +50,7 @@ export interface Me {
     accentColor: string | null;
     about: string | null;
     instagramUrl: string | null;
+    profession: string | null;
     requireDeposit: boolean;
     depositCents: number | null;
   };
@@ -61,6 +62,8 @@ export interface Service {
   durationMinutes: number;
   priceCents: number;
   active: boolean;
+  followUpDays: number | null;
+  followUpMessage: string | null;
 }
 
 export interface Professional {

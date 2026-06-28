@@ -10,6 +10,7 @@ import { AgentModule } from './agent/agent.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { PublicModule } from './public/public.module';
 import { ReminderModule } from './reminder/reminder.module';
+import { FollowUpModule } from './follow-up/follow-up.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ReminderModule } from './reminder/reminder.module';
     WhatsAppModule,
     PublicModule,
     ReminderModule,
+    FollowUpModule,
   ],
 })
 export class AppModule {}

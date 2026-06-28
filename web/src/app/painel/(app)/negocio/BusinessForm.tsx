@@ -72,9 +72,14 @@ export function BusinessForm({ business }: { business: Me['business'] }) {
           <span className={styles.label}>Endereço (local de trabalho)</span>
           <input className={styles.input} name="address" defaultValue={business.address ?? ''} placeholder="Rua, número, bairro, cidade" />
         </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Profissão / ramo</span>
+          <input className={styles.input} name="profession" defaultValue={business.profession ?? ''} placeholder="barbearia, nutricionista, estética…" />
+        </label>
         <p className={styles.rowMeta}>
           O WhatsApp é o número que recebe os agendamentos. O endereço aparece pro cliente na página
-          de agendamento, com link pro mapa.
+          de agendamento, com link pro mapa. A profissão ajuda a IA a sugerir os lembretes de retorno
+          dos seus serviços.
         </p>
       </div>
 

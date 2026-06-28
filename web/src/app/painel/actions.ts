@@ -26,6 +26,14 @@ function reais(value: FormDataEntryValue | null): number {
 
 // --- Serviços ------------------------------------------------------------
 
+// Dias de follow-up do form: vazio -> null (sem follow-up).
+function followUpDays(value: FormDataEntryValue | null): number | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
 export async function createService(_prev: ActionState, form: FormData): Promise<ActionState> {
   const res = await authFetch('/me/services', {
     method: 'POST',
@@ -33,6 +41,8 @@ export async function createService(_prev: ActionState, form: FormData): Promise
       name: String(form.get('name') ?? '').trim(),
       durationMinutes: Number(form.get('durationMinutes')),
       priceCents: reais(form.get('preco')),
+      followUpDays: followUpDays(form.get('followUpDays')),
+      followUpMessage: String(form.get('followUpMessage') ?? '').trim() || null,
     }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível criar o serviço.') };
@@ -48,11 +58,34 @@ export async function updateService(_prev: ActionState, form: FormData): Promise
       name: String(form.get('name') ?? '').trim(),
       durationMinutes: Number(form.get('durationMinutes')),
       priceCents: reais(form.get('preco')),
+      followUpDays: followUpDays(form.get('followUpDays')),
+      followUpMessage: String(form.get('followUpMessage') ?? '').trim() || null,
     }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
   revalidatePath('/painel/servicos');
   return OK;
+}
+
+// Sugere intervalo + mensagem de follow-up (IA com fallback no backend).
+export interface SuggestResult {
+  ok: boolean;
+  error?: string;
+  followUpDays?: number;
+  message?: string;
+  source?: 'ai' | 'preset' | 'default';
+}
+export async function suggestFollowUp(input: {
+  description: string;
+  profession?: string | null;
+}): Promise<SuggestResult> {
+  const res = await authFetch('/me/services/suggest-followup', {
+    method: 'POST',
+    body: JSON.stringify({ description: input.description, profession: input.profession ?? null }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não consegui sugerir agora.') };
+  const data = (await res.json()) as { followUpDays: number; message: string; source: SuggestResult['source'] };
+  return { ok: true, followUpDays: data.followUpDays, message: data.message, source: data.source };
 }
 
 export async function setServiceActive(form: FormData): Promise<void> {
@@ -251,6 +284,7 @@ export async function saveBusiness(_prev: ActionState, form: FormData): Promise<
     name: String(form.get('name') ?? ''),
     phone: String(form.get('phone') ?? ''),
     address: String(form.get('address') ?? ''),
+    profession: String(form.get('profession') ?? ''),
     timezone: String(form.get('timezone') ?? ''),
     slotStepMinutes: Number(form.get('slotStepMinutes')),
     minLeadMinutes: Number(form.get('minLeadMinutes')),
