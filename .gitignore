@@ -7,3 +7,7 @@ dist/
 .DS_Store
 *.tsbuildinfo
 uploads/
+
+# Rascunhos avulsos na raiz (não fazem parte do projeto)
+/ROADMAP*.md
+/index.html
