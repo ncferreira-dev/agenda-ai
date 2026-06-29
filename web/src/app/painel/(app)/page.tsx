@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { DateTime } from 'luxon';
 import { getMe, listAppointments, listServices, listProfessionals, type Appointment } from '@/lib/panel-api';
-import { cancelAppointment, setAppointmentStatus } from '../actions';
+import { cancelAppointment, setAppointmentStatus, setAppointmentPaid } from '../actions';
 import { CopyLink } from './CopyLink';
+import { EditSlug } from './EditSlug';
+import { ItemsEditor } from './ItemsEditor';
 import styles from '../painel.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -11,28 +13,67 @@ function durationMin(a: Appointment): number {
   return Math.round((new Date(a.endAt).getTime() - new Date(a.startAt).getTime()) / 60000);
 }
 
-function StatusActions({ a, isPast }: { a: Appointment; isPast: boolean }) {
-  if (isPast) {
+// Presença e pagamento são DOIS estados independentes — não se misturam.
+function PresenceControl({ a }: { a: Appointment }) {
+  // Já marcado (compareceu/faltou): mostra o estado e oferece desfazer.
+  if (a.status === 'COMPLETED' || a.status === 'NO_SHOW') {
+    const compareceu = a.status === 'COMPLETED';
     return (
-      <>
+      <span className={styles.row} style={{ gap: 6, alignItems: 'center' }}>
+        <span className={`${styles.chip} ${compareceu ? styles.chipOk : styles.chipWarn}`}>
+          {compareceu ? '✓ compareceu' : '✕ faltou'}
+        </span>
         <form action={setAppointmentStatus}>
           <input type="hidden" name="id" value={a.id} />
-          <input type="hidden" name="status" value="COMPLETED" />
-          <button className={`${styles.linkBtn}`} type="submit">Concluído</button>
+          <input type="hidden" name="status" value="CONFIRMED" />
+          <button className={styles.linkBtn} type="submit">desfazer</button>
         </form>
-        <form action={setAppointmentStatus}>
-          <input type="hidden" name="id" value={a.id} />
-          <input type="hidden" name="status" value="NO_SHOW" />
-          <button className={`${styles.linkBtn} ${styles.dangerBtn}`} type="submit">Faltou</button>
-        </form>
-      </>
+      </span>
     );
   }
+  // Ainda não marcado: botões de presença.
   return (
-    <form action={cancelAppointment}>
+    <span className={styles.row} style={{ gap: 6 }}>
+      <form action={setAppointmentStatus}>
+        <input type="hidden" name="id" value={a.id} />
+        <input type="hidden" name="status" value="COMPLETED" />
+        <button className={styles.linkBtn} type="submit">Compareceu</button>
+      </form>
+      <form action={setAppointmentStatus}>
+        <input type="hidden" name="id" value={a.id} />
+        <input type="hidden" name="status" value="NO_SHOW" />
+        <button className={`${styles.linkBtn} ${styles.dangerBtn}`} type="submit">Faltou</button>
+      </form>
+    </span>
+  );
+}
+
+function PaidControl({ a }: { a: Appointment }) {
+  return (
+    <form action={setAppointmentPaid}>
       <input type="hidden" name="id" value={a.id} />
-      <button className={`${styles.linkBtn} ${styles.dangerBtn}`} type="submit">Cancelar</button>
+      <input type="hidden" name="paid" value={a.paid ? 'false' : 'true'} />
+      {a.paid ? (
+        <button className={`${styles.chip} ${styles.chipOk}`} type="submit" title="Clique para desmarcar">
+          ✓ pago
+        </button>
+      ) : (
+        <button className={styles.linkBtn} type="submit">Marcar pago</button>
+      )}
     </form>
+  );
+}
+
+function ApptActions({ a }: { a: Appointment }) {
+  return (
+    <>
+      <PresenceControl a={a} />
+      <PaidControl a={a} />
+      <form action={cancelAppointment}>
+        <input type="hidden" name="id" value={a.id} />
+        <button className={`${styles.linkBtn} ${styles.dangerBtn}`} type="submit">Cancelar</button>
+      </form>
+    </>
   );
 }
 
@@ -70,13 +111,15 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
   const limite7 = now.plus({ days: 7 });
   const hojeCount = (grupos.get(hojeKey) ?? []).length;
   const semanaCount = lista.filter((a) => DateTime.fromISO(a.startAt).setZone(tz) <= limite7).length;
-  const receita = (lista.reduce((s, a) => s + a.priceCents, 0) / 100).toLocaleString('pt-BR', {
+  // Receita usa o total EDITADO e não conta quem faltou (NO_SHOW). Cancelados já não vêm da API.
+  const receita = (
+    lista.filter((a) => a.status !== 'NO_SHOW').reduce((s, a) => s + a.totalCents, 0) / 100
+  ).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   });
 
   const origin = process.env.NEXT_PUBLIC_SITE_ORIGIN ?? 'http://localhost:3001';
-  const nowMs = Date.now();
 
   return (
     <div className={styles.rise}>
@@ -115,6 +158,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
       </div>
 
       <CopyLink url={`${origin}/${me.business.slug}`} />
+      <EditSlug slug={me.business.slug} origin={origin} />
 
       {view === 'semana' ? (
         <div className={`${styles.gap} ${styles.week}`}>
@@ -162,7 +206,6 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                   <div className={styles.panel}>
                     {listaDia.map((a) => {
                       const t = DateTime.fromISO(a.startAt).setZone(tz);
-                      const isPast = new Date(a.startAt).getTime() < nowMs;
                       return (
                         <div key={a.id} className={styles.appt}>
                           <div className={styles.apptTime}>
@@ -174,12 +217,13 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                             <div className={styles.rowMeta}>
                               com {a.professional} · {a.customer.name ?? 'cliente'} · {a.customer.phone}
                             </div>
+                            <ItemsEditor appointment={a} />
                           </div>
                           <div className={styles.rowActions}>
                             {a.paymentStatus === 'PENDING' && <span className={`${styles.chip} ${styles.chipWarn}`}>aguardando sinal</span>}
                             {a.paymentStatus === 'PAID' && <span className={`${styles.chip} ${styles.chipOk}`}>sinal pago</span>}
                             {a.confirmedByCustomer && <span className={`${styles.chip} ${styles.chipOk}`}>✓ confirmou</span>}
-                            <StatusActions a={a} isPast={isPast} />
+                            <ApptActions a={a} />
                           </div>
                         </div>
                       );

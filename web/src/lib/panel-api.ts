@@ -30,7 +30,7 @@ export interface Me {
     email: string;
     name: string;
     phone: string | null;
-    cpf: string | null;
+    hasCpf: boolean; // CPF é write-only (LGPD); só sabemos se há um cadastrado
     cep: string | null;
     photoUrl: string | null;
   };
@@ -51,6 +51,9 @@ export interface Me {
     about: string | null;
     instagramUrl: string | null;
     profession: string | null;
+    inactiveDays: number;
+    vipMinSpentCents: number | null;
+    recurringMinVisits: number;
     requireDeposit: boolean;
     depositCents: number | null;
     notifyWhatsApp: boolean;
@@ -105,15 +108,23 @@ export interface RecurringBlock {
   professionalId: string | null;
 }
 
+export interface AppointmentItem {
+  id: string;
+  name: string;
+  priceCents: number;
+}
+
 export interface Appointment {
   id: string;
   startAt: string;
   endAt: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
-  paymentStatus: 'NONE' | 'PENDING' | 'PAID';
+  paymentStatus: 'NONE' | 'PENDING' | 'PAID'; // sinal/Stripe (Fase 5)
+  paid: boolean; // pagamento marcado à mão pelo dono (independe do sinal)
   confirmedByCustomer: boolean;
   service: string;
-  priceCents: number;
+  totalCents: number; // total editado (soma dos itens)
+  items: AppointmentItem[];
   professional: string;
   customer: { name: string | null; phone: string };
 }
@@ -128,6 +139,12 @@ export async function getMe(): Promise<Me | null> {
   return res.json() as Promise<Me>;
 }
 
+export type Segment =
+  | { kind: 'NOVO' }
+  | { kind: 'RECORRENTE' }
+  | { kind: 'VIP' }
+  | { kind: 'SUMIDO'; inactiveDays: number };
+
 export interface CustomerRow {
   id: string;
   name: string | null;
@@ -135,9 +152,42 @@ export interface CustomerRow {
   email: string | null;
   ownerNote: string | null;
   totalAppointments: number;
+  visits: number;
+  totalSpentCents: number;
   lastAt: string | null;
+  segment: Segment;
 }
 export const listCustomers = () => getJson<CustomerRow[]>('/me/customers');
+
+export interface CustomerHistoryRow {
+  id: string;
+  startAt: string;
+  status: Appointment['status'];
+  paid: boolean;
+  totalCents: number;
+  service: string;
+  professional: string;
+  items: AppointmentItem[];
+}
+export interface CustomerDetail {
+  id: string;
+  name: string | null;
+  phone: string;
+  email: string | null;
+  ownerNote: string | null;
+  createdAt: string;
+  totalSpentCents: number;
+  paidCount: number;
+  visits: number;
+  avgTicketCents: number;
+  firstVisitAt: string | null;
+  lastVisitAt: string | null;
+  segment: Segment;
+  topServices: { name: string; count: number }[];
+  whatsappMessage: string;
+  history: CustomerHistoryRow[];
+}
+export const getCustomerDetail = (id: string) => getJson<CustomerDetail>(`/me/customers/${id}`);
 
 export const listServices = () => getJson<Service[]>('/me/services');
 export const listProfessionals = () => getJson<Professional[]>('/me/professionals');
@@ -153,10 +203,12 @@ export interface ReportBreakdown {
   cents: number;
 }
 export interface Report {
-  totalCount: number;
-  totalCents: number;
-  realizedCents: number;
-  scheduledCents: number;
+  previstoCents: number;
+  previstoCount: number;
+  aReceberCents: number;
+  aReceberCount: number;
+  recebidoCents: number;
+  recebidoCount: number;
   byService: ReportBreakdown[];
   byProfessional: ReportBreakdown[];
 }

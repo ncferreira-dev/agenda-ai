@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useFormState, useFormStatus } from 'react-dom';
 import type { CustomerRow } from '@/lib/panel-api';
 import { saveCustomerNote, type ActionState } from '../../actions';
 import { maskFormat } from '../../MaskedInput';
+import { SegmentTag } from './SegmentTag';
 import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
@@ -13,6 +15,10 @@ function lastLabel(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function brl(cents: number): string {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function SaveNote() {
@@ -35,15 +41,19 @@ function CustomerRowItem({ c }: { c: CustomerRow }) {
     <div className={styles.row} style={{ display: 'block' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <div className={styles.rowMain}>
-          <div className={styles.rowName}>{c.name ?? 'Sem nome'}</div>
+          <div className={styles.rowName} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Link href={`/painel/clientes/${c.id}`} className={styles.altLink}>{c.name ?? 'Sem nome'}</Link>
+            <SegmentTag segment={c.segment} />
+          </div>
           <div className={styles.rowMeta}>
             {maskFormat('phone', c.phone)}
             {c.email ? ` · ${c.email}` : ''}
           </div>
         </div>
         <div className={styles.rowActions} style={{ gap: 16 }}>
-          <span className={styles.rowMeta}>{c.totalAppointments} agend.</span>
+          <span className={styles.rowMeta}>{brl(c.totalSpentCents)} · {c.visits} visitas</span>
           <span className={styles.rowMeta}>último: {lastLabel(c.lastAt)}</span>
+          <Link href={`/painel/clientes/${c.id}`} className={styles.smallBtn}>Ver ficha</Link>
           <button className={styles.smallBtn} type="button" onClick={() => setEditing((v) => !v)}>
             {c.ownerNote ? 'Editar nota' : 'Nota'}
           </button>

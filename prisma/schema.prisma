@@ -39,6 +39,11 @@ model Business {
   requireDeposit Boolean @default(false)
   depositCents   Int? // valor fixo do sinal por negócio
 
+  // Segmentação de clientes (CRM). Limiares ajustáveis pelo dono.
+  inactiveDays       Int  @default(60) // "Sumido" se a última visita passou disso
+  vipMinSpentCents   Int? // VIP se o total gasto atingir isso; null = sem regra de gasto
+  recurringMinVisits Int  @default(3)  // "Recorrente" a partir deste nº de visitas
+
   // Notificações pro dono (novo agendamento + resumo diário).
   notifyWhatsApp     Boolean   @default(true)  // avisar o dono no WhatsApp
   notifyEmail        Boolean   @default(false) // avisar o dono por e-mail
@@ -73,13 +78,36 @@ model Owner {
 
   // Perfil do dono
   phone    String? // E.164
-  cpf      String? // só dígitos
+  // CPF nunca é gravado cru (LGPD). Guardamos só um blind index: HMAC-SHA256
+  // determinístico (CPF_HASH_SECRET) que permite checar unicidade sem expor o
+  // número. Ver src/common/cpf.ts.
+  cpfHash  String? @unique
   cep      String? // só dígitos
   photoUrl String? // foto de perfil
 
-  createdAt DateTime @default(now())
+  // Marca o instante da última troca de senha. Tokens (JWT) emitidos ANTES
+  // disso deixam de valer (ver JwtStrategy) — invalida sessões antigas no reset.
+  passwordChangedAt DateTime?
+
+  createdAt      DateTime        @default(now())
+  passwordResets PasswordReset[]
 
   @@index([businessId])
+}
+
+// Pedido de redefinição de senha. O token cru viaja só no link do e-mail;
+// aqui guardamos só o SHA-256 dele (token é aleatório forte, não precisa de
+// segredo). Uso único (usedAt) e com expiração (expiresAt).
+model PasswordReset {
+  id        String    @id @default(uuid())
+  ownerId   String
+  owner     Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([ownerId])
 }
 
 // Quem executa o serviço (barbeiro, mecânico, esteticista...).
@@ -208,6 +236,11 @@ model Appointment {
   status  AppointmentStatus @default(CONFIRMED)
   notes   String? // a "observação" do cliente
 
+  // Total do atendimento em centavos = soma dos AppointmentItem (denormalizado).
+  // É o valor EDITADO (principal + itens acrescentados na hora) — fonte do
+  // faturamento e da exibição. Mantido em transação quando os itens mudam.
+  totalCents Int @default(0)
+
   // Controle de lembretes (pra não disparar duas vezes)
   reminderSentAt     DateTime?
   confirmationSentAt DateTime?
@@ -221,12 +254,37 @@ model Appointment {
   paidAt          DateTime?
   holdExpiresAt   DateTime? // se PENDING não pagar até aqui, libera o horário
 
+  // Pagamento marcado À MÃO pelo dono no painel (independe do sinal/Stripe acima).
+  // null = não pago; preenchido = pago (o timestamp serve de auditoria).
+  manualPaidAt DateTime?
+
+  items AppointmentItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Acelera a query mais quente: conflitos do profissional num intervalo.
   @@index([professionalId, startAt])
   @@index([businessId, startAt])
+}
+
+// Itens cobrados num atendimento: o serviço principal (espelhado no ato do
+// agendamento) + extras acrescentados na hora pelo dono. A soma vira o
+// Appointment.totalCents. sourceServiceId aponta pro Service de origem quando o
+// item nasceu de um serviço (alimenta "serviços mais feitos" no CRM); null em
+// itens avulsos. Não tem relação formal pra não atrapalhar exclusão de Service.
+model AppointmentItem {
+  id            String      @id @default(uuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  name            String
+  priceCents      Int    @default(0)
+  sourceServiceId String? // Service de origem (sem FK formal); null = item avulso
+
+  createdAt DateTime @default(now())
+
+  @@index([appointmentId])
 }
 
 // Bloqueios pontuais: folga, almoço extra, feriado, manutenção.

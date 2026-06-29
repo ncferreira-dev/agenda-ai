@@ -5,11 +5,11 @@ import styles from '../../painel.module.css';
 
 export const dynamic = 'force-dynamic';
 
-type Periodo = 'semana' | 'mes' | '30d';
+type Periodo = 'dia' | 'semana' | 'mes';
 const LABELS: Record<Periodo, string> = {
+  dia: 'Hoje',
   semana: 'Esta semana',
   mes: 'Este mês',
-  '30d': 'Últimos 30 dias',
 };
 
 function brl(cents: number): string {
@@ -18,12 +18,13 @@ function brl(cents: number): string {
 
 function range(p: Periodo, tz: string): { from: string; to: string } {
   const now = DateTime.now().setZone(tz);
+  if (p === 'dia') {
+    const start = now.startOf('day');
+    return { from: start.toISO()!, to: start.plus({ days: 1 }).toISO()! };
+  }
   if (p === 'semana') {
     const start = now.startOf('week');
     return { from: start.toISO()!, to: start.plus({ weeks: 1 }).toISO()! };
-  }
-  if (p === '30d') {
-    return { from: now.startOf('day').minus({ days: 29 }).toISO()!, to: now.plus({ days: 1 }).startOf('day').toISO()! };
   }
   const start = now.startOf('month');
   return { from: start.toISO()!, to: start.plus({ months: 1 }).toISO()! };
@@ -57,6 +58,19 @@ function Breakdown({ title, items }: { title: string; items: ReportBreakdown[] }
   );
 }
 
+// Um balde financeiro (previsto / a receber / recebido).
+function Bucket({ label, cents, count, hint, ok }: { label: string; cents: number; count: number; hint: string; ok?: boolean }) {
+  return (
+    <div className={styles.statCard}>
+      <span className={styles.statNum} style={{ fontSize: 20, color: ok ? 'var(--accent, #1F4D3A)' : undefined }}>
+        {brl(cents)}
+      </span>
+      <span className={styles.statLabel}>{label} · {count}</span>
+      <span className={styles.rowMeta} style={{ fontSize: 11.5, marginTop: 2 }}>{hint}</span>
+    </div>
+  );
+}
+
 export default async function RelatorioPage({
   searchParams,
 }: {
@@ -65,11 +79,13 @@ export default async function RelatorioPage({
   const me = await getMe();
   if (!me) return null;
 
-  const p: Periodo = (['semana', 'mes', '30d'] as const).includes(searchParams.p as Periodo)
+  const p: Periodo = (['dia', 'semana', 'mes'] as const).includes(searchParams.p as Periodo)
     ? (searchParams.p as Periodo)
     : 'mes';
   const { from, to } = range(p, me.business.timezone);
   const report = await getReport(from, to);
+
+  const total = report.previstoCents + report.aReceberCents + report.recebidoCents;
 
   return (
     <div className={styles.rise}>
@@ -77,12 +93,12 @@ export default async function RelatorioPage({
         <div>
           <p className={styles.eyebrow}>Painel</p>
           <h1 className={styles.h1}>Faturamento</h1>
-          <p className={styles.lead}>Quanto entrou e o que está marcado, por período.</p>
+          <p className={styles.lead}>O que está previsto, o que falta receber e o que já entrou.</p>
         </div>
       </div>
 
       <div className={styles.periodTabs}>
-        {(['semana', 'mes', '30d'] as Periodo[]).map((opt) => (
+        {(['dia', 'semana', 'mes'] as Periodo[]).map((opt) => (
           <Link
             key={opt}
             href={`/painel/relatorio?p=${opt}`}
@@ -94,24 +110,15 @@ export default async function RelatorioPage({
       </div>
 
       <div className={styles.stats}>
-        <div className={styles.statCard}>
-          <span className={styles.statNum}>{brl(report.totalCents)}</span>
-          <span className={styles.statLabel}>total no período</span>
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statNum}>{report.totalCount}</span>
-          <span className={styles.statLabel}>atendimentos</span>
-        </div>
+        <Bucket label="Previsto" cents={report.previstoCents} count={report.previstoCount} hint="futuros confirmados, não pagos" />
+        <Bucket label="A receber" cents={report.aReceberCents} count={report.aReceberCount} hint="já atendidos, não pagos" />
+        <Bucket label="Recebido" cents={report.recebidoCents} count={report.recebidoCount} hint="pagos" ok />
       </div>
 
       <div className={styles.stats}>
         <div className={styles.statCard}>
-          <span className={styles.statNum} style={{ fontSize: 20 }}>{brl(report.realizedCents)}</span>
-          <span className={styles.statLabel}>já realizado</span>
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statNum} style={{ fontSize: 20 }}>{brl(report.scheduledCents)}</span>
-          <span className={styles.statLabel}>ainda por vir</span>
+          <span className={styles.statNum}>{brl(total)}</span>
+          <span className={styles.statLabel}>total movimentado no período</span>
         </div>
       </div>
 

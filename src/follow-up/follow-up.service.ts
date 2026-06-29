@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
-import { DEFAULT_FOLLOWUP_MESSAGE } from '../presets/profissoes';
+import { renderFollowUpMessage } from './render-message';
 
 // ---------------------------------------------------------------------------
 // Follow-up de retorno: depois que um atendimento foi CONCLUÍDO, espera o
@@ -77,7 +77,7 @@ export class FollowUpService {
         const localHour = now.setZone(appt.business.timezone).hour;
         if (localHour < SEND_HOUR_START || localHour >= SEND_HOUR_END) continue;
 
-        const text = this.renderMessage(
+        const text = renderFollowUpMessage(
           appt.service.followUpMessage,
           appt.customer.name,
           appt.service.name,
@@ -104,19 +104,5 @@ export class FollowUpService {
       where: { id: appointmentId },
       data: { followUpSentAt: new Date() },
     });
-  }
-
-  // Aplica os placeholders {nome}/{servico}/{negocio}. Usa o 1º nome do cliente.
-  private renderMessage(
-    template: string | null,
-    customerName: string | null,
-    serviceName: string,
-    businessName: string,
-  ): string {
-    const firstName = customerName?.trim().split(/\s+/)[0] ?? '';
-    return (template ?? DEFAULT_FOLLOWUP_MESSAGE)
-      .replaceAll('{nome}', firstName || 'tudo bem')
-      .replaceAll('{servico}', serviceName)
-      .replaceAll('{negocio}', businessName);
   }
 }

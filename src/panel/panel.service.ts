@@ -1,14 +1,40 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { DateTime } from 'luxon';
+import { hashCpf, normalizeCpf } from '../common/cpf';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingService } from '../booking/booking.service';
+import { renderFollowUpMessage } from '../follow-up/render-message';
 
 export interface AppointmentsQuery {
   from?: string; // ISO; default = agora
   to?: string; // ISO; opcional (fim da janela)
   status?: string; // um AppointmentStatus; default = PENDING+CONFIRMED
 }
+
+// Números de CRM acumulados por cliente.
+interface CustomerStats {
+  total: number; // agendamentos não cancelados
+  visits: number; // atendimentos concluídos (COMPLETED)
+  paidCount: number; // atendimentos pagos
+  spentCents: number; // total gasto (soma dos pagos, total editado)
+  firstVisitAt: Date | null;
+  lastVisitAt: Date | null;
+}
+
+const EMPTY_STATS: CustomerStats = {
+  total: 0,
+  visits: 0,
+  paidCount: 0,
+  spentCents: 0,
+  firstVisitAt: null,
+  lastVisitAt: null,
+};
 
 // Service do painel do dono. Todo método recebe businessId como 1º argumento e
 // filtra por ele — mesmo padrão do BookingService. O businessId vem do JWT.
@@ -36,6 +62,9 @@ export class PanelService {
     about: true,
     instagramUrl: true,
     profession: true,
+    inactiveDays: true,
+    vipMinSpentCents: true,
+    recurringMinVisits: true,
     requireDeposit: true,
     depositCents: true,
     notifyWhatsApp: true,
@@ -72,6 +101,7 @@ export class PanelService {
     businessId: string,
     input: {
       name?: string;
+      slug?: string;
       accentColor?: string;
       about?: string;
       instagramUrl?: string;
@@ -92,9 +122,28 @@ export class PanelService {
       minLeadMinutes?: number;
       maxAdvanceDays?: number;
       reminderHoursBefore?: number;
+      inactiveDays?: number;
+      vipMinSpentCents?: number | null;
+      recurringMinVisits?: number;
     },
   ) {
     const data: Record<string, unknown> = {};
+
+    if (input.inactiveDays !== undefined) {
+      data.inactiveDays = this.requireRange(input.inactiveDays, 7, 730, 'dias para "sumido"');
+    }
+    if (input.recurringMinVisits !== undefined) {
+      data.recurringMinVisits = this.requireRange(input.recurringMinVisits, 2, 100, 'visitas para "recorrente"');
+    }
+    if (input.vipMinSpentCents !== undefined) {
+      if (input.vipMinSpentCents === null) {
+        data.vipMinSpentCents = null;
+      } else if (!Number.isInteger(input.vipMinSpentCents) || input.vipMinSpentCents < 0) {
+        throw new BadRequestException('O gasto mínimo de VIP deve ser um inteiro em centavos (>= 0).');
+      } else {
+        data.vipMinSpentCents = input.vipMinSpentCents;
+      }
+    }
 
     if (input.reminderHoursBefore !== undefined) {
       data.reminderHoursBefore = this.requireRange(input.reminderHoursBefore, 1, 168, 'lembrete (horas)');
@@ -147,6 +196,9 @@ export class PanelService {
       if (!name) throw new BadRequestException('O nome não pode ficar vazio.');
       data.name = name;
     }
+    if (input.slug !== undefined) {
+      data.slug = await this.normalizeSlug(input.slug, businessId);
+    }
     if (input.accentColor !== undefined) {
       data.accentColor = this.normalizeColor(input.accentColor);
     }
@@ -164,11 +216,51 @@ export class PanelService {
     if (input.logoUrl !== undefined) data.logoUrl = this.normalizeUrl(input.logoUrl);
     if (input.coverUrl !== undefined) data.coverUrl = this.normalizeUrl(input.coverUrl);
 
-    return this.prisma.business.update({
-      where: { id: businessId },
-      data,
-      select: PanelService.BUSINESS_SELECT,
+    try {
+      return await this.prisma.business.update({
+        where: { id: businessId },
+        data,
+        select: PanelService.BUSINESS_SELECT,
+      });
+    } catch (e) {
+      // Backstop de corrida: o @unique do slug pegou uma colisão simultânea.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('Esse link já está em uso. Escolha outro.');
+      }
+      throw e;
+    }
+  }
+
+  // Slugs reservados: colidiriam com rotas do app/site (Next + API pública).
+  private static readonly RESERVED_SLUGS = new Set([
+    'painel', 'login', 'logout', 'cadastro', 'api', 'b', 'admin', 'app',
+    'www', 'sobre', 'precos', 'termos', 'privacidade', 'contato', 'ajuda',
+    'negocio', 'agendamento', 'agendar', 'static', '_next', 'assets',
+  ]);
+
+  // Slug da página pública: minúsculas, [a-z0-9-], sem hífen nas pontas/duplo,
+  // 3–40 chars. Checa unicidade contra TODOS os negócios (exceto o próprio).
+  private async normalizeSlug(value: string, businessId: string): Promise<string> {
+    const slug = value.trim().toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      throw new BadRequestException(
+        'O link só pode ter letras minúsculas, números e hífen (sem espaços nem acentos).',
+      );
+    }
+    if (slug.length < 3 || slug.length > 40) {
+      throw new BadRequestException('O link deve ter entre 3 e 40 caracteres.');
+    }
+    if (PanelService.RESERVED_SLUGS.has(slug)) {
+      throw new BadRequestException('Esse link é reservado. Escolha outro.');
+    }
+    const clash = await this.prisma.business.findUnique({
+      where: { slug },
+      select: { id: true },
     });
+    if (clash && clash.id !== businessId) {
+      throw new ConflictException('Esse link já está em uso. Escolha outro.');
+    }
+    return slug;
   }
 
   // Hex "#RRGGBB"; vazio limpa (null).
@@ -210,21 +302,30 @@ export class PanelService {
 
   // --- Perfil do dono ----------------------------------------------------
 
+  // Nunca selecionamos cpfHash pra fora: o CPF é write-only. A página só sabe
+  // se há um cadastrado (hasCpf), nunca o número.
   private static readonly OWNER_SELECT = {
     id: true,
     email: true,
     name: true,
     phone: true,
-    cpf: true,
+    cpfHash: true,
     cep: true,
     photoUrl: true,
   } as const;
 
-  getOwner(ownerId: string) {
-    return this.prisma.owner.findUniqueOrThrow({
+  // Tira o cpfHash do retorno e expõe só o booleano hasCpf.
+  private presentOwner<T extends { cpfHash: string | null }>(owner: T) {
+    const { cpfHash, ...rest } = owner;
+    return { ...rest, hasCpf: cpfHash !== null };
+  }
+
+  async getOwner(ownerId: string) {
+    const owner = await this.prisma.owner.findUniqueOrThrow({
       where: { id: ownerId },
       select: PanelService.OWNER_SELECT,
     });
+    return this.presentOwner(owner);
   }
 
   async updateOwner(
@@ -246,14 +347,28 @@ export class PanelService {
     }
     if (input.phone !== undefined) data.phone = this.normalizePhone(input.phone);
     if (input.cep !== undefined) data.cep = this.normalizeCep(input.cep);
-    if (input.cpf !== undefined) data.cpf = this.normalizeCpf(input.cpf);
     if (input.photoUrl !== undefined) data.photoUrl = this.normalizeUrl(input.photoUrl);
 
-    return this.prisma.owner.update({
+    // CPF é write-only: campo vazio = "não mexe" (não apaga o que já existe).
+    // Só com valor: valida, hashea e checa unicidade contra os outros donos.
+    if (input.cpf !== undefined && input.cpf.trim() !== '') {
+      const cpfHash = hashCpf(normalizeCpf(input.cpf));
+      const clash = await this.prisma.owner.findUnique({
+        where: { cpfHash },
+        select: { id: true },
+      });
+      if (clash && clash.id !== ownerId) {
+        throw new ConflictException('Este CPF já está em uso por outra conta.');
+      }
+      data.cpfHash = cpfHash;
+    }
+
+    const owner = await this.prisma.owner.update({
       where: { id: ownerId },
       data,
       select: PanelService.OWNER_SELECT,
     });
+    return this.presentOwner(owner);
   }
 
   private normalizePhone(value: string): string | null {
@@ -270,25 +385,6 @@ export class PanelService {
     if (!digits) return null;
     if (digits.length !== 8) throw new BadRequestException('CEP deve ter 8 dígitos.');
     return digits;
-  }
-
-  // Valida CPF (11 dígitos + dígitos verificadores). Vazio limpa (null).
-  private normalizeCpf(value: string): string | null {
-    const cpf = value.replace(/\D/g, '');
-    if (!cpf) return null;
-    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
-      throw new BadRequestException('CPF inválido.');
-    }
-    const calcDigit = (len: number): number => {
-      let sum = 0;
-      for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
-      const rest = (sum * 10) % 11;
-      return rest === 10 ? 0 : rest;
-    };
-    if (calcDigit(9) !== Number(cpf[9]) || calcDigit(10) !== Number(cpf[10])) {
-      throw new BadRequestException('CPF inválido.');
-    }
-    return cpf;
   }
 
   /**
@@ -316,9 +412,10 @@ export class PanelService {
       where: { businessId, status, startAt },
       orderBy: { startAt: 'asc' },
       include: {
-        service: { select: { name: true, priceCents: true } },
+        service: { select: { name: true } },
         professional: { select: { name: true } },
         customer: { select: { name: true, phone: true } },
+        items: { select: { id: true, name: true, priceCents: true }, orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -328,12 +425,63 @@ export class PanelService {
       endAt: a.endAt.toISOString(),
       status: a.status,
       paymentStatus: a.paymentStatus,
+      paid: a.manualPaidAt !== null,
       confirmedByCustomer: a.customerConfirmedAt !== null,
       service: a.service.name,
-      priceCents: a.service.priceCents,
+      totalCents: a.totalCents,
+      items: a.items,
       professional: a.professional.name,
       customer: { name: a.customer.name, phone: a.customer.phone },
     }));
+  }
+
+  /**
+   * Substitui os itens cobrados de um agendamento (serviço principal + extras)
+   * e recalcula o totalCents — em transação. Só enquanto NÃO pago: depois de
+   * pago o valor congela (não reescreve histórico financeiro). Escopo por negócio.
+   */
+  async setAppointmentItems(
+    businessId: string,
+    id: string,
+    rawItems: Array<{ name?: string; priceCents?: number; sourceServiceId?: string | null }>,
+  ) {
+    const appt = await this.prisma.appointment.findFirst({
+      where: { id, businessId },
+      select: { id: true, manualPaidAt: true },
+    });
+    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+    if (appt.manualPaidAt) {
+      throw new BadRequestException('Agendamento já pago: os itens não podem mais ser editados.');
+    }
+
+    // Sanitiza: nome obrigatório, preço inteiro >= 0 em centavos.
+    const items = (rawItems ?? []).map((it) => {
+      const name = (it.name ?? '').trim();
+      if (!name) throw new BadRequestException('Todo item precisa de um nome.');
+      if (name.length > 80) throw new BadRequestException('Nome de item muito longo (máx. 80).');
+      const price = it.priceCents;
+      if (price === undefined || !Number.isInteger(price) || price < 0) {
+        throw new BadRequestException('Preço do item deve ser um inteiro em centavos (>= 0).');
+      }
+      return { name, priceCents: price, sourceServiceId: it.sourceServiceId ?? null };
+    });
+    if (items.length === 0) {
+      throw new BadRequestException('O agendamento precisa de ao menos um item.');
+    }
+
+    const total = items.reduce((s, it) => s + it.priceCents, 0);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.appointmentItem.deleteMany({ where: { appointmentId: id } });
+      await tx.appointmentItem.createMany({
+        data: items.map((it) => ({ appointmentId: id, ...it })),
+      });
+      return tx.appointment.update({
+        where: { id },
+        data: { totalCents: total },
+        select: { id: true, totalCents: true },
+      });
+    });
   }
 
   /** Cancela um agendamento do negócio. Reusa o BookingService (já scopa). */
@@ -341,30 +489,178 @@ export class PanelService {
     return this.booking.cancelAppointment(businessId, appointmentId);
   }
 
-  /** Lista os clientes do negócio com contagem de agendamentos e o último. */
+  /**
+   * Lista os clientes do negócio já com os números de CRM: total gasto (pagos),
+   * nº de visitas (COMPLETED), última visita e segmento. Agrega tudo em memória
+   * a partir de uma única varredura dos agendamentos do negócio.
+   */
   async listCustomers(businessId: string) {
-    const customers = await this.prisma.customer.findMany({
-      where: { businessId },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        ownerNote: true,
-        _count: { select: { appointments: true } },
-        appointments: { select: { startAt: true }, orderBy: { startAt: 'desc' }, take: 1 },
-      },
-      orderBy: { createdAt: 'desc' },
+    const [business, customers, appts] = await Promise.all([
+      this.prisma.business.findUniqueOrThrow({
+        where: { id: businessId },
+        select: { inactiveDays: true, vipMinSpentCents: true, recurringMinVisits: true },
+      }),
+      this.prisma.customer.findMany({
+        where: { businessId },
+        select: { id: true, name: true, phone: true, email: true, ownerNote: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.appointment.findMany({
+        where: { businessId, status: { not: 'CANCELLED' } },
+        select: { customerId: true, status: true, totalCents: true, manualPaidAt: true, startAt: true },
+      }),
+    ]);
+
+    const stats = this.aggregateCustomerStats(appts);
+    const now = new Date();
+
+    return customers.map((c) => {
+      const s = stats.get(c.id) ?? EMPTY_STATS;
+      return {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        ownerNote: c.ownerNote,
+        totalAppointments: s.total,
+        visits: s.visits,
+        totalSpentCents: s.spentCents,
+        lastAt: s.lastVisitAt?.toISOString() ?? null,
+        segment: this.segmentOf(business, s, now),
+      };
     });
-    return customers.map((c) => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      email: c.email,
-      ownerNote: c.ownerNote,
-      totalAppointments: c._count.appointments,
-      lastAt: c.appointments[0]?.startAt.toISOString() ?? null,
-    }));
+  }
+
+  /** Soma por cliente: total de agendamentos, visitas (COMPLETED), gasto (pago), 1ª/última visita. */
+  private aggregateCustomerStats(
+    appts: Array<{ customerId: string; status: AppointmentStatus; totalCents: number; manualPaidAt: Date | null; startAt: Date }>,
+  ) {
+    const map = new Map<string, CustomerStats>();
+    for (const a of appts) {
+      const s = map.get(a.customerId) ?? { total: 0, visits: 0, paidCount: 0, spentCents: 0, firstVisitAt: null, lastVisitAt: null };
+      s.total += 1;
+      if (a.manualPaidAt) {
+        s.paidCount += 1;
+        s.spentCents += a.totalCents;
+      }
+      if (a.status === 'COMPLETED') {
+        s.visits += 1;
+        if (!s.firstVisitAt || a.startAt < s.firstVisitAt) s.firstVisitAt = a.startAt;
+        if (!s.lastVisitAt || a.startAt > s.lastVisitAt) s.lastVisitAt = a.startAt;
+      }
+      map.set(a.customerId, s);
+    }
+    return map;
+  }
+
+  /**
+   * Segmento do cliente (precedência): sem visitas -> Novo; última visita além de
+   * inactiveDays -> Sumido; gasto >= vipMinSpentCents -> VIP; visitas >=
+   * recurringMinVisits -> Recorrente; senão Novo.
+   */
+  private segmentOf(
+    business: { inactiveDays: number; vipMinSpentCents: number | null; recurringMinVisits: number },
+    s: CustomerStats,
+    now: Date,
+  ): { kind: 'NOVO' | 'SUMIDO' | 'VIP' | 'RECORRENTE'; inactiveDays?: number } {
+    if (s.visits === 0) return { kind: 'NOVO' };
+    if (s.lastVisitAt) {
+      const days = Math.floor((now.getTime() - s.lastVisitAt.getTime()) / 86_400_000);
+      if (days > business.inactiveDays) return { kind: 'SUMIDO', inactiveDays: days };
+    }
+    if (business.vipMinSpentCents != null && s.spentCents >= business.vipMinSpentCents) {
+      return { kind: 'VIP' };
+    }
+    if (s.visits >= business.recurringMinVisits) return { kind: 'RECORRENTE' };
+    return { kind: 'NOVO' };
+  }
+
+  /**
+   * Ficha completa de um cliente (CRM). Agregados financeiros + segmento +
+   * serviços mais feitos + histórico + mensagem de retorno pronta pro WhatsApp.
+   * Escopado por businessId (o cliente tem de ser do negócio do dono).
+   */
+  async getCustomerDetail(businessId: string, customerId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, businessId },
+      select: { id: true, name: true, phone: true, email: true, ownerNote: true, createdAt: true },
+    });
+    if (!customer) throw new NotFoundException('Cliente não encontrado.');
+
+    const [business, appts] = await Promise.all([
+      this.prisma.business.findUniqueOrThrow({
+        where: { id: businessId },
+        select: { name: true, inactiveDays: true, vipMinSpentCents: true, recurringMinVisits: true },
+      }),
+      this.prisma.appointment.findMany({
+        where: { businessId, customerId, status: { not: 'CANCELLED' } },
+        orderBy: { startAt: 'desc' },
+        select: {
+          id: true,
+          startAt: true,
+          status: true,
+          totalCents: true,
+          manualPaidAt: true,
+          service: { select: { name: true, followUpMessage: true } },
+          professional: { select: { name: true } },
+          items: { select: { name: true, priceCents: true }, orderBy: { createdAt: 'asc' } },
+        },
+      }),
+    ]);
+
+    const now = new Date();
+    const s = this.aggregateCustomerStats(
+      appts.map((a) => ({ customerId, status: a.status, totalCents: a.totalCents, manualPaidAt: a.manualPaidAt, startAt: a.startAt })),
+    ).get(customerId) ?? EMPTY_STATS;
+
+    // Serviços mais feitos: conta os itens dos atendimentos CONCLUÍDOS.
+    const svc = new Map<string, number>();
+    for (const a of appts) {
+      if (a.status !== 'COMPLETED') continue;
+      for (const it of a.items) svc.set(it.name, (svc.get(it.name) ?? 0) + 1);
+    }
+    const topServices = [...svc.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((x, y) => y.count - x.count)
+      .slice(0, 5);
+
+    // Mensagem de retorno pronta (mesmo render do follow-up). Usa o serviço do
+    // atendimento mais recente como {servico}; cai no template padrão se não houver.
+    const lastService = appts[0]?.service;
+    const whatsappMessage = renderFollowUpMessage(
+      lastService?.followUpMessage ?? null,
+      customer.name,
+      lastService?.name ?? 'seu atendimento',
+      business.name,
+    );
+
+    return {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      ownerNote: customer.ownerNote,
+      createdAt: customer.createdAt.toISOString(),
+      totalSpentCents: s.spentCents,
+      paidCount: s.paidCount,
+      visits: s.visits,
+      avgTicketCents: s.paidCount > 0 ? Math.round(s.spentCents / s.paidCount) : 0,
+      firstVisitAt: s.firstVisitAt?.toISOString() ?? null,
+      lastVisitAt: s.lastVisitAt?.toISOString() ?? null,
+      segment: this.segmentOf(business, s, now),
+      topServices,
+      whatsappMessage,
+      history: appts.map((a) => ({
+        id: a.id,
+        startAt: a.startAt.toISOString(),
+        status: a.status,
+        paid: a.manualPaidAt !== null,
+        totalCents: a.totalCents,
+        service: a.service.name,
+        professional: a.professional.name,
+        items: a.items,
+      })),
+    };
   }
 
   /** Salva a observação privada do dono sobre um cliente (scoped por negócio). */
@@ -383,8 +679,15 @@ export class PanelService {
     });
   }
 
-  /** Marca o atendimento como concluído ou falta (no-show). */
-  async setAppointmentStatus(businessId: string, id: string, status: 'COMPLETED' | 'NO_SHOW') {
+  /**
+   * Marca a presença: concluído, falta ou desfaz (volta a CONFIRMED). É a
+   * presença — não confunda com o pagamento (setAppointmentPaid).
+   */
+  async setAppointmentStatus(
+    businessId: string,
+    id: string,
+    status: 'COMPLETED' | 'NO_SHOW' | 'CONFIRMED',
+  ) {
     const appt = await this.prisma.appointment.findFirst({
       where: { id, businessId },
       select: { id: true },
@@ -394,27 +697,49 @@ export class PanelService {
   }
 
   /**
-   * Relatório de faturamento num período [from, to). Conta agendamentos ativos
-   * (CONFIRMED/COMPLETED), separa realizado (passado) de previsto (futuro) e
-   * quebra por serviço e por profissional.
+   * Marca/desmarca o pagamento manual do dono. Estado SEPARADO da presença e do
+   * sinal/Stripe (paymentStatus/paidAt) — só mexe em manualPaidAt.
+   */
+  async setAppointmentPaid(businessId: string, id: string, paid: boolean) {
+    const appt = await this.prisma.appointment.findFirst({
+      where: { id, businessId },
+      select: { id: true },
+    });
+    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+    return this.prisma.appointment.update({
+      where: { id },
+      data: { manualPaidAt: paid ? new Date() : null },
+    });
+  }
+
+  /**
+   * Relatório de faturamento num período [from, to), em TRÊS baldes usando o
+   * total EDITADO (Appointment.totalCents):
+   *   - Recebido: pago (manualPaidAt != null)
+   *   - A receber: não pago já atendido (COMPLETED ou no passado), exceto NO_SHOW
+   *   - Previsto: não pago, futuro e CONFIRMED
+   * NO_SHOW não pago e PENDING (aguardando sinal) não entram em balde nenhum.
+   * Breakdowns por serviço/profissional somam o totalCents dos não-cancelados.
    */
   async getRevenueReport(businessId: string, from: Date, to: Date) {
     const appts = await this.prisma.appointment.findMany({
       where: {
         businessId,
-        status: { in: ['CONFIRMED', 'COMPLETED'] },
+        status: { not: 'CANCELLED' },
         startAt: { gte: from, lt: to },
       },
       select: {
         startAt: true,
-        service: { select: { name: true, priceCents: true } },
+        status: true,
+        totalCents: true,
+        manualPaidAt: true,
+        service: { select: { name: true } },
         professional: { select: { name: true } },
       },
     });
 
     const now = new Date();
-    let totalCents = 0;
-    let realizedCents = 0;
+    const bucket = { previsto: { cents: 0, count: 0 }, aReceber: { cents: 0, count: 0 }, recebido: { cents: 0, count: 0 } };
     const byService = new Map<string, { count: number; cents: number }>();
     const byProfessional = new Map<string, { count: number; cents: number }>();
     const bump = (m: Map<string, { count: number; cents: number }>, key: string, cents: number) => {
@@ -425,11 +750,26 @@ export class PanelService {
     };
 
     for (const a of appts) {
-      const cents = a.service.priceCents;
-      totalCents += cents;
-      if (a.startAt < now) realizedCents += cents;
-      bump(byService, a.service.name, cents);
-      bump(byProfessional, a.professional.name, cents);
+      const cents = a.totalCents;
+      if (a.manualPaidAt) {
+        bucket.recebido.cents += cents;
+        bucket.recebido.count += 1;
+      } else if (a.status === 'NO_SHOW') {
+        // faltou e não pagou: não há dinheiro a esperar — fora dos baldes.
+      } else if (a.status === 'COMPLETED' || a.startAt < now) {
+        bucket.aReceber.cents += cents;
+        bucket.aReceber.count += 1;
+      } else if (a.status === 'CONFIRMED') {
+        bucket.previsto.cents += cents;
+        bucket.previsto.count += 1;
+      }
+      // PENDING futuro (aguardando sinal) cai aqui e fica fora dos baldes.
+
+      // Breakdowns: tudo que não é cancelado, exceto faltas (sem valor real).
+      if (a.status !== 'NO_SHOW') {
+        bump(byService, a.service.name, cents);
+        bump(byProfessional, a.professional.name, cents);
+      }
     }
 
     const toList = (m: Map<string, { count: number; cents: number }>) =>
@@ -438,19 +778,29 @@ export class PanelService {
         .sort((a, b) => b.cents - a.cents);
 
     return {
-      totalCount: appts.length,
-      totalCents,
-      realizedCents,
-      scheduledCents: totalCents - realizedCents,
+      previstoCents: bucket.previsto.cents,
+      previstoCount: bucket.previsto.count,
+      aReceberCents: bucket.aReceber.cents,
+      aReceberCount: bucket.aReceber.count,
+      recebidoCents: bucket.recebido.cents,
+      recebidoCount: bucket.recebido.count,
       byService: toList(byService),
       byProfessional: toList(byProfessional),
     };
   }
 
-  // Default: agendamentos ativos. Se vier status, valida contra o enum.
+  // Default: agendamentos não-cancelados (inclui COMPLETED/NO_SHOW pra que a
+  // marcação de presença continue visível na agenda). Se vier status, valida.
   private parseStatus(status?: string): Prisma.EnumAppointmentStatusFilter {
     if (!status) {
-      return { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] };
+      return {
+        in: [
+          AppointmentStatus.PENDING,
+          AppointmentStatus.CONFIRMED,
+          AppointmentStatus.COMPLETED,
+          AppointmentStatus.NO_SHOW,
+        ],
+      };
     }
     if (!(status in AppointmentStatus)) {
       throw new BadRequestException(`status inválido: ${status}`);
