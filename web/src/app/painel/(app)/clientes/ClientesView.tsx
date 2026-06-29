@@ -38,8 +38,8 @@ function CustomerRowItem({ c }: { c: CustomerRow }) {
   }, [state.ok]);
 
   return (
-    <div className={styles.row} style={{ display: 'block' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+    <div className={styles.clientRow}>
+      <div className={styles.clientHead}>
         <div className={styles.rowMain}>
           <div className={styles.rowName} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Link href={`/painel/clientes/${c.id}`} className={styles.altLink}>{c.name ?? 'Sem nome'}</Link>
