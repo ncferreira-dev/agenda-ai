@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { normalizeCpf, onlyDigits } from '../../common/cpf';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface ProfessionalInput {
@@ -159,21 +160,11 @@ export class ProfessionalsService {
     return v;
   }
 
+  // Profissional não é dono: CPF aqui fica cru mesmo (campo opcional do cadastro
+  // interno). Vazio => null; com valor => valida pelos dígitos verificadores.
   private normalizeCpf(value?: string): string | null {
-    if (value === undefined) return null;
-    const cpf = value.replace(/\D/g, '');
-    if (!cpf) return null;
-    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) throw new BadRequestException('CPF inválido.');
-    const digit = (len: number): number => {
-      let sum = 0;
-      for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
-      const rest = (sum * 10) % 11;
-      return rest === 10 ? 0 : rest;
-    };
-    if (digit(9) !== Number(cpf[9]) || digit(10) !== Number(cpf[10])) {
-      throw new BadRequestException('CPF inválido.');
-    }
-    return cpf;
+    if (value === undefined || onlyDigits(value) === '') return null;
+    return normalizeCpf(value);
   }
 
   private requireName(name: unknown): string {

@@ -7,8 +7,15 @@ import { PANEL_COOKIE } from '@/lib/panel-session';
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Login e as rotas de API do painel são públicas (precisam pra autenticar).
-  if (pathname.startsWith('/painel/login') || pathname.startsWith('/painel/api')) {
+  // Login, cadastro e as rotas de API do painel são públicas (precisam pra
+  // autenticar / criar conta).
+  if (
+    pathname.startsWith('/painel/login') ||
+    pathname.startsWith('/painel/cadastro') ||
+    pathname.startsWith('/painel/esqueci-senha') ||
+    pathname.startsWith('/painel/redefinir-senha') ||
+    pathname.startsWith('/painel/api')
+  ) {
     return NextResponse.next();
   }
 

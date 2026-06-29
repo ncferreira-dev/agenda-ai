@@ -80,7 +80,18 @@ export function ProfileForm({ owner }: { owner: Me['owner'] }) {
 
       <label className={styles.field}>
         <span className={styles.label}>CPF</span>
-        <MaskedInput kind="cpf" className={styles.input} name="cpf" defaultValue={owner.cpf} placeholder="000.000.000-00" />
+        {/* CPF é write-only por LGPD: não retorna do servidor. Vazio = mantém o
+            que já está salvo; preencha só pra cadastrar ou trocar. */}
+        <MaskedInput
+          kind="cpf"
+          className={styles.input}
+          name="cpf"
+          defaultValue=""
+          placeholder={owner.hasCpf ? 'CPF já cadastrado' : '000.000.000-00'}
+        />
+        {owner.hasCpf && (
+          <span className={styles.hint}>Deixe em branco para manter o CPF já cadastrado.</span>
+        )}
       </label>
 
       <div className={styles.toolbar} style={{ gap: 10, alignItems: 'center' }}>

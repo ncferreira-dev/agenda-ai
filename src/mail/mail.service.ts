@@ -85,6 +85,32 @@ export class MailService {
     }
   }
 
+  /** Envia (best-effort) o link de redefinição de senha. No-op sem SMTP. */
+  async sendPasswordReset(
+    to: string,
+    data: { businessName: string; link: string; ttlMinutes: number },
+  ): Promise<void> {
+    if (!this.transporter || !to) return;
+    const linhas = [
+      `Recebemos um pedido pra redefinir a senha da sua conta agend.ai (${data.businessName}).`,
+      ``,
+      `Crie uma nova senha por aqui:`,
+      data.link,
+      ``,
+      `O link vale por ${data.ttlMinutes} minutos. Se não foi você, é só ignorar.`,
+    ];
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to,
+        subject: 'Redefinição de senha — agend.ai',
+        text: linhas.join('\n'),
+      });
+    } catch (err) {
+      this.logger.warn(`Falha ao enviar e-mail de redefinição: ${(err as Error).message}`);
+    }
+  }
+
   /** Manda ao dono (best-effort) o resumo da agenda do dia. No-op sem SMTP. */
   async sendOwnerDailySummary(
     to: string,

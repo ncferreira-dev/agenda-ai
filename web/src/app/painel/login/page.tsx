@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import styles from '../painel.module.css';
 
 type Provider = 'Google' | 'Apple' | 'Facebook';
@@ -110,6 +111,9 @@ export default function LoginPage() {
               <span className={styles.label}>Senha</span>
               <input className={styles.input} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </label>
+            <p className={styles.forgotRow}>
+              <Link href="/painel/esqueci-senha">Esqueci minha senha</Link>
+            </p>
             <button className={styles.button} type="submit" disabled={enviando}>
               {enviando ? 'Entrando…' : 'Entrar'}
             </button>
@@ -118,6 +122,10 @@ export default function LoginPage() {
             </button>
           </form>
         )}
+
+        <p className={styles.altLink}>
+          Não tem conta? <Link href="/painel/cadastro">Criar conta</Link>
+        </p>
       </div>
     </div>
   );
