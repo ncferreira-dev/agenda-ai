@@ -153,6 +153,35 @@
   cursor: default;
 }
 
+.forgotRow {
+  margin: -4px 0 14px;
+  text-align: right;
+  font-size: 13px;
+}
+.forgotRow a {
+  color: #6b7280;
+  text-decoration: none;
+}
+.forgotRow a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.altLink {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 13.5px;
+  color: #6b7280;
+}
+.altLink a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.altLink a:hover {
+  text-decoration: underline;
+}
+
 .error {
   margin: 0 0 16px;
   padding: 10px 13px;
@@ -161,6 +190,13 @@
   color: #8f3417;
   border-radius: var(--radius-sm);
   font-size: 13.5px;
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12.5px;
 }
 
 /* --- Botões de login social --- */
@@ -280,6 +316,80 @@
   font-size: 12.5px;
   color: var(--muted);
   margin-top: 3px;
+}
+
+/* Logo agend.ai (topo da sidebar e da top bar mobile) — clica e volta pra home. */
+.brandTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.logo {
+  font-family: var(--font-display), serif;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+  text-decoration: none;
+}
+.logoDot {
+  color: var(--accent);
+}
+
+/* Botão de fechar do drawer — só visível no mobile. */
+.drawerClose {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px -8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.drawerClose:hover {
+  background: var(--paper-2);
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Top bar (mobile) com hambúrguer + logo. Oculta no desktop. */
+.topbar {
+  display: none;
+}
+.burger {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fffdf8;
+  cursor: pointer;
+}
+.burger span {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+/* Scrim do drawer. Oculto no desktop. */
+.scrim {
+  display: none;
 }
 
 .navlink {
@@ -436,6 +546,21 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* Linha de cliente: vira card empilhado no mobile (ver @media). */
+.clientRow {
+  padding: 16px 22px;
+  border-top: 1px solid var(--line);
+}
+.clientRow:first-child {
+  border-top: 0;
+}
+.clientHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .price {
@@ -1175,31 +1300,120 @@ textarea.input {
   .shell {
     grid-template-columns: 1fr;
   }
-  .sidebar {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
+
+  /* Top bar fixa no topo. */
+  .topbar {
+    display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
   }
-  .brand {
-    border: 0;
-    padding: 0 8px 0 0;
-    margin: 0;
-    flex: 1 1 100%;
+
+  /* Sidebar vira drawer off-canvas (desliza da esquerda). */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    width: min(82vw, 320px);
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+    background: var(--paper);
+    box-shadow: var(--shadow);
+    overflow-y: auto;
+    gap: 4px;
   }
-  .sidebarFoot {
-    margin: 0 0 0 auto;
-    border: 0;
-    padding: 0;
+  .sidebarOpen {
+    transform: translateX(0);
   }
+
+  /* Scrim atrás do drawer. */
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(34, 28, 21, 0.42);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.26s ease;
+  }
+  .scrimOpen {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .drawerClose {
+    display: inline-flex;
+  }
+
+  /* Alvos de toque maiores. */
+  .navlink {
+    padding: 12px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .smallBtn,
+  .ghost,
+  .linkBtn,
+  .burger {
+    min-height: 42px;
+  }
+
+  /* Conteúdo: menos respiro lateral no celular. */
+  .content {
+    padding: 18px 16px 56px;
+  }
+
+  /* Cabeçalho de página empilha (título acima das abas/ações). */
+  .pageHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* Cards de estatística / baldes empilham em 1 coluna. */
+  .stats {
+    flex-direction: column;
+  }
+
+  /* Agenda: cada agendamento vira card empilhado. */
   .appt {
-    grid-template-columns: 64px 1fr;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 16px;
   }
   .appt .rowActions {
-    grid-column: 2;
+    flex-wrap: wrap;
     justify-content: flex-start;
+    gap: 8px 12px;
+  }
+
+  /* Clientes: card empilhado (nome em cima, ações embaixo em largura cheia). */
+  .clientRow {
+    padding: 16px;
+  }
+  .clientHead {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .clientHead .rowActions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+
+  /* Semana: colunas mais estreitas pra reduzir o scroll lateral. */
+  .week {
+    grid-template-columns: repeat(7, minmax(96px, 1fr));
   }
 }
 

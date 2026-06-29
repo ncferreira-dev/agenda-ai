@@ -47,6 +47,7 @@ export class PanelController {
     @Body()
     body: {
       name?: string;
+      slug?: string;
       accentColor?: string;
       about?: string;
       instagramUrl?: string;
@@ -67,6 +68,9 @@ export class PanelController {
       minLeadMinutes?: number;
       maxAdvanceDays?: number;
       reminderHoursBefore?: number;
+      inactiveDays?: number;
+      vipMinSpentCents?: number | null;
+      recurringMinVisits?: number;
     },
   ) {
     return this.panel.updateBusiness(businessId, body);
@@ -89,23 +93,59 @@ export class PanelController {
     return this.panel.cancel(businessId, id);
   }
 
-  /** Marca um atendimento como concluído (COMPLETED) ou falta (NO_SHOW). */
+  /**
+   * Marca a PRESENÇA do atendimento: COMPLETED (compareceu), NO_SHOW (faltou)
+   * ou CONFIRMED (desfaz a marcação, volta ao estado ativo).
+   */
   @Patch('appointments/:id/status')
   setStatus(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
     @Body() body: { status?: string },
   ) {
-    if (body?.status !== 'COMPLETED' && body?.status !== 'NO_SHOW') {
-      throw new BadRequestException('status deve ser COMPLETED ou NO_SHOW.');
+    if (
+      body?.status !== 'COMPLETED' &&
+      body?.status !== 'NO_SHOW' &&
+      body?.status !== 'CONFIRMED'
+    ) {
+      throw new BadRequestException('status deve ser COMPLETED, NO_SHOW ou CONFIRMED.');
     }
     return this.panel.setAppointmentStatus(businessId, id, body.status);
   }
 
-  /** Lista de clientes do negócio. */
+  /** Marca/desmarca o pagamento manual do atendimento (à parte do sinal/Stripe). */
+  @Patch('appointments/:id/paid')
+  setPaid(
+    @CurrentBusiness() businessId: string,
+    @Param('id') id: string,
+    @Body() body: { paid?: boolean },
+  ) {
+    return this.panel.setAppointmentPaid(businessId, id, Boolean(body?.paid));
+  }
+
+  /** Substitui os itens cobrados (serviço principal + extras) e recalcula o total. */
+  @Patch('appointments/:id/items')
+  setItems(
+    @CurrentBusiness() businessId: string,
+    @Param('id') id: string,
+    @Body() body: { items?: Array<{ name?: string; priceCents?: number; sourceServiceId?: string | null }> },
+  ) {
+    if (!Array.isArray(body?.items)) {
+      throw new BadRequestException('items deve ser uma lista.');
+    }
+    return this.panel.setAppointmentItems(businessId, id, body.items);
+  }
+
+  /** Lista de clientes do negócio (com números de CRM). */
   @Get('customers')
   customers(@CurrentBusiness() businessId: string) {
     return this.panel.listCustomers(businessId);
+  }
+
+  /** Ficha completa (CRM) de um cliente do negócio. */
+  @Get('customers/:id')
+  customerDetail(@CurrentBusiness() businessId: string, @Param('id') id: string) {
+    return this.panel.getCustomerDetail(businessId, id);
   }
 
   /** Salva a observação privada sobre um cliente. */

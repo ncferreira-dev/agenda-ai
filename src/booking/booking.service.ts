@@ -219,6 +219,16 @@ export class BookingService {
             paymentStatus: deposit ? 'PENDING' : 'NONE',
             depositCents: deposit,
             holdExpiresAt: deposit ? new Date(Date.now() + HOLD_MINUTES * 60_000) : null,
+            // Item espelho do serviço principal + total inicial. O dono pode
+            // acrescentar/editar itens depois (até pagar) e o total acompanha.
+            totalCents: service.priceCents,
+            items: {
+              create: {
+                name: service.name,
+                priceCents: service.priceCents,
+                sourceServiceId: service.id,
+              },
+            },
           },
           include: { service: true, professional: true, customer: true },
         });

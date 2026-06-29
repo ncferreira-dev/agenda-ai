@@ -277,6 +277,23 @@ export async function saveAppearance(_prev: ActionState, form: FormData): Promis
   return OK;
 }
 
+// --- Link público (slug) -------------------------------------------------
+
+// Troca o slug da página pública. O link antigo deixa de funcionar — a UI avisa.
+export async function updateSlug(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const slug = String(form.get('slug') ?? '').trim().toLowerCase();
+  if (!slug) return { ok: false, error: 'Informe o novo link.' };
+
+  const res = await authFetch('/me/business', {
+    method: 'PATCH',
+    body: JSON.stringify({ slug }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível trocar o link.') };
+  revalidatePath('/painel');
+  revalidatePath('/painel/aparencia');
+  return OK;
+}
+
 // --- Negócio (config operacional) ----------------------------------------
 
 export async function saveBusiness(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -305,6 +322,22 @@ export async function saveCustomerNote(_prev: ActionState, form: FormData): Prom
   const res = await authFetch(`/me/customers/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ note }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+  revalidatePath('/painel/clientes');
+  return OK;
+}
+
+// Limiares de segmentação do CRM (sumido / VIP / recorrente).
+export async function saveSegmentation(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const inactiveDays = Number(form.get('inactiveDays'));
+  const recurringMinVisits = Number(form.get('recurringMinVisits'));
+  const vipRaw = String(form.get('vipMinSpent') ?? '').trim();
+  const vipMinSpentCents = vipRaw ? reais(vipRaw) : null;
+
+  const res = await authFetch('/me/business', {
+    method: 'PATCH',
+    body: JSON.stringify({ inactiveDays, recurringMinVisits, vipMinSpentCents }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
   revalidatePath('/painel/clientes');
@@ -379,6 +412,7 @@ export async function cancelAppointment(form: FormData): Promise<void> {
   revalidatePath('/painel');
 }
 
+// Presença: COMPLETED (compareceu), NO_SHOW (faltou) ou CONFIRMED (desfaz).
 export async function setAppointmentStatus(form: FormData): Promise<void> {
   const id = String(form.get('id'));
   const status = String(form.get('status'));
@@ -387,4 +421,36 @@ export async function setAppointmentStatus(form: FormData): Promise<void> {
     body: JSON.stringify({ status }),
   });
   revalidatePath('/painel');
+}
+
+// Pagamento manual (à parte do sinal/Stripe): marca/desmarca como pago.
+// Revalida o faturamento também: o valor migra de previsto/a receber p/ recebido.
+export async function setAppointmentPaid(form: FormData): Promise<void> {
+  const id = String(form.get('id'));
+  const paid = String(form.get('paid')) === 'true';
+  await authFetch(`/me/appointments/${id}/paid`, {
+    method: 'PATCH',
+    body: JSON.stringify({ paid }),
+  });
+  revalidatePath('/painel');
+  revalidatePath('/painel/relatorio');
+}
+
+// Salva os itens cobrados (serviço principal + extras). items vem como JSON.
+export async function saveAppointmentItems(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const id = String(form.get('id'));
+  let items: unknown;
+  try {
+    items = JSON.parse(String(form.get('items') ?? '[]'));
+  } catch {
+    return { ok: false, error: 'Itens inválidos.' };
+  }
+  const res = await authFetch(`/me/appointments/${id}/items`, {
+    method: 'PATCH',
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar os itens.') };
+  revalidatePath('/painel');
+  revalidatePath('/painel/relatorio');
+  return OK;
 }

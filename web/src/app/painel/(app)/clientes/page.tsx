@@ -1,11 +1,13 @@
-import { listCustomers } from '@/lib/panel-api';
+import { getMe, listCustomers } from '@/lib/panel-api';
 import { ClientesView } from './ClientesView';
+import { SegmentationConfig } from './SegmentationConfig';
 import styles from '../../painel.module.css';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientesPage() {
-  const customers = await listCustomers();
+  const [me, customers] = await Promise.all([getMe(), listCustomers()]);
+  if (!me) return null;
 
   return (
     <div className={styles.rise}>
@@ -17,6 +19,7 @@ export default async function ClientesPage() {
         </div>
       </div>
 
+      <SegmentationConfig business={me.business} />
       <ClientesView customers={customers} />
     </div>
   );
