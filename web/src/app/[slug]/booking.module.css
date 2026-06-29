@@ -238,6 +238,31 @@
   transform: scale(0.99);
 }
 
+/* Serviço escolhido: destaca com a cor da marca (página única, sem navegar). */
+.serviceRowSelected {
+  box-shadow: 0 0 0 2px var(--accent), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Seções que surgem conforme as escolhas: leve fade + slide pra guiar o olho. */
+.reveal {
+  animation: revealIn 0.28s ease both;
+}
+@keyframes revealIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}
+
 .serviceName {
   font-size: 17px;
   font-weight: 600;

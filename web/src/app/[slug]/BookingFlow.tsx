@@ -5,8 +5,6 @@ import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment 
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
 import styles from './booking.module.css';
 
-type Step = 'service' | 'schedule' | 'details' | 'done';
-
 interface DisplaySlot {
   startAt: string;
   label: string;
@@ -54,7 +52,6 @@ function PeopleIcon() {
 }
 
 export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }) {
-  const [step, setStep] = useState<Step>('service');
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [professionalId, setProfessionalId] = useState<string | null>(null); // null = qualquer
   const [date, setDate] = useState<string | null>(null);
@@ -70,6 +67,9 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   const [view, setView] = useState<'book' | 'mine'>('book');
   // true depois que o cliente escolhe um dia na mão (trava o auto-avanço).
   const manualDate = useRef(false);
+  // Âncoras pra rolar suavemente até a seção que acabou de surgir (mobile).
+  const scheduleRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   const service = data.services.find((s) => s.id === serviceId) ?? null;
 
@@ -94,7 +94,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   // agenda. Se o dia escolhido automaticamente vier vazio, pula pro próximo dia
   // com horário (evita a primeira tela "sem horários", que espanta o cliente).
   useEffect(() => {
-    if (step !== 'schedule' || !serviceId || !date) return;
+    if (!serviceId || !date) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -122,7 +122,16 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     return () => {
       cancelled = true;
     };
-  }, [step, serviceId, date, professionalId, slug, days, closedWeekdays]);
+  }, [serviceId, date, professionalId, slug, days, closedWeekdays]);
+
+  // Rola até a agenda quando um serviço é escolhido, e até o formulário quando
+  // um horário é escolhido — a página é única, então guiamos o olho no mobile.
+  useEffect(() => {
+    if (serviceId) scheduleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [serviceId]);
+  useEffect(() => {
+    if (slot) detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [slot]);
 
   const displaySlots: DisplaySlot[] = useMemo(() => {
     const byLabel = new Map<string, DisplaySlot>();
@@ -143,7 +152,6 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     setSlot(null);
     manualDate.current = false;
     setDate(firstOpen);
-    setStep('schedule');
   }
 
   async function confirm() {
@@ -170,7 +178,6 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         return;
       }
       setResult(res);
-      setStep('done');
     } catch (e: any) {
       setError(e?.message ?? 'Não consegui concluir o agendamento.');
     } finally {
@@ -179,7 +186,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   }
 
   // --- Sucesso ------------------------------------------------------------
-  if (step === 'done' && result) {
+  if (result) {
     const when = new Date(result.startAt);
     const whenLabel = `${WEEKDAYS[when.getDay()]}, ${when.getDate()} de ${MONTHS[when.getMonth()]} às ${pad(when.getHours())}:${pad(when.getMinutes())}`;
     const dur = service?.durationMinutes ?? 30;
@@ -227,44 +234,46 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       {error && <div className={styles.error}>{error}</div>}
 
       {/* 1. Serviço */}
-      {step === 'service' && (
-        <section>
-          <div className={styles.serviceHead}>
-            <h2 className={styles.stepTitle}>Escolha o serviço</h2>
-            <button className={styles.linkAction} onClick={() => setView('mine')} type="button">
-              Meus agendamentos
-            </button>
-          </div>
-          {data.services.length === 0 && (
-            <p className={styles.hint}>
-              Este negócio ainda está montando a agenda. Volte em breve! 🙂
-            </p>
-          )}
-          <div className={styles.serviceList}>
-            {data.services.map((s) => (
-              <button key={s.id} className={styles.serviceRow} onClick={() => pickService(s.id)}>
-                <div>
-                  <div className={styles.serviceName}>{s.name}</div>
-                  <div className={styles.serviceMeta}>
-                    {formatPrice(s.priceCents) && (
-                      <span className={styles.servicePrice}>{formatPrice(s.priceCents)}</span>
-                    )}
-                    <span>{s.durationMinutes} min</span>
-                  </div>
-                </div>
-                <span className={styles.agendarBtn}>Agendar</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 2. Profissional + data + horários (uma tela) */}
-      {step === 'schedule' && service && (
-        <section>
-          <button className={styles.back} onClick={() => setStep('service')}>
-            ← {service.name}
+      <section>
+        <div className={styles.serviceHead}>
+          <h2 className={styles.stepTitle}>Escolha o serviço</h2>
+          <button className={styles.linkAction} onClick={() => setView('mine')} type="button">
+            Meus agendamentos
           </button>
+        </div>
+        {data.services.length === 0 && (
+          <p className={styles.hint}>
+            Este negócio ainda está montando a agenda. Volte em breve! 🙂
+          </p>
+        )}
+        <div className={styles.serviceList}>
+          {data.services.map((s) => (
+            <button
+              key={s.id}
+              className={`${styles.serviceRow} ${serviceId === s.id ? styles.serviceRowSelected : ''}`}
+              onClick={() => pickService(s.id)}
+            >
+              <div>
+                <div className={styles.serviceName}>{s.name}</div>
+                <div className={styles.serviceMeta}>
+                  {formatPrice(s.priceCents) && (
+                    <span className={styles.servicePrice}>{formatPrice(s.priceCents)}</span>
+                  )}
+                  <span>{s.durationMinutes} min</span>
+                </div>
+              </div>
+              <span className={styles.agendarBtn}>
+                {serviceId === s.id ? 'Selecionado' : 'Agendar'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 2. Profissional + data + horários — surge ao escolher o serviço */}
+      {service && (
+        <section ref={scheduleRef} className={styles.reveal}>
+          <div className={styles.divider} />
 
           <h2 className={styles.stepTitle}>Selecione o profissional</h2>
           <div className={styles.avatarRow}>
@@ -335,20 +344,18 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
           )}
 
           {!loading && manha.length > 0 && (
-            <SlotSection label="Manhã" slots={manha} onPick={(s) => { setSlot(s); setStep('details'); }} active={slot} />
+            <SlotSection label="Manhã" slots={manha} onPick={setSlot} active={slot} />
           )}
           {!loading && tarde.length > 0 && (
-            <SlotSection label="Tarde" slots={tarde} onPick={(s) => { setSlot(s); setStep('details'); }} active={slot} />
+            <SlotSection label="Tarde" slots={tarde} onPick={setSlot} active={slot} />
           )}
         </section>
       )}
 
-      {/* 3. Dados */}
-      {step === 'details' && service && slot && (
-        <section>
-          <button className={styles.back} onClick={() => setStep('schedule')}>
-            ← Voltar
-          </button>
+      {/* 3. Dados — surge ao escolher o horário */}
+      {service && slot && (
+        <section ref={detailsRef} className={styles.reveal}>
+          <div className={styles.divider} />
           <h2 className={styles.stepTitle}>Seus dados</h2>
           <div className={styles.summary}>
             {service.name} · {slot.label}
