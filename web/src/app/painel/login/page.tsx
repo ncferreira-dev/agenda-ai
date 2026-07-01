@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from '../painel.module.css';
 
@@ -118,6 +119,10 @@ export default function LoginPage() {
             </button>
           </form>
         )}
+
+        <p className={styles.loginFoot}>
+          Ainda não tem conta? <Link href="/painel/registro">Criar conta</Link>
+        </p>
       </div>
     </div>
   );

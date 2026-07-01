@@ -6,7 +6,14 @@ interface LoginBody {
   password: string;
 }
 
-// Só login. O registro do dono é feito via seed (decisão do MVP).
+interface RegisterBody {
+  name: string;
+  email: string;
+  password: string;
+  businessName: string;
+  cpf: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
@@ -17,5 +24,18 @@ export class AuthController {
       throw new BadRequestException('Informe email e senha.');
     }
     return this.auth.login(body.email, body.password);
+  }
+
+  /** Cadastro público do dono: cria o negócio e já devolve a sessão. */
+  @Post('register')
+  async register(@Body() body: RegisterBody) {
+    if (!body) throw new BadRequestException('Dados do cadastro ausentes.');
+    return this.auth.register({
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      businessName: body.businessName,
+      cpf: body.cpf,
+    });
   }
 }

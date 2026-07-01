@@ -25,3 +25,17 @@ export function maskFormat(kind: Kind, raw: string): string {
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
+
+// Valida CPF pelos dois dígitos verificadores. Espelho do back (src/common/cpf.ts)
+// só pra feedback instantâneo no formulário — o servidor é a fonte da verdade.
+export function isValidCpf(raw: string): boolean {
+  const cpf = (raw ?? '').replace(/\D/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const digit = (len: number): number => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10]);
+}

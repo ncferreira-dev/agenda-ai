@@ -277,6 +277,21 @@
   color: var(--ink);
 }
 
+.loginFoot {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+.loginFoot a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.loginFoot a:hover {
+  text-decoration: underline;
+}
+
 /* =========================================================================
    SHELL (nav + conteúdo)
    ========================================================================= */
