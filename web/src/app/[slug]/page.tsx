@@ -29,7 +29,7 @@ export default async function Page({
     : undefined;
 
   return (
-    <main className={styles.page} style={accentStyle}>
+    <main className={styles.page} style={accentStyle} data-skin={business.themePreset ?? undefined}>
       {business.coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className={styles.cover} src={business.coverUrl} alt="" />

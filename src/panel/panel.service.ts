@@ -10,6 +10,7 @@ import { hashCpf, normalizeCpf } from '../common/cpf';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingService } from '../booking/booking.service';
 import { renderFollowUpMessage } from '../follow-up/render-message';
+import { VERTICAL_PRESETS, getVertical, isSkinId, SKINS } from '../presets/verticais';
 
 export interface AppointmentsQuery {
   from?: string; // ISO; default = agora
@@ -62,6 +63,8 @@ export class PanelService {
     about: true,
     instagramUrl: true,
     profession: true,
+    themePreset: true,
+    onboardedAt: true,
     inactiveDays: true,
     vipMinSpentCents: true,
     recurringMinVisits: true,
@@ -109,6 +112,7 @@ export class PanelService {
       about?: string;
       instagramUrl?: string;
       profession?: string;
+      themePreset?: string;
       logoUrl?: string;
       coverUrl?: string;
       requireDeposit?: boolean;
@@ -215,6 +219,11 @@ export class PanelService {
       if (profession.length > 80) throw new BadRequestException('Profissão muito longa (máx. 80).');
       data.profession = profession || null;
     }
+    if (input.themePreset !== undefined) {
+      const v = input.themePreset.trim();
+      if (v && !isSkinId(v)) throw new BadRequestException('Tema inválido.');
+      data.themePreset = v || null;
+    }
     if (input.instagramUrl !== undefined) data.instagramUrl = this.normalizeUrl(input.instagramUrl);
     if (input.logoUrl !== undefined) data.logoUrl = this.normalizeUrl(input.logoUrl);
     if (input.coverUrl !== undefined) data.coverUrl = this.normalizeUrl(input.coverUrl);
@@ -232,6 +241,58 @@ export class PanelService {
       }
       throw e;
     }
+  }
+
+  // --- Onboarding "qual é o seu negócio?" (Fase 3b) ----------------------
+
+  /** Catálogo de verticais + peles pro wizard renderizar os cards. É config estática. */
+  getVerticais() {
+    return { verticais: VERTICAL_PRESETS, skins: SKINS };
+  }
+
+  /**
+   * Aplica um vertical no negócio: seta profissão/cor/tema sugeridos e cria os
+   * serviços-base (pulando os que já existem por nome, pra ser idempotente).
+   * NÃO fecha o onboarding — isso é o passo 2 (finishOnboarding). Escopo por negócio.
+   */
+  async applyVertical(businessId: string, verticalId: string, skinId?: string) {
+    const preset = getVertical(verticalId);
+    if (!preset) throw new BadRequestException('Vertical inválido.');
+    const skin = skinId && isSkinId(skinId) ? skinId : preset.temaSugerido;
+
+    await this.prisma.business.update({
+      where: { id: businessId },
+      data: {
+        profession: preset.label,
+        accentColor: preset.accentColor,
+        themePreset: skin,
+      },
+    });
+
+    // Cria só os serviços cujo nome ainda não existe (case-insensitive) neste
+    // negócio — reaplicar não duplica e não mexe no que o dono já editou.
+    const existentes = await this.prisma.service.findMany({
+      where: { businessId },
+      select: { name: true },
+    });
+    const jaTem = new Set(existentes.map((s) => s.name.trim().toLowerCase()));
+    const novos = preset.servicosBase.filter((s) => !jaTem.has(s.name.trim().toLowerCase()));
+    if (novos.length > 0) {
+      await this.prisma.service.createMany({
+        data: novos.map((s) => ({ businessId, ...s })),
+      });
+    }
+
+    return { created: novos.length, skipped: preset.servicosBase.length - novos.length };
+  }
+
+  /** Marca o onboarding como concluído (também usado pelo "pular por agora"). */
+  async finishOnboarding(businessId: string) {
+    await this.prisma.business.update({
+      where: { id: businessId },
+      data: { onboardedAt: new Date() },
+    });
+    return { onboarded: true };
   }
 
   // Slugs reservados: colidiriam com rotas do app/site (Next + API pública).

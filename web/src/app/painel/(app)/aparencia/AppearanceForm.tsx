@@ -9,6 +9,11 @@ import styles from '../../painel.module.css';
 const INIT: ActionState = { ok: false };
 const DEFAULT = '#A6432B';
 const PRESETS = ['#A6432B', '#1F4D3A', '#1D4ED8', '#7C3AED', '#B91C1C', '#0F766E', '#C2410C', '#111827'];
+const SKINS: { id: 'clean' | 'bold' | 'suave'; label: string; description: string }[] = [
+  { id: 'clean', label: 'Clean', description: 'Clarinho e minimalista.' },
+  { id: 'bold', label: 'Bold', description: 'Contraste forte, títulos marcantes.' },
+  { id: 'suave', label: 'Suave', description: 'Tons quentes, cantos arredondados.' },
+];
 
 function Save() {
   const { pending } = useFormStatus();
@@ -22,6 +27,7 @@ function Save() {
 export function AppearanceForm({ business }: { business: Me['business'] }) {
   const [state, action] = useFormState(saveAppearance, INIT);
   const [accent, setAccent] = useState(business.accentColor ?? '');
+  const [skin, setSkin] = useState<string>(business.themePreset ?? 'clean');
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     if (state.ok) {
@@ -73,6 +79,37 @@ export function AppearanceForm({ business }: { business: Me['business'] }) {
           <span className={styles.previewBtn}>Agendar</span>
           <span className={styles.previewLink}>Instagram ↗</span>
           <span className={styles.previewDot} />
+        </div>
+      </div>
+
+      {/* ESTILO (pele) */}
+      <div className={`${styles.panel} ${styles.panelPad}`}>
+        <h2 className={styles.sectionTitle}>Estilo da página</h2>
+        <p className={styles.rowMeta} style={{ marginBottom: 12 }}>
+          Muda o acabamento da sua página pública (cantos, contraste, aconchego).
+        </p>
+        <input type="hidden" name="themePreset" value={skin} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {SKINS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSkin(s.id)}
+              style={{
+                textAlign: 'left',
+                padding: '12px 14px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                background: '#fff',
+                border: skin === s.id ? '2px solid var(--ink, #201b17)' : '1px solid #e7e1d7',
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{s.label}</div>
+              <div style={{ fontSize: 11.5, color: '#8a7f72', marginTop: 2, lineHeight: 1.3 }}>
+                {s.description}
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 

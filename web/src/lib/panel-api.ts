@@ -51,6 +51,8 @@ export interface Me {
     about: string | null;
     instagramUrl: string | null;
     profession: string | null;
+    themePreset: string | null; // pele visual: clean | bold | suave
+    onboardedAt: string | null; // ISO; null = onboarding pendente
     inactiveDays: number;
     vipMinSpentCents: number | null;
     recurringMinVisits: number;
@@ -191,6 +193,25 @@ export interface CustomerDetail {
   history: CustomerHistoryRow[];
 }
 export const getCustomerDetail = (id: string) => getJson<CustomerDetail>(`/me/customers/${id}`);
+
+// --- Onboarding (verticais + peles) --------------------------------------
+
+export interface VerticalPreset {
+  id: string;
+  label: string;
+  emoji: string;
+  accentColor: string;
+  temaSugerido: 'clean' | 'bold' | 'suave';
+  servicosBase: { name: string; durationMinutes: number; priceCents: number }[];
+  categoriasProdutoSugeridas: string[];
+}
+export interface Skin {
+  id: 'clean' | 'bold' | 'suave';
+  label: string;
+  description: string;
+}
+export const listVerticais = () =>
+  getJson<{ verticais: VerticalPreset[]; skins: Skin[] }>('/me/verticais');
 
 export const listServices = () => getJson<Service[]>('/me/services');
 export const listProfessionals = () => getJson<Professional[]>('/me/professionals');

@@ -27,6 +27,7 @@ export interface BusinessPage {
     accentColor: string | null;
     about: string | null;
     instagramUrl: string | null;
+    themePreset: string | null; // pele visual: clean | bold | suave
   };
   services: Service[];
   professionals: Professional[];

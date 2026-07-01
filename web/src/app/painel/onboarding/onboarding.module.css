@@ -1,0 +1,359 @@
+/* =========================================================================
+   Onboarding "qual é o seu negócio?" (Fase 3b). Full-screen, foco no wizard.
+   Paleta neutra clara pra combinar com o painel; cada card mostra a própria cor.
+   ========================================================================= */
+
+.wrap {
+  min-height: 100dvh;
+  background: #f4f2ee;
+  color: #201b17;
+  display: flex;
+  justify-content: center;
+  padding: 28px 18px 60px;
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.card {
+  width: 100%;
+  max-width: 720px;
+  background: #fffdf9;
+  border: 1px solid #e7e1d7;
+  border-radius: 22px;
+  box-shadow: 0 12px 40px rgba(60, 40, 20, 0.08);
+  padding: 26px 26px 30px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo {
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+.logoDot {
+  color: #a6432b;
+}
+.skip {
+  background: none;
+  border: none;
+  color: #8a7f72;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.skip:hover {
+  color: #201b17;
+}
+
+/* Passos */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 22px 0 4px;
+}
+.dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: #ece7dd;
+  color: #8a7f72;
+}
+.dotActive {
+  background: #a6432b;
+  color: #fff;
+}
+.dotDone {
+  background: #201b17;
+  color: #fff;
+}
+.stepLine {
+  width: 34px;
+  height: 2px;
+  background: #e0d9cd;
+}
+
+.eyebrow {
+  margin: 20px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a6432b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 600;
+  margin: 8px 0 0;
+  letter-spacing: -0.01em;
+}
+.lead {
+  margin: 10px 0 0;
+  color: #6b6156;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.error {
+  margin: 16px 0 0;
+  background: #fdeaea;
+  color: #b3261e;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.rise {
+  animation: rise 0.3s ease both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+}
+
+/* --- Grade de verticais --- */
+.grid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.vcard {
+  --vc: #201b17;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 16px 15px;
+  background: #fff;
+  border: 1px solid #e7e1d7;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 0.08s ease, border-color 0.12s, box-shadow 0.12s;
+}
+.vcard:hover:not(:disabled) {
+  border-color: var(--vc);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vc) 22%, transparent);
+  transform: translateY(-1px);
+}
+.vcard:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.vcard:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.vemoji {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+  background: color-mix(in srgb, var(--vc) 12%, #fff);
+  margin-bottom: 6px;
+}
+.vlabel {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+.vmeta {
+  font-size: 12.5px;
+  color: #8a7f72;
+}
+
+/* --- Passo 2: form --- */
+.form {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.block {
+  display: flex;
+  flex-direction: column;
+}
+.blockTitle {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.swatchOn {
+  border-color: #fffdf9;
+  box-shadow: 0 0 0 2px #201b17;
+}
+.swatchCustom {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px dashed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a7f72;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Seletor de pele */
+.skinRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .skinRow { grid-template-columns: 1fr; }
+}
+.skinCard {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  text-align: left;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #e7e1d7;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.skinOn {
+  border-color: #201b17;
+  box-shadow: 0 0 0 2px #201b17;
+}
+.skinLabel {
+  font-size: 14px;
+  font-weight: 700;
+}
+.skinDesc {
+  font-size: 11.5px;
+  color: #8a7f72;
+  line-height: 1.35;
+}
+
+/* Mini-preview que muda por data-skin (reflete as 3 peles reais). */
+.skinMini {
+  --accent: #1c1c1e;
+  display: block;
+  height: 58px;
+  padding: 10px;
+  background: #f2f2f5;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.skinBar {
+  display: block;
+  height: 8px;
+  width: 60%;
+  border-radius: 999px;
+  background: #201b17;
+}
+.skinChip {
+  display: block;
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  height: 18px;
+  width: 54px;
+  border-radius: 8px;
+  background: var(--accent);
+}
+/* clean: claro, cantos médios (default acima). */
+.skinMini[data-skin='clean'] { background: #f2f2f5; }
+.skinMini[data-skin='clean'] .skinChip { border-radius: 8px; }
+/* bold: fundo mais escuro, chip quadrado, barra grossa. */
+.skinMini[data-skin='bold'] {
+  background: #e7e7ec;
+}
+.skinMini[data-skin='bold'] .skinBar { height: 11px; background: #000; }
+.skinMini[data-skin='bold'] .skinChip { border-radius: 4px; height: 20px; }
+/* suave: fundo quente, cantos bem arredondados. */
+.skinMini[data-skin='suave'] {
+  background: #f6f1ea;
+}
+.skinMini[data-skin='suave'] .skinBar { background: #6b5a48; }
+.skinMini[data-skin='suave'] .skinChip { border-radius: 12px; }
+
+.logoThumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #e7e1d7;
+  margin-bottom: 10px;
+}
+.file {
+  font-size: 14px;
+  color: #6b6156;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+.primary {
+  background: #201b17;
+  color: #fff;
+  border: none;
+  border-radius: 13px;
+  padding: 14px 22px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.ghost {
+  background: none;
+  border: none;
+  color: #8a7f72;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ghost:hover {
+  color: #201b17;
+}

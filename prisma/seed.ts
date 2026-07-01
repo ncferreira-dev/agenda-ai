@@ -47,6 +47,8 @@ async function ensureBusiness(params: {
       // Negócio novo começa no teste grátis de 14 dias (sem plano escolhido).
       subscriptionStatus: 'TRIALING',
       trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      // Negócios de demo já vêm com serviços/horários prontos: pulam o onboarding.
+      onboardedAt: new Date(),
     },
   });
 

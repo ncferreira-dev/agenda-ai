@@ -134,6 +134,7 @@ export class PublicBookingController {
         accentColor: business.accentColor,
         about: business.about,
         instagramUrl: business.instagramUrl,
+        themePreset: business.themePreset,
       },
       services,
       professionals: professionals.map((p) => ({

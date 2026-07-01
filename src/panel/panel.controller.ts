@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
@@ -52,6 +52,7 @@ export class PanelController {
       about?: string;
       instagramUrl?: string;
       profession?: string;
+      themePreset?: string;
       logoUrl?: string;
       coverUrl?: string;
       requireDeposit?: boolean;
@@ -74,6 +75,30 @@ export class PanelController {
     },
   ) {
     return this.panel.updateBusiness(businessId, body);
+  }
+
+  // --- Onboarding "qual é o seu negócio?" (Fase 3b) ----------------------
+
+  /** Catálogo de verticais + peles pro wizard de onboarding. */
+  @Get('verticais')
+  verticais() {
+    return this.panel.getVerticais();
+  }
+
+  /** Aplica um vertical: cor/tema sugeridos + serviços-base. */
+  @Post('onboarding/apply')
+  applyVertical(
+    @CurrentBusiness() businessId: string,
+    @Body() body: { vertical?: string; skin?: string },
+  ) {
+    if (!body?.vertical) throw new BadRequestException('Escolha um tipo de negócio.');
+    return this.panel.applyVertical(businessId, body.vertical, body.skin);
+  }
+
+  /** Conclui (ou pula) o onboarding. */
+  @Post('onboarding/finish')
+  finishOnboarding(@CurrentBusiness() businessId: string) {
+    return this.panel.finishOnboarding(businessId);
   }
 
   /** Agendamentos do meu negócio. Filtra por janela (from/to) e status. */

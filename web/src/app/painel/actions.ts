@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { authFetch } from '@/lib/panel-api';
 import { API_BASE, PANEL_COOKIE } from '@/lib/panel-session';
@@ -258,6 +259,7 @@ export async function saveAppearance(_prev: ActionState, form: FormData): Promis
     accentColor: String(form.get('accentColor') ?? ''),
     about: String(form.get('about') ?? ''),
     instagramUrl: String(form.get('instagramUrl') ?? ''),
+    themePreset: String(form.get('themePreset') ?? ''),
   };
 
   // Faz upload só se um arquivo novo veio (campos opcionais).
@@ -434,6 +436,50 @@ export async function setAppointmentPaid(form: FormData): Promise<void> {
   });
   revalidatePath('/painel');
   revalidatePath('/painel/relatorio');
+}
+
+// --- Onboarding (verticais + peles) --------------------------------------
+
+// Passo 1: aplica o vertical escolhido (cor/tema + serviços-base). Chamado do
+// wizard com argumentos (não é FormData). Não fecha o onboarding.
+export async function applyVertical(vertical: string, skin: string): Promise<ActionState> {
+  const res = await authFetch('/me/onboarding/apply', {
+    method: 'POST',
+    body: JSON.stringify({ vertical, skin }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível aplicar.') };
+  revalidatePath('/painel');
+  revalidatePath('/painel/servicos');
+  revalidatePath('/painel/aparencia');
+  return OK;
+}
+
+// Passo 2: salva a "cara" (cor/tema/logo), conclui o onboarding e leva pro painel.
+export async function finishOnboarding(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const patch: Record<string, string> = {
+    accentColor: String(form.get('accentColor') ?? ''),
+    themePreset: String(form.get('themePreset') ?? ''),
+  };
+  const logo = form.get('logo');
+  try {
+    if (logo instanceof File && logo.size > 0) patch.logoUrl = await uploadFile(logo);
+  } catch {
+    return { ok: false, error: 'Falha ao enviar a logo. Tente um arquivo menor.' };
+  }
+
+  const res = await authFetch('/me/business', { method: 'PATCH', body: JSON.stringify(patch) });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
+
+  await authFetch('/me/onboarding/finish', { method: 'POST' });
+  revalidatePath('/painel');
+  redirect('/painel');
+}
+
+// "Pular por agora": conclui o onboarding sem aplicar preset.
+export async function skipOnboarding(): Promise<void> {
+  await authFetch('/me/onboarding/finish', { method: 'POST' });
+  revalidatePath('/painel');
+  redirect('/painel');
 }
 
 // Salva os itens cobrados (serviço principal + extras). items vem como JSON.

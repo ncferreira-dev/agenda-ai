@@ -50,6 +50,11 @@ model Business {
   about        String? // texto "Sobre"
   instagramUrl String? // link do Instagram
   profession   String? // profissão/ramo (ex.: "barbearia"); contexto pra sugestão de follow-up por IA
+  themePreset  String? // "pele" visual da página pública: clean | bold | suave (ver src/presets/verticais.ts)
+
+  // Onboarding "qual é o seu negócio?" (Fase 3b). null = ainda não concluiu o
+  // wizard (o painel força a etapa); preenchido = já passou (ou pulou).
+  onboardedAt DateTime?
 
   // Sinal (Fase 5) — cobrança no ato pra derrubar no-show.
   requireDeposit Boolean @default(false)
