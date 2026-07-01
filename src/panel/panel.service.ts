@@ -72,6 +72,9 @@ export class PanelService {
     notifyDailySummary: true,
     ownerWhatsApp: true,
     ownerEmail: true,
+    plan: true,
+    subscriptionStatus: true,
+    trialEndsAt: true,
   } as const;
 
   // Fusos suportados (Brasil). Evita gravar timezone inválido (quebraria o motor).

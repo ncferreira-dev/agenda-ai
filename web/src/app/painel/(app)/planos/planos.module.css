@@ -1,0 +1,193 @@
+/* Tela de Planos / Assinatura. Mobile-first; usa os tokens do painel
+   (:root em painel.module.css) pra herdar a identidade visual. */
+
+/* ── Banner de status da assinatura ─────────────────────────────────────── */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+.bannerOk {
+  background: var(--ok-bg);
+  border-color: color-mix(in srgb, var(--ok) 30%, transparent);
+}
+.bannerWarn {
+  background: var(--warn-bg);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+}
+.bannerTitle {
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+}
+.bannerHint {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ── Grade de planos ────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr; /* mobile: empilha */
+  gap: 16px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  box-shadow: var(--shadow);
+}
+
+.cardRecommended {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: 0 1px 0 rgba(34, 28, 21, 0.04), 0 18px 40px -22px rgba(166, 67, 43, 0.45);
+}
+
+.cardCurrent {
+  border-color: var(--ok);
+}
+
+.ribbon {
+  position: absolute;
+  top: -11px;
+  left: 20px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border-radius: 999px;
+}
+
+.planName {
+  margin: 4px 0 2px;
+  font-family: var(--font-display), serif;
+  font-size: 22px;
+  color: var(--ink);
+}
+.planTagline {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.planWho {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.price {
+  margin: 16px 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--ink);
+}
+.priceCurrency {
+  font-size: 15px;
+  font-weight: 600;
+}
+.priceValue {
+  font-family: var(--font-display), serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+.pricePer {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.features {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1; /* empurra o botão pro rodapé, alinhando os CTAs entre cards */
+}
+.features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.check {
+  flex: none;
+  margin-top: 1px;
+  color: var(--ok);
+  font-weight: 800;
+}
+
+/* ── Botão "Assinar" (placeholder) ──────────────────────────────────────── */
+.ctaWrap {
+  margin-top: 22px;
+}
+.cta {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  background: #fffdf8;
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.cta:hover:not(:disabled) {
+  filter: brightness(0.98);
+}
+.ctaPrimary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.cta:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.ctaHint {
+  margin: 9px 2px 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.foot {
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── Desktop / tablet: 3 colunas, plano recomendado em leve destaque ─────── */
+@media (min-width: 760px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    align-items: stretch;
+  }
+  .cardRecommended {
+    transform: translateY(-6px);
+  }
+}

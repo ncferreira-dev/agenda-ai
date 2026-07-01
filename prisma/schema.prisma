@@ -12,6 +12,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Plano de assinatura do dono. Faixas por nº de profissionais (ver web/.../plans.ts).
+enum Plan {
+  START // 1 a 3 profissionais
+  PRO   // 4 a 6 profissionais
+  ULTRA // 7+ profissionais
+}
+
+// Estado da assinatura. Negócio novo nasce em TRIALING (14 dias de teste).
+// ACTIVE/PAST_DUE/CANCELED só passam a ser escritos quando a cobrança entrar (Fase 5).
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
 // Um comércio. Tudo é escopado por businessId (multi-tenant simples).
 model Business {
   id        String   @id @default(uuid())
@@ -51,6 +67,12 @@ model Business {
   ownerWhatsApp      String?   // WhatsApp do dono p/ avisos (E.164); null = usa o do perfil
   ownerEmail         String?   // e-mail do dono p/ avisos; null = usa o do perfil
   lastDailySummaryAt DateTime? // trava do resumo diário (não manda 2x no mesmo dia)
+
+  // Assinatura do dono (subconjunto da Fase 5 — só armazenamento; cobrança/webhook
+  // entram depois). Negócio novo começa em TRIALING com trialEndsAt em +14 dias.
+  plan               Plan?              // null enquanto não assinou (ainda em trial)
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  trialEndsAt        DateTime?          // fim do teste grátis; base p/ "faltam N dias"
 
   owners        Owner[]
   professionals Professional[]

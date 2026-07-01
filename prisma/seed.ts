@@ -44,6 +44,9 @@ async function ensureBusiness(params: {
       slug: params.slug,
       timezone: 'America/Sao_Paulo',
       phone: params.phone,
+      // Negócio novo começa no teste grátis de 14 dias (sem plano escolhido).
+      subscriptionStatus: 'TRIALING',
+      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     },
   });
 

@@ -61,6 +61,9 @@ export interface Me {
     notifyDailySummary: boolean;
     ownerWhatsApp: string | null;
     ownerEmail: string | null;
+    plan: 'START' | 'PRO' | 'ULTRA' | null;
+    subscriptionStatus: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
+    trialEndsAt: string | null; // ISO; null se não houver trial
   };
 }
 
