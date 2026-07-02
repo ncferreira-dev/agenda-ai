@@ -24,7 +24,7 @@ const LINKS = [
 // Wordmark da marca. Clicar volta pra home (Agenda/dashboard).
 function Logo({ onClick }: { onClick?: () => void }) {
   return (
-    <Link href="/painel" className={styles.logo} aria-label="agend.ai — início" onClick={onClick}>
+    <Link href="/painel" className={styles.logo} aria-label="agend.ai, início" onClick={onClick}>
       agend<span className={styles.logoDot}>.</span>ai
     </Link>
   );

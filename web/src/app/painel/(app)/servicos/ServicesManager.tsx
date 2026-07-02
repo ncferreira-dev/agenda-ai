@@ -190,7 +190,7 @@ function EditRow({
       />
 
       <div className={styles.rowActions} style={{ marginTop: 10 }}>
-        {state.error && <span className={styles.rowMeta} style={{ color: '#8f3417' }}>{state.error}</span>}
+        {state.error && <span className={styles.rowMeta} style={{ color: 'var(--danger)' }}>{state.error}</span>}
         <Submit label="Salvar" />
         <button className={styles.smallBtn} type="button" onClick={onDone}>
           Cancelar

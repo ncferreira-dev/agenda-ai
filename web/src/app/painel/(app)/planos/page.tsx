@@ -48,7 +48,7 @@ function statusBanner(business: {
     const dias = daysLeft === 1 ? '1 dia' : `${daysLeft} dias`;
     return {
       tone: 'ok' as const,
-      title: `Teste grátis — faltam ${dias}`,
+      title: `Teste grátis (faltam ${dias})`,
       hint: 'Você está usando tudo, sem custo. Escolha um plano antes de acabar.',
     };
   }

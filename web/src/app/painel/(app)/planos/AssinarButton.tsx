@@ -51,7 +51,7 @@ export function AssinarButton({
       </button>
       {aviso && (
         <p className={styles.ctaHint} role="status">
-          🔒 Assinatura em breve — você será avisado quando abrir.
+          🔒 Assinatura em breve. Você será avisado quando abrir.
         </p>
       )}
     </div>

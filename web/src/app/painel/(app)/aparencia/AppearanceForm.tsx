@@ -7,8 +7,8 @@ import type { Me } from '@/lib/panel-api';
 import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
-const DEFAULT = '#A6432B';
-const PRESETS = ['#A6432B', '#1F4D3A', '#1D4ED8', '#7C3AED', '#B91C1C', '#0F766E', '#C2410C', '#111827'];
+const DEFAULT = '#2563EB';
+const PRESETS = ['#2563EB', '#1E40AF', '#172554', '#0F766E', '#16A34A', '#7C3AED', '#C2410C', '#111827'];
 const SKINS: { id: 'clean' | 'bold' | 'suave'; label: string; description: string }[] = [
   { id: 'clean', label: 'Clean', description: 'Clarinho e minimalista.' },
   { id: 'bold', label: 'Bold', description: 'Contraste forte, títulos marcantes.' },
@@ -100,12 +100,12 @@ export function AppearanceForm({ business }: { business: Me['business'] }) {
                 padding: '12px 14px',
                 borderRadius: 12,
                 cursor: 'pointer',
-                background: '#fff',
-                border: skin === s.id ? '2px solid var(--ink, #201b17)' : '1px solid #e7e1d7',
+                background: 'var(--surface)',
+                border: skin === s.id ? '2px solid var(--accent)' : '1px solid var(--line)',
               }}
             >
               <div style={{ fontWeight: 700, fontSize: 14 }}>{s.label}</div>
-              <div style={{ fontSize: 11.5, color: '#8a7f72', marginTop: 2, lineHeight: 1.3 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.3 }}>
                 {s.description}
               </div>
             </button>

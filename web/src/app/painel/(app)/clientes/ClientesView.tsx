@@ -67,7 +67,7 @@ function CustomerRowItem({ c }: { c: CustomerRow }) {
       {editing && (
         <form action={action} style={{ marginTop: 10 }}>
           <input type="hidden" name="id" value={c.id} />
-          {state.error && <p className={styles.rowMeta} style={{ color: '#8f3417' }}>{state.error}</p>}
+          {state.error && <p className={styles.rowMeta} style={{ color: 'var(--danger)' }}>{state.error}</p>}
           <textarea
             className={styles.input}
             name="note"

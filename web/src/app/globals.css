@@ -1,6 +1,6 @@
 :root {
-  /* Cor de destaque do negócio. Na Fase 3 isto passa a vir do Business. */
-  --accent: #16a34a;
+  /* Cor de destaque do negócio (página pública). Sobrescrita pelo Business. */
+  --accent: #2563eb;
 }
 
 * {
@@ -11,7 +11,9 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: #f7f7f8;
-  color: #18181b;
+  font-family: var(--font-body), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #fafaf9;
+  color: #1c1b1a;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

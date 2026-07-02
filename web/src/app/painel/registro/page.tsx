@@ -131,7 +131,7 @@ export default function RegistroPage() {
         </form>
 
         <Link className={styles.methodBack} href="/painel/login">
-          Já tenho conta — entrar
+          Já tenho conta? Entrar
         </Link>
       </div>
     </div>
