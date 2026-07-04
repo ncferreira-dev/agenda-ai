@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from '../painel.module.css';
-
-type Provider = 'Google' | 'Apple' | 'Facebook';
 
 function GoogleIcon() {
   return (
@@ -17,20 +15,6 @@ function GoogleIcon() {
     </svg>
   );
 }
-function AppleIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M16.4 12.8c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.8-3.5.8-.7 0-1.8-.8-3-.8-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.8 2.3 1.1 0 1.5-.7 2.9-.7 1.3 0 1.7.7 2.9.7 1.2 0 2-1.1 2.7-2.2.8-1.2 1.2-2.4 1.2-2.5-.1 0-2.3-.9-2.3-3.6zM14.3 5.9c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.1z" />
-    </svg>
-  );
-}
-function FacebookIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.5V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z" />
-    </svg>
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,11 +22,21 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
-  const [aviso, setAviso] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  function social(p: Provider) {
-    setAviso(`Entrar com ${p} chega em breve. Por enquanto, use seu email.`);
+  // Mensagem quando o login social volta com erro (ver rota de callback/backend).
+  useEffect(() => {
+    const erroParam = new URLSearchParams(window.location.search).get('erro');
+    if (erroParam === 'google-indisponivel') {
+      setErro('Login com Google indisponível no momento. Use seu email.');
+    } else if (erroParam === 'google-falhou') {
+      setErro('Não foi possível entrar com o Google. Tente de novo.');
+    }
+  }, []);
+
+  // Redireciona pro backend (via rota do Next), que fala com o Google.
+  function entrarComGoogle() {
+    window.location.href = '/painel/api/oauth/google';
   }
 
   async function onSubmit(e: FormEvent) {
@@ -78,16 +72,10 @@ export default function LoginPage() {
 
         {method === 'choose' ? (
           <>
-            {aviso && <p className={styles.notice}>{aviso}</p>}
+            {erro && <p className={styles.error}>{erro}</p>}
 
-            <button className={`${styles.social} ${styles.socialGoogle}`} onClick={() => social('Google')} type="button">
+            <button className={`${styles.social} ${styles.socialGoogle}`} onClick={entrarComGoogle} type="button">
               <GoogleIcon /> Continuar com Google
-            </button>
-            <button className={`${styles.social} ${styles.socialApple}`} onClick={() => social('Apple')} type="button">
-              <AppleIcon /> Continuar com Apple
-            </button>
-            <button className={`${styles.social} ${styles.socialFacebook}`} onClick={() => social('Facebook')} type="button">
-              <FacebookIcon /> Continuar com Facebook
             </button>
 
             <div className={styles.orRow}>
@@ -96,7 +84,7 @@ export default function LoginPage() {
               <span className={styles.orLine} />
             </div>
 
-            <button className={`${styles.social} ${styles.socialEmail}`} onClick={() => { setAviso(''); setMethod('email'); }} type="button">
+            <button className={`${styles.social} ${styles.socialEmail}`} onClick={() => setMethod('email')} type="button">
               Continuar com email
             </button>
           </>

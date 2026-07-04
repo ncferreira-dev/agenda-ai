@@ -3,8 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AppointmentStatus, Prisma, ServiceMode } from '@prisma/client';
+import * as argon2 from 'argon2';
 import { DateTime } from 'luxon';
 import { hashCpf, normalizeCpf } from '../common/cpf';
 import { PrismaService } from '../prisma/prisma.service';
@@ -74,6 +76,8 @@ export class PanelService {
     depositCents: true,
     notifyWhatsApp: true,
     notifyEmail: true,
+    notifyPush: true,
+    notifyOwnerAllBookings: true,
     notifyDailySummary: true,
     ownerWhatsApp: true,
     ownerEmail: true,
@@ -121,6 +125,8 @@ export class PanelService {
       depositCents?: number | null;
       notifyWhatsApp?: boolean;
       notifyEmail?: boolean;
+      notifyPush?: boolean;
+      notifyOwnerAllBookings?: boolean;
       notifyDailySummary?: boolean;
       ownerWhatsApp?: string;
       ownerEmail?: string;
@@ -187,6 +193,8 @@ export class PanelService {
 
     if (input.notifyWhatsApp !== undefined) data.notifyWhatsApp = Boolean(input.notifyWhatsApp);
     if (input.notifyEmail !== undefined) data.notifyEmail = Boolean(input.notifyEmail);
+    if (input.notifyPush !== undefined) data.notifyPush = Boolean(input.notifyPush);
+    if (input.notifyOwnerAllBookings !== undefined) data.notifyOwnerAllBookings = Boolean(input.notifyOwnerAllBookings);
     if (input.notifyDailySummary !== undefined) data.notifyDailySummary = Boolean(input.notifyDailySummary);
     if (input.ownerWhatsApp !== undefined) data.ownerWhatsApp = this.normalizePhone(input.ownerWhatsApp);
     if (input.ownerEmail !== undefined) data.ownerEmail = this.normalizeEmail(input.ownerEmail);
@@ -395,14 +403,18 @@ export class PanelService {
     name: true,
     phone: true,
     cpfHash: true,
+    passwordHash: true,
     cep: true,
     photoUrl: true,
   } as const;
 
-  // Tira o cpfHash do retorno e expõe só o booleano hasCpf.
-  private presentOwner<T extends { cpfHash: string | null }>(owner: T) {
-    const { cpfHash, ...rest } = owner;
-    return { ...rest, hasCpf: cpfHash !== null };
+  // Tira cpfHash/passwordHash do retorno (write-only) e expõe só os booleanos:
+  // hasCpf e hasPassword (contas nascidas por login social não têm senha).
+  private presentOwner<T extends { cpfHash: string | null; passwordHash: string | null }>(
+    owner: T,
+  ) {
+    const { cpfHash, passwordHash, ...rest } = owner;
+    return { ...rest, hasCpf: cpfHash !== null, hasPassword: passwordHash !== null };
   }
 
   async getOwner(ownerId: string) {
@@ -456,6 +468,39 @@ export class PanelService {
     return this.presentOwner(owner);
   }
 
+  /**
+   * Define ou troca a senha do dono. Conta nascida por login social não tem
+   * senha: aqui ela ganha uma (passa a poder entrar por email/senha também).
+   * Se JÁ existe senha, exige a atual (evita troca silenciosa por sessão
+   * sequestrada). Não desloga a sessão atual.
+   */
+  async setPassword(
+    ownerId: string,
+    input: { currentPassword?: string; newPassword?: string },
+  ) {
+    const newPassword = input.newPassword ?? '';
+    if (newPassword.length < 8) {
+      throw new BadRequestException('A senha precisa de ao menos 8 caracteres.');
+    }
+
+    const owner = await this.prisma.owner.findUniqueOrThrow({
+      where: { id: ownerId },
+      select: { passwordHash: true },
+    });
+
+    // Já tem senha? Então isto é uma TROCA: confira a senha atual.
+    if (owner.passwordHash) {
+      const ok = input.currentPassword
+        ? await argon2.verify(owner.passwordHash, input.currentPassword)
+        : false;
+      if (!ok) throw new UnauthorizedException('Senha atual incorreta.');
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+    await this.prisma.owner.update({ where: { id: ownerId }, data: { passwordHash } });
+    return { ok: true };
+  }
+
   private normalizePhone(value: string): string | null {
     const digits = value.replace(/\D/g, '');
     if (!digits) return null;
@@ -498,7 +543,7 @@ export class PanelService {
       orderBy: { startAt: 'asc' },
       include: {
         service: { select: { name: true } },
-        professional: { select: { name: true } },
+        professional: { select: { name: true, phone: true, email: true } },
         customer: { select: { name: true, phone: true } },
         items: { select: { id: true, name: true, priceCents: true }, orderBy: { createdAt: 'asc' } },
       },
@@ -516,6 +561,10 @@ export class PanelService {
       totalCents: a.totalCents,
       items: a.items,
       professional: a.professional.name,
+      // Pro botão manual "avisar no WhatsApp": telefone do profissional e se ele já
+      // tem canal automático (e-mail). Não exponho o e-mail cru.
+      professionalPhone: a.professional.phone,
+      professionalHasEmail: a.professional.email !== null,
       customer: { name: a.customer.name, phone: a.customer.phone },
     }));
   }

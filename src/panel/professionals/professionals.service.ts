@@ -5,6 +5,7 @@ export interface ProfessionalInput {
   name: string;
   serviceIds?: string[];
   phone?: string;
+  email?: string;
   cpf?: string;
   photoUrl?: string;
 }
@@ -30,6 +31,7 @@ export class ProfessionalsService {
         name: true,
         active: true,
         phone: true,
+        email: true,
         cpf: true,
         photoUrl: true,
         services: { select: { serviceId: true } },
@@ -40,6 +42,7 @@ export class ProfessionalsService {
       name: p.name,
       active: p.active,
       phone: p.phone,
+      email: p.email,
       cpf: p.cpf,
       photoUrl: p.photoUrl,
       serviceIds: p.services.map((s) => s.serviceId),
@@ -55,6 +58,7 @@ export class ProfessionalsService {
         businessId,
         name,
         phone: this.normalizePhone(input.phone),
+        email: this.normalizeEmail(input.email),
         cpf: this.normalizeCpf(input.cpf),
         photoUrl: this.normalizeUrl(input.photoUrl),
         services: serviceIds.length
@@ -77,6 +81,7 @@ export class ProfessionalsService {
     if (input.name !== undefined) data.name = this.requireName(input.name);
     if (input.active !== undefined) data.active = Boolean(input.active);
     if (input.phone !== undefined) data.phone = this.normalizePhone(input.phone);
+    if (input.email !== undefined) data.email = this.normalizeEmail(input.email);
     if (input.cpf !== undefined) data.cpf = this.normalizeCpf(input.cpf);
     if (input.photoUrl !== undefined) data.photoUrl = this.normalizeUrl(input.photoUrl);
 
@@ -149,6 +154,14 @@ export class ProfessionalsService {
     if (!digits) return null;
     if (digits.length < 10 || digits.length > 13) throw new BadRequestException('Telefone inválido.');
     return digits.startsWith('55') ? digits : `55${digits}`;
+  }
+
+  private normalizeEmail(value?: string): string | null {
+    if (value === undefined) return null;
+    const email = value.trim().toLowerCase();
+    if (!email) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('E-mail inválido.');
+    return email;
   }
 
   private normalizeUrl(value?: string): string | null {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { saveNotifications, type ActionState } from '../../actions';
 import { MaskedInput } from '../../MaskedInput';
+import { PushDeviceButton } from './PushDeviceButton';
 import type { Me } from '@/lib/panel-api';
 import styles from '../../painel.module.css';
 
@@ -28,8 +29,10 @@ export function NotificationsForm({
   ownerEmail: string | null;
 }) {
   const [state, action] = useFormState(saveNotifications, INIT);
+  const [all, setAll] = useState(business.notifyOwnerAllBookings);
   const [wa, setWa] = useState(business.notifyWhatsApp);
   const [email, setEmail] = useState(business.notifyEmail);
+  const [push, setPush] = useState(business.notifyPush);
   const [daily, setDaily] = useState(business.notifyDailySummary);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
@@ -45,7 +48,26 @@ export function NotificationsForm({
       {state.error && <p className={styles.error}>{state.error}</p>}
 
       <div className={`${styles.panel} ${styles.panelPad}`}>
-        <h2 className={styles.sectionTitle}>Canais</h2>
+        <h2 className={styles.sectionTitle}>Quais agendamentos me avisam</h2>
+        <label className={styles.switchRow}>
+          <input
+            type="checkbox"
+            name="notifyOwnerAllBookings"
+            checked={all}
+            onChange={(e) => setAll(e.target.checked)}
+          />
+          <span>
+            <span className={styles.switchTitle}>Receber aviso de todos os agendamentos</span>
+            <span className={styles.switchHint}>
+              Ligado: você é avisado de todos, pelos seus canais abaixo. Desligado: só o
+              profissional daquele agendamento é avisado (no e-mail dele).
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <div className={`${styles.panel} ${styles.panelPad}`}>
+        <h2 className={styles.sectionTitle}>Meus canais (dono)</h2>
 
         <label className={styles.switchRow}>
           <input type="checkbox" name="notifyWhatsApp" checked={wa} onChange={(e) => setWa(e.target.checked)} />
@@ -62,6 +84,15 @@ export function NotificationsForm({
             <span className={styles.switchHint}>O mesmo aviso, no seu e-mail.</span>
           </span>
         </label>
+
+        <label className={styles.switchRow} style={{ marginTop: 12 }}>
+          <input type="checkbox" name="notifyPush" checked={push} onChange={(e) => setPush(e.target.checked)} />
+          <span>
+            <span className={styles.switchTitle}>Avisar no navegador/celular (push)</span>
+            <span className={styles.switchHint}>Notificação instantânea nos aparelhos ativados abaixo — mesmo com a aba fechada.</span>
+          </span>
+        </label>
+        {push && <PushDeviceButton />}
 
         <label className={styles.switchRow} style={{ marginTop: 12 }}>
           <input type="checkbox" name="notifyDailySummary" checked={daily} onChange={(e) => setDaily(e.target.checked)} />

@@ -57,14 +57,20 @@ function IdentityFields({ pro }: { pro?: Professional }) {
       </label>
       <div className={styles.formRow}>
         <label className={styles.field}>
-          <span className={styles.label}>Telefone</span>
+          <span className={styles.label}>WhatsApp</span>
           <MaskedInput kind="phone" className={styles.input} name="phone" defaultValue={pro?.phone} placeholder="(11) 99999-9999" />
+          <span className={styles.hint}>Recebe aviso de novo agendamento (via botão do dono por enquanto).</span>
         </label>
         <label className={styles.field}>
-          <span className={styles.label}>CPF</span>
-          <MaskedInput kind="cpf" className={styles.input} name="cpf" defaultValue={pro?.cpf} placeholder="000.000.000-00" />
+          <span className={styles.label}>E-mail</span>
+          <input type="email" className={styles.input} name="email" defaultValue={pro?.email ?? ''} placeholder="joao@exemplo.com" />
+          <span className={styles.hint}>Recebe o aviso automático por e-mail.</span>
         </label>
       </div>
+      <label className={styles.field}>
+        <span className={styles.label}>CPF</span>
+        <MaskedInput kind="cpf" className={styles.input} name="cpf" defaultValue={pro?.cpf} placeholder="000.000.000-00" />
+      </label>
     </>
   );
 }

@@ -11,6 +11,7 @@ export function middleware(req: NextRequest) {
   if (
     pathname.startsWith('/painel/login') ||
     pathname.startsWith('/painel/registro') ||
+    pathname.startsWith('/painel/oauth') || // callback do login social
     pathname.startsWith('/painel/api')
   ) {
     return NextResponse.next();

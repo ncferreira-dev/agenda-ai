@@ -85,6 +85,31 @@ export class MailService {
     }
   }
 
+  /** Avisa o PROFISSIONAL (best-effort) que ele tem um agendamento novo. No-op sem SMTP. */
+  async sendProfessionalNewBooking(
+    to: string,
+    data: { businessName: string; service: string; when: string; customer: string },
+  ): Promise<void> {
+    if (!this.transporter || !to) return;
+    const linhas = [
+      `Você tem um agendamento novo na ${data.businessName}.`,
+      ``,
+      `Serviço: ${data.service}`,
+      `Quando: ${data.when}`,
+      `Cliente: ${data.customer}`,
+    ];
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to,
+        subject: `Novo agendamento seu: ${data.service} (${data.when})`,
+        text: linhas.join('\n'),
+      });
+    } catch (err) {
+      this.logger.warn(`Falha ao avisar profissional por e-mail: ${(err as Error).message}`);
+    }
+  }
+
   /** Manda ao dono (best-effort) o resumo da agenda do dia. No-op sem SMTP. */
   async sendOwnerDailySummary(
     to: string,

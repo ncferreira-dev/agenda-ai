@@ -31,6 +31,7 @@ export interface Me {
     name: string;
     phone: string | null;
     hasCpf: boolean; // CPF é write-only (LGPD); só sabemos se há um cadastrado
+    hasPassword: boolean; // false = conta só por login social (Google); pode definir senha
     cep: string | null;
     photoUrl: string | null;
   };
@@ -62,6 +63,8 @@ export interface Me {
     depositCents: number | null;
     notifyWhatsApp: boolean;
     notifyEmail: boolean;
+    notifyPush: boolean;
+    notifyOwnerAllBookings: boolean;
     notifyDailySummary: boolean;
     ownerWhatsApp: string | null;
     ownerEmail: string | null;
@@ -86,6 +89,7 @@ export interface Professional {
   name: string;
   active: boolean;
   phone: string | null;
+  email: string | null;
   cpf: string | null;
   photoUrl: string | null;
   serviceIds: string[];
@@ -133,6 +137,8 @@ export interface Appointment {
   totalCents: number; // total editado (soma dos itens)
   items: AppointmentItem[];
   professional: string;
+  professionalPhone: string | null; // E.164 s/ '+'; base do link wa.me
+  professionalHasEmail: boolean; // já tem canal automático? se não, mostra o botão manual
   customer: { name: string | null; phone: string };
 }
 

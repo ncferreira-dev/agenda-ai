@@ -103,6 +103,7 @@ async function professionalBody(form: FormData): Promise<Record<string, unknown>
     name: String(form.get('name') ?? '').trim(),
     serviceIds: form.getAll('serviceIds').map(String),
     phone: String(form.get('phone') ?? ''),
+    email: String(form.get('email') ?? ''),
     cpf: String(form.get('cpf') ?? ''),
   };
   const photo = form.get('photo');
@@ -371,6 +372,29 @@ export async function saveProfile(_prev: ActionState, form: FormData): Promise<A
   return OK;
 }
 
+// Define (conta social) ou troca a senha do dono. A UI decide se pede a senha
+// atual (só quando já existe uma). Confirmação é validada aqui também.
+export async function savePassword(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const currentPassword = String(form.get('currentPassword') ?? '');
+  const newPassword = String(form.get('newPassword') ?? '');
+  const confirm = String(form.get('confirm') ?? '');
+
+  if (newPassword.length < 8) {
+    return { ok: false, error: 'A senha precisa de ao menos 8 caracteres.' };
+  }
+  if (newPassword !== confirm) {
+    return { ok: false, error: 'As senhas não coincidem.' };
+  }
+
+  const res = await authFetch('/me/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ currentPassword: currentPassword || undefined, newPassword }),
+  });
+  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar a senha.') };
+  revalidatePath('/painel/perfil');
+  return OK;
+}
+
 // --- Pagamentos (sinal) --------------------------------------------------
 
 export async function savePayments(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -398,6 +422,8 @@ export async function saveNotifications(_prev: ActionState, form: FormData): Pro
     body: JSON.stringify({
       notifyWhatsApp: form.get('notifyWhatsApp') === 'on',
       notifyEmail: form.get('notifyEmail') === 'on',
+      notifyPush: form.get('notifyPush') === 'on',
+      notifyOwnerAllBookings: form.get('notifyOwnerAllBookings') === 'on',
       notifyDailySummary: form.get('notifyDailySummary') === 'on',
       ownerWhatsApp: String(form.get('ownerWhatsApp') ?? '').trim(),
       ownerEmail: String(form.get('ownerEmail') ?? '').trim(),
@@ -406,6 +432,42 @@ export async function saveNotifications(_prev: ActionState, form: FormData): Pro
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
   revalidatePath('/painel/notificacoes');
   return OK;
+}
+
+// --- Web Push (aviso no navegador/celular do dono) -----------------------
+
+// Assinatura do browser (PushSubscription.toJSON()) que vem do cliente.
+export interface BrowserPushSubscription {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** Chave pública VAPID pro navegador assinar. null = push desligado no servidor. */
+export async function getPushPublicKey(): Promise<string | null> {
+  const res = await authFetch('/me/push/vapid');
+  if (!res.ok) return null;
+  const data = (await res.json()) as { publicKey: string | null };
+  return data.publicKey;
+}
+
+/** Registra este dispositivo pra receber push. */
+export async function savePushSubscription(
+  sub: BrowserPushSubscription,
+): Promise<{ ok: boolean }> {
+  const res = await authFetch('/me/push/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify({ subscription: sub }),
+  });
+  return { ok: res.ok };
+}
+
+/** Remove este dispositivo (o dono desativou o push aqui). */
+export async function deletePushSubscription(endpoint: string): Promise<{ ok: boolean }> {
+  const res = await authFetch('/me/push/subscriptions', {
+    method: 'DELETE',
+    body: JSON.stringify({ endpoint }),
+  });
+  return { ok: res.ok };
 }
 
 // --- Agenda --------------------------------------------------------------

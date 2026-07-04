@@ -12,6 +12,7 @@ import { PublicModule } from './public/public.module';
 import { ReminderModule } from './reminder/reminder.module';
 import { FollowUpModule } from './follow-up/follow-up.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ReminderModule,
     FollowUpModule,
     NotificationsModule,
+    PushModule,
   ],
 })
 export class AppModule {}

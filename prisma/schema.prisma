@@ -82,6 +82,8 @@ model Business {
   // Notificações pro dono (novo agendamento + resumo diário).
   notifyWhatsApp     Boolean   @default(true)  // avisar o dono no WhatsApp
   notifyEmail        Boolean   @default(false) // avisar o dono por e-mail
+  notifyPush         Boolean   @default(false) // avisar o dono por Web Push (navegador/celular)
+  notifyOwnerAllBookings Boolean @default(true) // dono recebe de TODOS os agendamentos; se off, só o profissional envolvido é avisado
   notifyDailySummary Boolean   @default(false) // resumo da agenda toda manhã
   ownerWhatsApp      String?   // WhatsApp do dono p/ avisos (E.164); null = usa o do perfil
   ownerEmail         String?   // e-mail do dono p/ avisos; null = usa o do perfil
@@ -101,9 +103,29 @@ model Business {
   timeBlocks    TimeBlock[]
   recurringBlocks RecurringBlock[]
   conversations Conversation[]
+  pushSubscriptions PushSubscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Inscrição de Web Push do dono (uma por navegador/dispositivo que ativou o aviso).
+// Escopada por businessId (multi-tenant). ownerId é só rastreio de qual dono ativou —
+// scalar sem FK de propósito (não precisa de integridade referencial aqui).
+model PushSubscription {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  ownerId    String?  // dono que ativou (rastreio); null se não identificado
+
+  endpoint   String   @unique // URL única do push service; chave natural do dispositivo
+  p256dh     String   // chave pública do cliente (criptografia da mensagem)
+  auth       String   // segredo de autenticação do cliente
+
+  userAgent  String?  // p/ o dono reconhecer o dispositivo depois
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
 }
 
 // Dono do negócio: quem acessa o painel (app.*) com login + senha.
@@ -113,8 +135,10 @@ model Owner {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  email        String @unique
-  passwordHash String // hash argon2; senha em texto nunca é gravada nem logada
+  email        String  @unique
+  // Opcional: quem entra só por login social (Google) nunca define senha.
+  // Se null, o login por email/senha recusa e orienta a usar o botão social.
+  passwordHash String? // hash argon2; senha em texto nunca é gravada nem logada
   name         String
 
   // Perfil do dono
@@ -132,8 +156,45 @@ model Owner {
 
   createdAt      DateTime        @default(now())
   passwordResets PasswordReset[]
+  oauthAccounts  OAuthAccount[]
 
   @@index([businessId])
+}
+
+// Provedor de login social vinculado a um Owner.
+enum OAuthProvider {
+  GOOGLE
+}
+
+// Conta social (Google) ligada a um Owner. Um Owner pode ter várias (um por
+// provedor). É o que permite "vincular em vez de duplicar": se o email do
+// Google já é de um Owner, criamos só um OAuthAccount apontando pra ele.
+model OAuthAccount {
+  id                String        @id @default(uuid())
+  ownerId           String
+  owner             Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  provider          OAuthProvider
+  providerAccountId String // o "sub" estável do provedor (não muda se o email mudar)
+  email             String? // email retornado pelo provedor (informativo)
+  createdAt         DateTime      @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([ownerId])
+}
+
+// Code de uso único da troca pós-OAuth. O backend termina o fluxo social e
+// gera um code curto; o front o troca pelo JWT (que aí vira o cookie httpOnly).
+// Assim o token nunca viaja na URL. Guardamos só o SHA-256 do code (aleatório
+// forte, não precisa de segredo), com expiração e uso único — igual PasswordReset.
+model AuthExchange {
+  id        String    @id @default(uuid())
+  ownerId   String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([ownerId])
 }
 
 // Pedido de redefinição de senha. O token cru viaja só no link do e-mail;
@@ -161,7 +222,8 @@ model Professional {
   active   Boolean @default(true)
 
   // Perfil do profissional — a foto aparece pro cliente na página de agendamento.
-  phone    String? // E.164 (uso interno)
+  phone    String? // WhatsApp/telefone do profissional, E.164 (uso interno; canal de aviso)
+  email    String? // e-mail do profissional p/ aviso de novo agendamento (uso interno)
   cpf      String? // só dígitos (uso interno)
   photoUrl String? // foto de perfil (pública)
 

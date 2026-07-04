@@ -1,5 +1,21 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AuthService, type OAuthProfile } from './auth.service';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
+
+// Base pública do front (pra onde o backend devolve o navegador após o OAuth).
+function webBase(): string {
+  return process.env.WEB_ORIGIN ?? 'http://localhost:3001';
+}
 
 interface LoginBody {
   email: string;
@@ -41,5 +57,40 @@ export class AuthController {
       address: body.address,
       meetingUrl: body.meetingUrl,
     });
+  }
+
+  // --- Login social: Google ------------------------------------------------
+
+  /** Início do fluxo: o guard redireciona pro consentimento do Google. */
+  @Get('oauth/google')
+  @UseGuards(GoogleOAuthGuard)
+  googleStart() {
+    // Nunca executa: o guard já redirecionou pro Google.
+  }
+
+  /**
+   * Callback do Google. req.user vem da GoogleStrategy (OAuthProfile). Resolve
+   * o Owner (login/vínculo/criação), gera um code de uso único e devolve o
+   * navegador pro front, que troca o code pelo JWT e seta o cookie. O token
+   * nunca viaja na URL — só o code opaco.
+   */
+  @Get('oauth/google/callback')
+  @UseGuards(GoogleOAuthGuard)
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
+    try {
+      const profile = req.user as OAuthProfile;
+      const ownerId = await this.auth.findOrLinkOrCreateFromOAuth(profile);
+      const code = await this.auth.createExchangeCode(ownerId);
+      res.redirect(`${webBase()}/painel/oauth/callback?code=${encodeURIComponent(code)}`);
+    } catch {
+      res.redirect(`${webBase()}/painel/login?erro=google-falhou`);
+    }
+  }
+
+  /** Troca o code de uso único pela sessão (mesmo shape do login). */
+  @Post('oauth/exchange')
+  async oauthExchange(@Body() body: { code?: string }) {
+    if (!body?.code) throw new BadRequestException('Code ausente.');
+    return this.auth.consumeExchangeCode(body.code);
   }
 }

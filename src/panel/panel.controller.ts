@@ -40,6 +40,15 @@ export class PanelController {
     return this.panel.updateOwner(owner.ownerId, body);
   }
 
+  /** Define (conta social) ou troca a senha do dono. */
+  @Patch('password')
+  setPassword(
+    @CurrentOwner() owner: AuthenticatedOwner,
+    @Body() body: { currentPassword?: string; newPassword?: string },
+  ) {
+    return this.panel.setPassword(owner.ownerId, body);
+  }
+
   /** Atualiza dados e branding do negócio (tela "Aparência"). */
   @Patch('business')
   updateBusiness(
@@ -59,6 +68,8 @@ export class PanelController {
       depositCents?: number | null;
       notifyWhatsApp?: boolean;
       notifyEmail?: boolean;
+      notifyPush?: boolean;
+      notifyOwnerAllBookings?: boolean;
       notifyDailySummary?: boolean;
       ownerWhatsApp?: string;
       ownerEmail?: string;

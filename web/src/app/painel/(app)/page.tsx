@@ -13,6 +13,20 @@ function durationMin(a: Appointment): number {
   return Math.round((new Date(a.endAt).getTime() - new Date(a.startAt).getTime()) / 60000);
 }
 
+// Botão manual (custo zero): só quando o profissional NÃO tem canal automático
+// (sem e-mail) mas tem WhatsApp. Abre o wa.me com a mensagem pronta pro dono
+// repassar o agendamento na mão. Só faz sentido em agendamento ativo.
+function waNudgeHref(a: Appointment, whenLabel: string): string | null {
+  const ativo = a.status === 'CONFIRMED' || a.status === 'PENDING';
+  if (!ativo || a.professionalHasEmail || !a.professionalPhone) return null;
+  const cliente = `${a.customer.name ?? 'cliente'} (${a.customer.phone})`;
+  const msg =
+    `Oi ${a.professional}! Você tem um agendamento novo:\n` +
+    `${a.service} — ${whenLabel}\n` +
+    `Cliente: ${cliente}`;
+  return `https://wa.me/${a.professionalPhone}?text=${encodeURIComponent(msg)}`;
+}
+
 // Presença e pagamento são DOIS estados independentes — não se misturam.
 function PresenceControl({ a }: { a: Appointment }) {
   // Já marcado (compareceu/faltou): mostra o estado e oferece desfazer.
@@ -206,6 +220,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                   <div className={styles.panel}>
                     {listaDia.map((a) => {
                       const t = DateTime.fromISO(a.startAt).setZone(tz);
+                      const waHref = waNudgeHref(a, t.setLocale('pt-BR').toFormat("dd/LL 'às' HH:mm"));
                       return (
                         <div key={a.id} className={styles.appt}>
                           <div className={styles.apptTime}>
@@ -223,6 +238,17 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                             {a.paymentStatus === 'PENDING' && <span className={`${styles.chip} ${styles.chipWarn}`}>aguardando sinal</span>}
                             {a.paymentStatus === 'PAID' && <span className={`${styles.chip} ${styles.chipOk}`}>sinal pago</span>}
                             {a.confirmedByCustomer && <span className={`${styles.chip} ${styles.chipOk}`}>✓ confirmou</span>}
+                            {waHref && (
+                              <a
+                                className={styles.smallBtn}
+                                href={waHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Este profissional não tem e-mail de aviso. Repasse o agendamento no WhatsApp dele."
+                              >
+                                Avisar no WhatsApp
+                              </a>
+                            )}
                             <ApptActions a={a} />
                           </div>
                         </div>

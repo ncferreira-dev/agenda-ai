@@ -1,5 +1,6 @@
 import { getMe } from '@/lib/panel-api';
 import { ProfileForm } from './ProfileForm';
+import { PasswordForm } from './PasswordForm';
 import styles from '../../painel.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,9 @@ export default async function PerfilPage() {
       </div>
 
       <ProfileForm owner={me.owner} />
+
+      <div style={{ height: 18 }} />
+      <PasswordForm owner={me.owner} />
     </div>
   );
 }
