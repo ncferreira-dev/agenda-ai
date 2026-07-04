@@ -9,6 +9,13 @@ import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
 
+type Mode = 'PRESENCIAL' | 'REMOTO' | 'HIBRIDO';
+const MODES: { id: Mode; emoji: string; label: string; desc: string }[] = [
+  { id: 'PRESENCIAL', emoji: '🏠', label: 'Presencial', desc: 'O cliente vai até o seu local' },
+  { id: 'REMOTO', emoji: '💻', label: 'Remoto', desc: 'Atendimento online' },
+  { id: 'HIBRIDO', emoji: '🔀', label: 'Híbrido', desc: 'Presencial e online' },
+];
+
 const TIMEZONES: { value: string; label: string }[] = [
   { value: 'America/Sao_Paulo', label: 'São Paulo / Brasília (GMT-3)' },
   { value: 'America/Bahia', label: 'Bahia (GMT-3)' },
@@ -34,6 +41,9 @@ function Save() {
 export function BusinessForm({ business }: { business: Me['business'] }) {
   const [state, action] = useFormState(saveBusiness, INIT);
   const [saved, setSaved] = useState(false);
+  const [mode, setMode] = useState<Mode>(business.serviceMode);
+  const showAddress = mode !== 'REMOTO';
+  const showMeeting = mode !== 'PRESENCIAL';
   useEffect(() => {
     if (state.ok) {
       setSaved(true);
@@ -68,18 +78,49 @@ export function BusinessForm({ business }: { business: Me['business'] }) {
             </select>
           </label>
         </div>
-        <label className={styles.field}>
-          <span className={styles.label}>Endereço (local de trabalho)</span>
-          <input className={styles.input} name="address" defaultValue={business.address ?? ''} placeholder="Rua, número, bairro, cidade" />
-        </label>
+        <div className={`${styles.field} ${styles.gap}`}>
+          <span className={styles.label}>Tipo de atendimento</span>
+          <input type="hidden" name="serviceMode" value={mode} />
+          <div className={styles.modeGrid}>
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`${styles.modeCard} ${mode === m.id ? styles.modeCardOn : ''}`}
+                onClick={() => setMode(m.id)}
+                aria-pressed={mode === m.id}
+              >
+                <span className={styles.modeEmoji} aria-hidden>{m.emoji}</span>
+                <span>
+                  <span className={styles.modeLabel}>{m.label}</span>
+                  <span className={styles.modeDesc}>{m.desc}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {showAddress && (
+          <label className={styles.field}>
+            <span className={styles.label}>Endereço (local de trabalho)</span>
+            <input className={styles.input} name="address" defaultValue={business.address ?? ''} placeholder="Rua, número, bairro, cidade" />
+          </label>
+        )}
+        {showMeeting && (
+          <label className={styles.field}>
+            <span className={styles.label}>Link de atendimento online</span>
+            <input className={styles.input} name="meetingUrl" defaultValue={business.meetingUrl ?? ''} placeholder="Ex.: meet.google.com/xxx" />
+          </label>
+        )}
+
         <label className={styles.field}>
           <span className={styles.label}>Profissão / ramo</span>
           <input className={styles.input} name="profession" defaultValue={business.profession ?? ''} placeholder="barbearia, nutricionista, estética…" />
         </label>
         <p className={styles.rowMeta}>
-          O WhatsApp é o número que recebe os agendamentos. O endereço aparece pro cliente na página
-          de agendamento, com link pro mapa. A profissão ajuda a IA a sugerir os lembretes de retorno
-          dos seus serviços.
+          O WhatsApp é o número que recebe os agendamentos. No presencial, o endereço aparece pro
+          cliente com link pro mapa; no remoto, mostramos o link de atendimento. A profissão ajuda a
+          IA a sugerir os lembretes de retorno dos seus serviços.
         </p>
       </div>
 

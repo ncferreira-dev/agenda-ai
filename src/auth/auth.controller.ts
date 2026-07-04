@@ -11,7 +11,9 @@ interface RegisterBody {
   email: string;
   password: string;
   businessName: string;
-  cpf: string;
+  serviceMode?: string; // PRESENCIAL | REMOTO | HIBRIDO
+  address?: string; // presencial/híbrido
+  meetingUrl?: string; // remoto/híbrido
 }
 
 @Controller('auth')
@@ -35,7 +37,9 @@ export class AuthController {
       email: body.email,
       password: body.password,
       businessName: body.businessName,
-      cpf: body.cpf,
+      serviceMode: body.serviceMode,
+      address: body.address,
+      meetingUrl: body.meetingUrl,
     });
   }
 }

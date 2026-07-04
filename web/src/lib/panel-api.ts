@@ -41,6 +41,8 @@ export interface Me {
     timezone: string;
     phone: string | null;
     address: string | null;
+    serviceMode: 'PRESENCIAL' | 'REMOTO' | 'HIBRIDO';
+    meetingUrl: string | null;
     slotStepMinutes: number;
     minLeadMinutes: number;
     maxAdvanceDays: number;

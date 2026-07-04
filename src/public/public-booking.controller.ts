@@ -127,6 +127,8 @@ export class PublicBookingController {
         timezone: business.timezone,
         maxAdvanceDays: business.maxAdvanceDays,
         address: business.address,
+        serviceMode: business.serviceMode,
+        meetingUrl: business.meetingUrl,
         closedWeekdays,
         // Branding (Nível 1) — a página pública usa pra vestir a marca.
         logoUrl: business.logoUrl,

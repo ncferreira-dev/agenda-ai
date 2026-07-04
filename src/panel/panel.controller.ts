@@ -64,6 +64,8 @@ export class PanelController {
       ownerEmail?: string;
       phone?: string;
       address?: string;
+      serviceMode?: string;
+      meetingUrl?: string;
       timezone?: string;
       slotStepMinutes?: number;
       minLeadMinutes?: number;

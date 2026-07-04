@@ -20,6 +20,8 @@ export interface BusinessPage {
     timezone: string;
     maxAdvanceDays: number;
     address: string | null;
+    serviceMode: 'PRESENCIAL' | 'REMOTO' | 'HIBRIDO';
+    meetingUrl: string | null;
     closedWeekdays: number[]; // dias fechados por bloqueio recorrente do negócio (0=dom … 6=sáb)
     // Branding (Nível 1) — opcionais.
     logoUrl: string | null;

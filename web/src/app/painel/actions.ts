@@ -303,6 +303,8 @@ export async function saveBusiness(_prev: ActionState, form: FormData): Promise<
     name: String(form.get('name') ?? ''),
     phone: String(form.get('phone') ?? ''),
     address: String(form.get('address') ?? ''),
+    serviceMode: String(form.get('serviceMode') ?? ''),
+    meetingUrl: String(form.get('meetingUrl') ?? ''),
     profession: String(form.get('profession') ?? ''),
     timezone: String(form.get('timezone') ?? ''),
     slotStepMinutes: Number(form.get('slotStepMinutes')),

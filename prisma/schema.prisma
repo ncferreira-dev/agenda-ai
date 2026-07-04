@@ -28,6 +28,15 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// Como o negócio atende. PRESENCIAL = cliente vai até o local (pede endereço);
+// REMOTO = online (pede link de atendimento no lugar do endereço); HIBRIDO = os
+// dois. Cada Service pode, no futuro, ter o próprio modo (null = herda o do negócio).
+enum ServiceMode {
+  PRESENCIAL
+  REMOTO
+  HIBRIDO
+}
+
 // Um comércio. Tudo é escopado por businessId (multi-tenant simples).
 model Business {
   id        String   @id @default(uuid())
@@ -35,7 +44,12 @@ model Business {
   slug      String   @unique // usado na URL da página de agendamento
   timezone  String   @default("America/Sao_Paulo")
   phone     String? // número de WhatsApp do negócio (o que recebe os agendamentos)
-  address   String? // endereço do local de trabalho (mostrado pro cliente)
+  address   String? // endereço do local de trabalho (mostrado pro cliente; só presencial/híbrido)
+
+  // Tipo de atendimento do negócio (escolhido no cadastro). Adapta o resto:
+  // REMOTO usa meetingUrl no lugar do endereço.
+  serviceMode ServiceMode @default(PRESENCIAL)
+  meetingUrl  String? // link do atendimento online (ex.: Google Meet); usado quando remoto/híbrido
 
   // Configuração de agenda
   slotStepMinutes   Int @default(15) // granularidade dos horários ofertados
@@ -188,6 +202,9 @@ model Service {
   durationMinutes Int
   priceCents      Int     @default(0)
   active          Boolean @default(true)
+
+  // Modo de atendimento por serviço (preparado pro futuro). null = herda o do negócio.
+  serviceMode ServiceMode?
 
   // Follow-up de retorno: convidar o cliente a refazer o serviço depois de um tempo.
   followUpDays    Int?    // a cada quantos dias reconvidar; null = sem follow-up

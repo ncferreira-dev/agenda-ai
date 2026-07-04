@@ -4,11 +4,11 @@ import { API_BASE, PANEL_COOKIE } from '@/lib/panel-session';
 
 // Proxy de cadastro: recebe os dados, chama o backend e, dando certo, grava o
 // JWT num cookie httpOnly (mesmo padrão do login). O token nunca fica exposto
-// ao JS do browser. Erros do backend (email/CPF em uso, CPF inválido) sobem com
-// a mensagem original pra tela mostrar.
+// ao JS do browser. Erros do backend (email em uso etc.) sobem com a mensagem
+// original pra tela mostrar. O cadastro pede o mínimo (sem CPF).
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  if (!body?.email || !body?.password || !body?.name || !body?.businessName || !body?.cpf) {
+  if (!body?.email || !body?.password || !body?.name || !body?.businessName) {
     return NextResponse.json({ message: 'Preencha todos os campos.' }, { status: 400 });
   }
 
@@ -20,7 +20,9 @@ export async function POST(req: Request) {
       email: body.email,
       password: body.password,
       businessName: body.businessName,
-      cpf: body.cpf,
+      serviceMode: body.serviceMode,
+      address: body.address,
+      meetingUrl: body.meetingUrl,
     }),
     cache: 'no-store',
   });

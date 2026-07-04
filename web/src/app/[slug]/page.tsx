@@ -45,7 +45,7 @@ export default async function Page({
         <h1 className={styles.businessName}>{business.name}</h1>
         <p className={styles.tagline}>Agende seu horário</p>
 
-        {business.address && (
+        {business.serviceMode !== 'REMOTO' && business.address && (
           <a
             className={styles.address}
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`}
@@ -59,6 +59,25 @@ export default async function Page({
             {business.address}
           </a>
         )}
+
+        {business.serviceMode !== 'PRESENCIAL' &&
+          (business.meetingUrl ? (
+            <a className={styles.address} href={business.meetingUrl} target="_blank" rel="noopener noreferrer">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 7l-7 5 7 5V7z" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+              Atendimento online
+            </a>
+          ) : (
+            <span className={styles.address}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 7l-7 5 7 5V7z" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+              Atendimento online
+            </span>
+          ))}
 
         {business.about && <p className={styles.about}>{business.about}</p>}
 

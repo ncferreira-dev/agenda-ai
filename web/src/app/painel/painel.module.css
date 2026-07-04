@@ -307,6 +307,93 @@
   text-decoration: underline;
 }
 
+/* --- Cadastro em passos: indicador + cards de tipo de atendimento --- */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+.stepDot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--paper-2);
+  color: var(--muted);
+}
+.stepDotActive {
+  background: var(--accent);
+  color: #fff;
+}
+.stepDotDone {
+  background: var(--deep);
+  color: #fff;
+}
+.stepBar {
+  width: 30px;
+  height: 2px;
+  background: var(--line);
+}
+
+.modeGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.modeCard {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  padding: 14px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.14s, box-shadow 0.14s, transform 0.08s;
+}
+.modeCard:hover {
+  border-color: var(--muted);
+}
+.modeCardOn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.modeEmoji {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  background: var(--accent-soft);
+}
+.modeLabel {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+}
+.modeDesc {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.optional {
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* =========================================================================
    SHELL (nav + conteúdo)
    ========================================================================= */

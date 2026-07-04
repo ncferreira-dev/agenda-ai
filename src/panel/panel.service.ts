@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AppointmentStatus, Prisma } from '@prisma/client';
+import { AppointmentStatus, Prisma, ServiceMode } from '@prisma/client';
 import { DateTime } from 'luxon';
 import { hashCpf, normalizeCpf } from '../common/cpf';
 import { PrismaService } from '../prisma/prisma.service';
@@ -53,6 +53,8 @@ export class PanelService {
     timezone: true,
     phone: true,
     address: true,
+    serviceMode: true,
+    meetingUrl: true,
     slotStepMinutes: true,
     minLeadMinutes: true,
     maxAdvanceDays: true,
@@ -124,6 +126,8 @@ export class PanelService {
       ownerEmail?: string;
       phone?: string;
       address?: string;
+      serviceMode?: string;
+      meetingUrl?: string;
       timezone?: string;
       slotStepMinutes?: number;
       minLeadMinutes?: number;
@@ -227,6 +231,23 @@ export class PanelService {
     if (input.instagramUrl !== undefined) data.instagramUrl = this.normalizeUrl(input.instagramUrl);
     if (input.logoUrl !== undefined) data.logoUrl = this.normalizeUrl(input.logoUrl);
     if (input.coverUrl !== undefined) data.coverUrl = this.normalizeUrl(input.coverUrl);
+
+    // Link de atendimento online: aceita sem esquema (recebe https://); vazio limpa.
+    if (input.meetingUrl !== undefined) {
+      const v = input.meetingUrl.trim();
+      data.meetingUrl = v ? (/^https?:\/\//i.test(v) ? v : `https://${v}`) : null;
+    }
+    // Tipo de atendimento. Aplico o ripple por ÚLTIMO pra sobrepor address/meetingUrl:
+    // remoto zera o endereço; presencial zera o link de atendimento.
+    if (input.serviceMode !== undefined) {
+      const m = input.serviceMode;
+      if (m !== ServiceMode.PRESENCIAL && m !== ServiceMode.REMOTO && m !== ServiceMode.HIBRIDO) {
+        throw new BadRequestException('Tipo de atendimento inválido.');
+      }
+      data.serviceMode = m;
+      if (m === ServiceMode.REMOTO) data.address = null;
+      if (m === ServiceMode.PRESENCIAL) data.meetingUrl = null;
+    }
 
     try {
       return await this.prisma.business.update({

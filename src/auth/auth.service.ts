@@ -5,10 +5,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from '@prisma/client';
+import { Prisma, ServiceMode } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
-import { hashCpf, isValidCpf } from '../common/cpf';
 import { RESERVED_SLUGS, SLUG_MAX, SLUG_MIN, slugify } from '../common/slug';
 
 // Duração do teste grátis do dono (só o status; o bloqueio é da Fase 5).
@@ -84,20 +83,22 @@ export class AuthService {
   /**
    * Cadastro público do dono: cria Business + Owner e já devolve a sessão
    * (mesmo shape do login). Negócio nasce em trial de 14 dias. NÃO mexe em
-   * login/guard/escopo. CPF é validado e guardado só como hash (LGPD).
+   * login/guard/escopo. Pede o MÍNIMO (nome, email, senha, nome do negócio) +
+   * o tipo de atendimento; o CPF só é pedido depois, na hora de assinar um plano.
    */
   async register(input: {
     name: string;
     email: string;
     password: string;
     businessName: string;
-    cpf: string;
+    serviceMode?: string;
+    address?: string;
+    meetingUrl?: string;
   }) {
     const name = (input.name ?? '').trim();
     const email = (input.email ?? '').trim().toLowerCase();
     const businessName = (input.businessName ?? '').trim();
     const password = input.password ?? '';
-    const cpfRaw = input.cpf ?? '';
 
     if (!name) throw new BadRequestException('Informe seu nome.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -107,21 +108,23 @@ export class AuthService {
       throw new BadRequestException('A senha precisa de ao menos 8 caracteres.');
     }
     if (!businessName) throw new BadRequestException('Informe o nome do negócio.');
-    if (!isValidCpf(cpfRaw)) throw new BadRequestException('CPF inválido.');
 
-    const cpfHash = hashCpf(cpfRaw);
+    const serviceMode = this.normalizeServiceMode(input.serviceMode);
+    // Ripple do tipo de atendimento: remoto não guarda endereço; presencial não
+    // guarda link de atendimento; híbrido pode guardar os dois.
+    const address =
+      serviceMode === ServiceMode.REMOTO ? null : (input.address ?? '').trim() || null;
+    const meetingUrl =
+      serviceMode === ServiceMode.PRESENCIAL ? null : this.normalizeMeetingUrl(input.meetingUrl);
 
-    // Checagem amigável (mensagem específica). O @unique de email/cpfHash é o
-    // backstop real contra corrida — tratado no catch de P2002 abaixo.
-    const [emailClash, cpfClash] = await Promise.all([
-      this.prisma.owner.findUnique({ where: { email }, select: { id: true } }),
-      this.prisma.owner.findUnique({ where: { cpfHash }, select: { id: true } }),
-    ]);
+    // Checagem amigável (mensagem específica). O @unique de email é o backstop
+    // real contra corrida — tratado no catch de P2002 abaixo.
+    const emailClash = await this.prisma.owner.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     if (emailClash) {
       throw new ConflictException('Esse email já tem conta. Faça login.');
-    }
-    if (cpfClash) {
-      throw new ConflictException('Esse CPF já tem conta. Faça login ou recupere a senha.');
     }
 
     const slug = await this.generateUniqueSlug(businessName);
@@ -137,15 +140,18 @@ export class AuthService {
             slug,
             subscriptionStatus: 'TRIALING',
             trialEndsAt,
+            serviceMode,
+            address,
+            meetingUrl,
           },
         });
         return tx.owner.create({
-          data: { businessId: business.id, name, email, passwordHash, cpfHash },
+          data: { businessId: business.id, name, email, passwordHash },
           select: { id: true, businessId: true, name: true, email: true },
         });
       });
     } catch (e) {
-      // Corrida: email/cpf/slug colidiu entre a checagem e o insert.
+      // Corrida: email/slug colidiu entre a checagem e o insert.
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException('Não foi possível criar a conta. Tente de novo.');
       }
@@ -153,6 +159,19 @@ export class AuthService {
     }
 
     return this.buildSession(owner);
+  }
+
+  // Tipo de atendimento; qualquer valor fora do enum cai em PRESENCIAL.
+  private normalizeServiceMode(value?: string): ServiceMode {
+    if (value === ServiceMode.REMOTO || value === ServiceMode.HIBRIDO) return value;
+    return ServiceMode.PRESENCIAL;
+  }
+
+  // Link de atendimento online; vazio vira null; sem esquema recebe https://.
+  private normalizeMeetingUrl(value?: string): string | null {
+    const v = (value ?? '').trim();
+    if (!v) return null;
+    return /^https?:\/\//i.test(v) ? v : `https://${v}`;
   }
 
   /** Monta o retorno de sessão (token + owner + business), igual ao login. */
