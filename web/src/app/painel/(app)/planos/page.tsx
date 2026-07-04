@@ -1,5 +1,5 @@
 import { getMe } from '@/lib/panel-api';
-import { PLANS, planName, type PlanId } from './plans';
+import { PLANS, planName, savingsLabel, type PlanId } from './plans';
 import { AssinarButton } from './AssinarButton';
 import panel from '../../painel.module.css';
 import styles from './planos.module.css';
@@ -87,12 +87,13 @@ export default async function PlanosPage() {
       <div className={styles.grid}>
         {PLANS.map((p) => {
           const isCurrent = isActive && me.business.plan === p.id;
+          const savings = savingsLabel(p);
           return (
             <div
               key={p.id}
               className={`${styles.card} ${p.recommended ? styles.cardRecommended : ''} ${
-                isCurrent ? styles.cardCurrent : ''
-              }`}
+                p.id === 'ULTRA' ? styles.cardUltra : ''
+              } ${isCurrent ? styles.cardCurrent : ''}`}
             >
               {p.recommended && <span className={styles.ribbon}>Mais escolhido</span>}
 
@@ -100,11 +101,20 @@ export default async function PlanosPage() {
               <p className={styles.planTagline}>{p.tagline}</p>
               <p className={styles.planWho}>{p.who}</p>
 
-              <p className={styles.price}>
-                <span className={styles.priceCurrency}>R$</span>
-                <span className={styles.priceValue}>{p.priceLabel}</span>
-                <span className={styles.pricePer}>/mês</span>
-              </p>
+              <div className={styles.priceWrap}>
+                {p.fullPriceLabel && <span className={styles.priceFull}>R$ {p.fullPriceLabel}</span>}
+                <p className={styles.price}>
+                  <span className={styles.priceCurrency}>R$</span>
+                  <span className={styles.priceValue}>{p.priceLabel}</span>
+                  <span className={styles.pricePer}>/mês</span>
+                </p>
+                {p.fullPriceLabel && (
+                  <div className={styles.launchRow}>
+                    <span className={styles.launchBadge}>🏷 Preço de lançamento</span>
+                    {savings && <span className={styles.saveTag}>economize R$ {savings}/mês</span>}
+                  </div>
+                )}
+              </div>
 
               <ul className={styles.features}>
                 {p.features.map((f) => (
