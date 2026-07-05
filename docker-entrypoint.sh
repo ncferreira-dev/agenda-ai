@@ -8,4 +8,4 @@ echo "→ Aplicando migrations (prisma migrate deploy)..."
 npx prisma migrate deploy
 
 echo "→ Subindo a API..."
-exec node dist/main.js
+exec node dist/src/main.js
