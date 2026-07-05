@@ -1,6 +1,13 @@
 import Link from 'next/link';
 import { DateTime } from 'luxon';
-import { getMe, getReport, type ReportBreakdown } from '@/lib/panel-api';
+import {
+  getMe,
+  getReport,
+  getProfessionalRevenue,
+  listProfessionals,
+  type ReportBreakdown,
+  type ProfessionalRevenueReport,
+} from '@/lib/panel-api';
 import styles from '../../painel.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +65,60 @@ function Breakdown({ title, items }: { title: string; items: ReportBreakdown[] }
   );
 }
 
+// Tempo trabalhado: minutos e horas (h/min); dias entram na meta da linha.
+function tempoTrabalhado(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const hhmm = h > 0 ? `${h}h${m ? ` ${m}min` : ''}` : `${m}min`;
+  return `${min} min (${hhmm})`;
+}
+
+const diasLabel = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+
+// Faturamento por profissional — só atendimentos concluídos/pagos (realizados).
+function RevenueByProfessional({ report }: { report: ProfessionalRevenueReport }) {
+  return (
+    <div className={`${styles.panel} ${styles.panelPad}`}>
+      <h2 className={styles.sectionTitle}>Faturamento por profissional</h2>
+      <p className={styles.rowMeta} style={{ marginTop: 4 }}>
+        <strong>Faturamento realizado</strong> = atendimentos concluídos ou pagos no período (não inclui
+        previstos nem a receber), pelo total final de cada atendimento. Tempo trabalhado = soma da duração
+        dos atendimentos; dias = dias distintos com atendimento no período.
+      </p>
+      {report.professionals.length === 0 ? (
+        <p className={styles.rowMeta} style={{ marginTop: 12 }}>Sem dados no período.</p>
+      ) : (
+        <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+          <div className={styles.reportRow} style={{ opacity: 0.7 }}>
+            <span className={styles.reportCount}>Profissional</span>
+            <span className={styles.reportCount}>Faturamento realizado</span>
+          </div>
+          {report.professionals.map((r) => (
+            <div key={r.professionalId} className={styles.reportRow}>
+              <span className={styles.reportName}>
+                {r.name}{' '}
+                <span className={styles.reportCount}>
+                  · {r.count} atend. · {tempoTrabalhado(r.workedMinutes)} · {diasLabel(r.daysWorked)}
+                </span>
+              </span>
+              <span className={styles.reportVal}>{brl(r.generatedCents)}</span>
+            </div>
+          ))}
+          <div className={styles.reportRow} style={{ borderTop: '1px solid var(--line)', paddingTop: 10, fontWeight: 600 }}>
+            <span className={styles.reportName}>
+              Total{' '}
+              <span className={styles.reportCount}>
+                · {report.totalCount} atend. · {tempoTrabalhado(report.totalWorkedMinutes)} · {diasLabel(report.totalDaysWorked)}
+              </span>
+            </span>
+            <span className={styles.reportVal}>{brl(report.totalGeneratedCents)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Um balde financeiro (previsto / a receber / recebido).
 function Bucket({ label, cents, count, hint, ok }: { label: string; cents: number; count: number; hint: string; ok?: boolean }) {
   return (
@@ -74,7 +135,7 @@ function Bucket({ label, cents, count, hint, ok }: { label: string; cents: numbe
 export default async function RelatorioPage({
   searchParams,
 }: {
-  searchParams: { p?: string };
+  searchParams: { p?: string; prof?: string };
 }) {
   const me = await getMe();
   if (!me) return null;
@@ -83,7 +144,25 @@ export default async function RelatorioPage({
     ? (searchParams.p as Periodo)
     : 'mes';
   const { from, to } = range(p, me.business.timezone);
-  const report = await getReport(from, to);
+
+  const professionals = await listProfessionals();
+  const prof = professionals.some((x) => x.id === searchParams.prof)
+    ? searchParams.prof
+    : undefined;
+
+  const [report, byPro] = await Promise.all([
+    getReport(from, to),
+    getProfessionalRevenue(from, to, prof),
+  ]);
+
+  // Preserva o filtro de profissional ao trocar de período, e vice-versa.
+  const href = (params: { p?: Periodo; prof?: string | null }) => {
+    const qs = new URLSearchParams();
+    qs.set('p', params.p ?? p);
+    const pf = params.prof === undefined ? prof : params.prof;
+    if (pf) qs.set('prof', pf);
+    return `/painel/relatorio?${qs}`;
+  };
 
   const total = report.previstoCents + report.aReceberCents + report.recebidoCents;
 
@@ -101,7 +180,7 @@ export default async function RelatorioPage({
         {(['dia', 'semana', 'mes'] as Periodo[]).map((opt) => (
           <Link
             key={opt}
-            href={`/painel/relatorio?p=${opt}`}
+            href={href({ p: opt })}
             className={`${styles.periodTab} ${p === opt ? styles.periodTabActive : ''}`}
           >
             {LABELS[opt]}
@@ -125,6 +204,27 @@ export default async function RelatorioPage({
       <div className={styles.gap} style={{ display: 'grid', gap: 14 }}>
         <Breakdown title="Por serviço" items={report.byService} />
         <Breakdown title="Por profissional" items={report.byProfessional} />
+      </div>
+
+      <div className={styles.gap}>
+        <div className={styles.periodTabs} style={{ marginBottom: 12 }}>
+          <Link
+            href={href({ prof: null })}
+            className={`${styles.periodTab} ${!prof ? styles.periodTabActive : ''}`}
+          >
+            Todos
+          </Link>
+          {professionals.map((x) => (
+            <Link
+              key={x.id}
+              href={href({ prof: x.id })}
+              className={`${styles.periodTab} ${prof === x.id ? styles.periodTabActive : ''}`}
+            >
+              {x.name}
+            </Link>
+          ))}
+        </div>
+        <RevenueByProfessional report={byPro} />
       </div>
     </div>
   );

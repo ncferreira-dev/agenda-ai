@@ -910,7 +910,7 @@ export class PanelService {
   /**
    * Relatório de FATURAMENTO por profissional num período [from, to).
    * Conta só atendimentos REALIZADOS: status COMPLETED OU pago à mão
-   * (manualPaidAt != null); NO_SHOW nunca entra (mesmo se sinal foi retido).
+   * (manualPaidAt != null); NO_SHOW nunca entra.
    * Faturamento = Appointment.totalCents (valor final/editado do atendimento).
    * Também apura tempo trabalhado (soma das durações) e dias distintos no fuso
    * do negócio. Filtrável por professionalId (opcional). Escopado por businessId.
@@ -933,7 +933,7 @@ export class PanelService {
         businessId,
         ...(professionalId ? { professionalId } : {}),
         startAt: { gte: from, lt: to },
-        // Realizado = concluído ou pago; falta não gera comissão.
+        // Realizado = concluído ou pago; falta (NO_SHOW) não fatura.
         OR: [{ status: 'COMPLETED' }, { manualPaidAt: { not: null } }],
         NOT: { status: 'NO_SHOW' },
       },
