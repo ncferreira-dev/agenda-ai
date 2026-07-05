@@ -13,6 +13,7 @@ import { ReminderModule } from './reminder/reminder.module';
 import { FollowUpModule } from './follow-up/follow-up.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PushModule } from './push/push.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PushModule } from './push/push.module';
     FollowUpModule,
     NotificationsModule,
     PushModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

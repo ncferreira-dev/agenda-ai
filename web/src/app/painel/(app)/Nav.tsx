@@ -15,7 +15,9 @@ const LINKS = [
   { href: '/painel/bloqueios', label: 'Bloqueios' },
   { href: '/painel/negocio', label: 'Negócio' },
   { href: '/painel/aparencia', label: 'Aparência' },
+  { href: '/painel/meu-plano', label: 'Meu plano' },
   { href: '/painel/planos', label: 'Planos' },
+  { href: '/painel/indicacoes', label: 'Indicações' },
   { href: '/painel/notificacoes', label: 'Notificações' },
   { href: '/painel/perfil', label: 'Perfil' },
 ];

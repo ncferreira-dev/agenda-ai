@@ -1,4 +1,4 @@
-import { getMe } from '@/lib/panel-api';
+import { getMe, getQuote, type Quote } from '@/lib/panel-api';
 import { PLANS, planName, savingsLabel, type PlanId } from './plans';
 import { AssinarButton } from './AssinarButton';
 import panel from '../../painel.module.css';
@@ -62,6 +62,19 @@ export default async function PlanosPage() {
 
   const banner = statusBanner(me.business);
   const isActive = me.business.subscriptionStatus === 'ACTIVE';
+
+  // Orçamento de cada plano (promessa de preço + descontos), calculado no
+  // backend com o estado de indicação/crédito do negócio. Alimenta a confirmação.
+  const quotes = new Map<PlanId, Quote>();
+  await Promise.all(
+    PLANS.map(async (p) => {
+      try {
+        quotes.set(p.id, await getQuote(p.id));
+      } catch {
+        /* sem quote: o botão ainda abre, só não mostra a quebra */
+      }
+    }),
+  );
 
   return (
     <div className={panel.rise}>
@@ -127,7 +140,13 @@ export default async function PlanosPage() {
                 ))}
               </ul>
 
-              <AssinarButton planId={p.id} recommended={p.recommended} isCurrent={isCurrent} />
+              <AssinarButton
+                planId={p.id}
+                planName={p.name}
+                recommended={p.recommended}
+                isCurrent={isCurrent}
+                quote={quotes.get(p.id) ?? null}
+              />
             </div>
           );
         })}

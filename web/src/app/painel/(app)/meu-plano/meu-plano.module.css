@@ -1,0 +1,198 @@
+/* Aba "Meu plano". Usa os tokens do painel (painel.module.css). */
+
+.switchBtn {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.switchBtn:hover {
+  filter: brightness(0.98);
+}
+
+/* ── Estado sem assinatura (trial / cancelado) ──────────────────────────── */
+.empty {
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 40px 24px;
+}
+.emptyTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 20px;
+  color: var(--ink);
+}
+.emptyHint {
+  margin: 0 auto 20px;
+  max-width: 420px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.primaryBtn {
+  display: inline-flex;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--radius-sm);
+  padding: 12px 22px;
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ── Hero do plano ──────────────────────────────────────────────────────── */
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 22px 20px;
+  margin-bottom: 16px;
+}
+.planTag {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+}
+.planName {
+  margin: 4px 0 2px;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 28px;
+  color: var(--ink);
+}
+.planSub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.planWho {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.priceBox {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.priceValue {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.pricePer {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ── Fatos (renovação / desde / crédito) ────────────────────────────────── */
+.factGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.fact {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+.factLabel {
+  margin: 0 0 3px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.factValue {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ── Aviso de mudança de preço ──────────────────────────────────────────── */
+.changeNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 13px 15px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+/* ── Benefícios ─────────────────────────────────────────────────────────── */
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: var(--ink);
+}
+.benefits {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.benefit {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.benefit:hover {
+  border-color: var(--accent);
+  transform: translateX(2px);
+}
+.benefitCheck {
+  flex: none;
+  color: var(--ok);
+  font-weight: 800;
+}
+.benefitLabel {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.benefitArrow {
+  flex: none;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+@media (min-width: 620px) {
+  .factGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .benefits {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

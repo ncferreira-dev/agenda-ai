@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from '../painel.module.css';
@@ -62,6 +62,15 @@ export default function RegistroPage() {
 
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+
+  // Código de indicação vindo do link (?ref=CODE). Lido de window pra não exigir
+  // Suspense (useSearchParams). Se presente, o indicado ganha 10% no 1º mês.
+  const [referralCode, setReferralCode] = useState('');
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get('ref') ?? '';
+    const code = raw.trim().toUpperCase();
+    if (/^[A-Z0-9]{4,12}$/.test(code)) setReferralCode(code);
+  }, []);
 
   const showAddress = mode !== 'REMOTO';
   const showMeeting = mode !== 'PRESENCIAL';
@@ -140,6 +149,7 @@ export default function RegistroPage() {
           serviceMode: mode,
           address: showAddress ? composeAddress() : '',
           meetingUrl: showMeeting ? meetingUrl : '',
+          referralCode: referralCode || undefined,
         }),
       });
       if (!res.ok) {
@@ -171,6 +181,12 @@ export default function RegistroPage() {
           <>
             <h1 className={styles.title}>Vamos começar</h1>
             <p className={styles.subtitle}>14 dias grátis pra testar tudo, sem cartão. Leva 1 minuto.</p>
+
+            {referralCode && (
+              <p className={styles.referralNote}>
+                🎁 Você foi indicado — ganha <strong>10% no 1º mês</strong> ao assinar.
+              </p>
+            )}
 
             <button
               className={`${styles.social} ${styles.socialGoogle}`}

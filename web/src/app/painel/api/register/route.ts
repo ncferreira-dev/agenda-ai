@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       serviceMode: body.serviceMode,
       address: body.address,
       meetingUrl: body.meetingUrl,
+      referralCode: body.referralCode,
     }),
     cache: 'no-store',
   });

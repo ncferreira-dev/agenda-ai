@@ -149,6 +149,56 @@ export async function getMe(): Promise<Me | null> {
   return res.json() as Promise<Me>;
 }
 
+// --- Assinatura / Meu plano ----------------------------------------------
+
+export interface PlanBenefit {
+  label: string;
+  href: string;
+}
+
+export interface MyPlan {
+  status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
+  planId: 'START' | 'PRO' | 'ULTRA' | null;
+  planName: string | null;
+  tagline: string | null;
+  who: string | null;
+  benefits: PlanBenefit[];
+  subscribedAt: string | null;
+  currentPeriodEndsAt: string | null; // data de renovação (ISO)
+  currentPriceCents: number | null; // o que paga hoje
+  priceChange: { at: string; toCents: number } | null; // quando/para quanto muda
+  trialEndsAt: string | null;
+  referralCreditCents: number;
+}
+export const getMyPlan = () => getJson<MyPlan>('/me/plan');
+
+export interface QuoteLine {
+  label: string;
+  amountCents: number; // negativo = desconto
+}
+export interface Quote {
+  promoCents: number;
+  fullCents: number;
+  hasTransition: boolean;
+  referredDiscountCents: number;
+  creditAppliedCents: number;
+  firstChargeCents: number;
+  lineItems: QuoteLine[];
+  disclosureText: string; // promessa de preço por escrito
+  firstMonthNote: string | null;
+}
+export const getQuote = (planId: string) =>
+  getJson<Quote>(`/me/plan/quote?planId=${encodeURIComponent(planId)}`);
+
+export interface ReferralStats {
+  code: string | null;
+  totalReferrals: number;
+  convertedReferrals: number;
+  pendingReferrals: number;
+  creditCents: number;
+}
+export const getReferralStats = () => getJson<ReferralStats>('/me/referrals');
+
 export type Segment =
   | { kind: 'NOVO' }
   | { kind: 'RECORRENTE' }

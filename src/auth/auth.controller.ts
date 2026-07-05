@@ -30,6 +30,7 @@ interface RegisterBody {
   serviceMode?: string; // PRESENCIAL | REMOTO | HIBRIDO
   address?: string; // presencial/híbrido
   meetingUrl?: string; // remoto/híbrido
+  referralCode?: string; // código de indicação (?ref= no link)
 }
 
 @Controller('auth')
@@ -56,6 +57,7 @@ export class AuthController {
       serviceMode: body.serviceMode,
       address: body.address,
       meetingUrl: body.meetingUrl,
+      referralCode: body.referralCode,
     });
   }
 

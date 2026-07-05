@@ -230,6 +230,127 @@
   text-align: center;
 }
 
+/* ── Modal de confirmação de assinatura ─────────────────────────────────── */
+.modalScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+.modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px -12px rgba(15, 23, 42, 0.4);
+}
+.modalTitle {
+  margin: 0 0 12px;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 20px;
+  color: var(--ink);
+}
+/* A promessa de preço por escrito: destacada, impossível de não ler. */
+.disclosure {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.lineItems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+.lineRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  padding-top: 8px;
+}
+.lineTotal {
+  border-top: 1px solid var(--line);
+  margin-top: 2px;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink);
+}
+.modalNote {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ok);
+  font-weight: 600;
+}
+.modalErr {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--warn);
+  font-weight: 600;
+}
+.modalOk {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ok);
+  font-weight: 700;
+}
+.modalActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.modalCancel,
+.modalConfirm {
+  flex: 1;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.modalCancel {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+}
+.modalConfirm {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--accent-ink);
+}
+.modalConfirm:disabled,
+.modalCancel:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (min-width: 560px) {
+  .modalScrim {
+    align-items: center;
+    padding: 20px;
+  }
+  .modal {
+    border-radius: var(--radius);
+  }
+}
+
 /* ── Desktop / tablet: 3 colunas, plano recomendado em leve destaque ─────── */
 @media (min-width: 760px) {
   .grid {

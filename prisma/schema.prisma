@@ -91,6 +91,18 @@ model Business {
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   trialEndsAt        DateTime?          // fim do teste grátis; base p/ "faltam N dias"
 
+  // Datas da assinatura ATIVA. Preenchidas quando vira ACTIVE — hoje pelo hook
+  // BillingService.confirmSubscription (endpoint dev), amanhã pelo webhook do
+  // Mercado Pago. Enquanto não assina, ficam null.
+  subscribedAt        DateTime? // instante em que a assinatura passou a ACTIVE
+  launchPricingEndsAt DateTime? // fim do preço de lançamento (subscribedAt + 3 meses); null = plano sem transição de preço (Start)
+  currentPeriodEndsAt DateTime? // data de renovação mostrada em "Meu plano"
+
+  // Programa de indicação ("indique e ganhe", desconto pros dois lados).
+  referralCode        String? @unique // código único do dono p/ indicar (gerado no cadastro)
+  referredByCode      String?         // código que ESTE negócio usou ao se cadastrar (atribuição)
+  referralCreditCents Int     @default(0) // crédito acumulado por indicações convertidas; abatido na próxima cobrança
+
   owners        Owner[]
   professionals Professional[]
   services      Service[]
@@ -101,8 +113,46 @@ model Business {
   conversations Conversation[]
   pushSubscriptions PushSubscription[]
 
+  // Indicações: as que ESTE negócio fez (como indicador) e a que recebeu (como
+  // indicado — no máximo uma, gravada no cadastro).
+  referralsMade    Referral[] @relation("ReferralsMade")
+  referralReceived Referral?  @relation("ReferralReceived")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Estado de uma indicação. PENDING no cadastro do indicado; CONVERTED quando ele
+// ASSINA (aí o desconto do indicado é marcado e o crédito do indicador é liberado);
+// EXPIRED reservado p/ política futura de validade.
+enum ReferralStatus {
+  PENDING
+  CONVERTED
+  EXPIRED
+}
+
+// Atribuição de indicação: liga quem indicou (referrer) a quem se cadastrou pelo
+// link (referred). Uma por negócio indicado (@unique). Guarda os flags que o
+// checkout futuro "vira" ao aplicar os benefícios — hoje eles são acionados pelo
+// hook BillingService.confirmSubscription. Multi-tenant: ambos os lados são Business.
+model Referral {
+  id                 String   @id @default(cuid())
+  referrerBusinessId String   // quem indicou (dono do código)
+  referredBusinessId String   @unique // quem se cadastrou pelo link (1 atribuição por negócio)
+  code               String   // código usado no cadastro (cópia do referralCode do indicador)
+
+  status ReferralStatus @default(PENDING)
+
+  referredDiscountApplied Boolean @default(false) // 10% do 1º mês do indicado (marcado no checkout)
+  referrerRewarded        Boolean @default(false) // crédito liberado pro indicador (marcado no checkout)
+
+  createdAt   DateTime  @default(now())
+  convertedAt DateTime? // quando o indicado assinou (PENDING -> CONVERTED)
+
+  referrerBusiness Business @relation("ReferralsMade", fields: [referrerBusinessId], references: [id], onDelete: Cascade)
+  referredBusiness Business @relation("ReferralReceived", fields: [referredBusinessId], references: [id], onDelete: Cascade)
+
+  @@index([referrerBusinessId])
 }
 
 // Inscrição de Web Push do dono (uma por navegador/dispositivo que ativou o aviso).
