@@ -451,3 +451,15 @@ model Conversation {
   @@unique([businessId, phone])
   @@index([businessId, phone])
 }
+
+// Dedupe de webhooks já processados. A Meta reenvia o mesmo webhook em caso de
+// timeout; sem isso a mensagem seria processada de novo (e respondida duas
+// vezes). Persistir em tabela (em vez de um Set em memória) sobrevive a restart
+// e funciona com múltiplas instâncias. A unicidade do providerMessageId é a
+// trava: quem inserir primeiro processa; os demais batem no conflito e pulam.
+model ProcessedWebhook {
+  providerMessageId String   @id
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+}

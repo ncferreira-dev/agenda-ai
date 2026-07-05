@@ -1,27 +1,30 @@
 import 'reflect-metadata';
 import 'dotenv/config'; // carrega o .env em process.env (ANTHROPIC_API_KEY, WhatsApp, JWT…)
-import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-
-export const UPLOADS_DIR = join(process.cwd(), 'uploads');
+import { UPLOADS_DIR } from './storage/storage.service';
+import { corsOrigins } from './common/env';
 
 async function bootstrap(): Promise<void> {
-  mkdirSync(UPLOADS_DIR, { recursive: true });
-
   // rawBody: true preserva o corpo cru pro webhook do Stripe validar a assinatura.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
-  // Libera o frontend Next (página pública) a chamar a API do navegador.
+  // Libera o(s) frontend(s) Next a chamar a API do navegador. WEB_ORIGIN é
+  // obrigatória em produção (falha no boot se faltar) e aceita várias origens
+  // separadas por vírgula.
   app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3001',
+    origin: corsOrigins(),
   });
 
-  // Serve as imagens enviadas (logo/capa) em /uploads.
-  app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
+  // Com storage S3-compatível as imagens não ficam no disco: nada a servir aqui.
+  // No backend local (dev/sem S3_BUCKET), serve as imagens enviadas em /uploads.
+  if (!process.env.S3_BUCKET) {
+    mkdirSync(UPLOADS_DIR, { recursive: true });
+    app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
+  }
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

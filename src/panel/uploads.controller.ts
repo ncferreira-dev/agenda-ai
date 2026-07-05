@@ -7,27 +7,22 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { StorageService } from '../storage/storage.service';
 
-// Mesma pasta servida estaticamente em /uploads (ver main.ts).
-const UPLOADS_DIR = join(process.cwd(), 'uploads');
-const PUBLIC_URL = process.env.PUBLIC_API_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
-
-// Upload local de imagens (logo/capa). Camada simples e plugável — dá pra
-// trocar por Supabase/R2 depois sem mexer no resto.
+// Upload de imagens (logo/capa). O arquivo chega em memória e é persistido pelo
+// StorageService, que decide o backend por env (disco local em dev, S3-compatível
+// em prod). Trocar de storage não mexe neste controller.
 @Controller('me/uploads')
 @UseGuards(JwtAuthGuard)
 export class UploadsController {
+  constructor(private readonly storage: StorageService) {}
+
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: UPLOADS_DIR,
-        filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
@@ -37,8 +32,13 @@ export class UploadsController {
       },
     }),
   )
-  upload(@UploadedFile() file?: Express.Multer.File) {
+  async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado.');
-    return { url: `${PUBLIC_URL}/uploads/${file.filename}` };
+    const { url } = await this.storage.put({
+      buffer: file.buffer,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+    });
+    return { url };
   }
 }

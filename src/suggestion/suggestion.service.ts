@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   DEFAULT_FOLLOWUP_DAYS,
@@ -23,9 +23,24 @@ export interface FollowUpSuggestion {
 @Injectable()
 export class SuggestionService {
   private readonly logger = new Logger(SuggestionService.name);
-  private readonly anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // Init preguiçoso (como Stripe/Push): o app sobe sem ANTHROPIC_API_KEY e a
+  // sugestão degrada pro preset determinístico. Só instancia na 1ª chamada real.
+  private anthropic: Anthropic | null = null;
   private get aiEnabled() {
     return Boolean(process.env.ANTHROPIC_API_KEY);
+  }
+
+  private getAnthropic(): Anthropic {
+    if (!this.anthropic) {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        throw new ServiceUnavailableException(
+          'Sugestão por IA indisponível: configure ANTHROPIC_API_KEY no servidor.',
+        );
+      }
+      this.anthropic = new Anthropic({ apiKey });
+    }
+    return this.anthropic;
   }
 
   async suggestFollowUp(input: {
@@ -76,7 +91,7 @@ export class SuggestionService {
       'placeholders {nome} (primeiro nome do cliente), {servico} e {negocio}, ter no máximo 2 frases, ' +
       'e pode ter 1 emoji. Não use linguagem formal nem assine.';
 
-    const response = await this.anthropic.messages.create({
+    const response = await this.getAnthropic().messages.create({
       model: MODEL,
       max_tokens: 400,
       system,

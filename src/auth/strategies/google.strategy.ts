@@ -3,11 +3,16 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, type Profile, type VerifyCallback } from 'passport-google-oauth20';
 import { OAuthProvider } from '@prisma/client';
 import type { OAuthProfile } from '../auth.service';
+import { requiredInProd } from '../../common/env';
 
 // Base pública DESTE backend (onde o Google devolve o callback). Reusa a mesma
-// var que já monta as URLs de upload.
+// var que já monta as URLs de upload. Se o Google estiver ligado em produção,
+// PUBLIC_API_URL é obrigatória (senão o callback iria pra localhost e quebraria);
+// com o OAuth desligado, o fallback basta — a estratégia nem é usada.
 export function oauthCallbackBase(): string {
-  return process.env.PUBLIC_API_URL ?? 'http://localhost:3000';
+  return isGoogleConfigured()
+    ? requiredInProd('PUBLIC_API_URL', 'http://localhost:3000')
+    : process.env.PUBLIC_API_URL ?? 'http://localhost:3000';
 }
 
 // Só está de fato ligado se as credenciais existirem. O controller usa isso

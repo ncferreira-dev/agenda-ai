@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
+import { StorageModule } from './storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { PanelModule } from './panel/panel.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -19,6 +20,7 @@ import { PushModule } from './push/push.module';
     // ScheduleModule.forRoot() habilita o cron do ReminderService.
     ScheduleModule.forRoot(),
     PrismaModule,
+    StorageModule,
     AuthModule,
     PanelModule,
     PaymentsModule,

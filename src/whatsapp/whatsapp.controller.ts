@@ -1,13 +1,10 @@
-import { Controller, Get, Post, Body, Query, Res, HttpStatus, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, HttpStatus } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentService } from '../agent/agent.service';
 import { ConfirmationService } from './confirmation.service';
 import { CloudApiProvider, type WhatsAppProvider } from './whatsapp.provider';
-
-// Dedupe simples em memória. Em produção, troque por Redis ou tabela de
-// mensagens processadas — a Meta reenvia o webhook em caso de timeout.
-const processed = new Set<string>();
 
 @Controller('webhook/whatsapp')
 export class WhatsAppController {
@@ -44,8 +41,10 @@ export class WhatsAppController {
 
     const inbound = this.provider.parseWebhook(body);
     for (const msg of inbound) {
-      if (processed.has(msg.providerMessageId)) continue;
-      processed.add(msg.providerMessageId);
+      // Dedupe persistente: tenta registrar a mensagem. Se já existir (P2002),
+      // outra entrega/instância já cuidou dela — pula. Sobrevive a restart e a
+      // múltiplas instâncias (o Set em memória não fazia nenhum dos dois).
+      if (!(await this.claimMessage(msg.providerMessageId))) continue;
 
       try {
         // Roteia: qual negócio é dono do número que recebeu a mensagem?
@@ -80,6 +79,25 @@ export class WhatsAppController {
         // Logue de verdade no seu observability; aqui só não derruba o loop.
         console.error('Erro processando mensagem:', err);
       }
+    }
+  }
+
+  /**
+   * Reserva o processamento de uma mensagem. Devolve true se foi a 1ª vez a
+   * registrar (deve processar) e false se já estava registrada (duplicada).
+   */
+  private async claimMessage(providerMessageId: string): Promise<boolean> {
+    try {
+      await this.prisma.processedWebhook.create({ data: { providerMessageId } });
+      return true;
+    } catch (err) {
+      // P2002 = violação de unicidade => já processada. Qualquer outro erro,
+      // deixa passar pra não perder a mensagem por causa de um hiccup do banco.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        return false;
+      }
+      console.error('Falha no dedupe do webhook, processando mesmo assim:', err);
+      return true;
     }
   }
 }

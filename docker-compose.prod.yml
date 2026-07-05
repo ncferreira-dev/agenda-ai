@@ -1,0 +1,54 @@
+# Exemplo de orquestração de produção do backend agend.ai.
+# Sobe: Postgres + API (que aplica `prisma migrate deploy` antes de iniciar).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Defina os segredos em um arquivo .env ao lado (NÃO versione) — veja .env.example.
+# Em produção real, prefira Postgres gerenciado e storage S3-compatível
+# (S3_BUCKET…), aí o volume de uploads abaixo deixa de ser necessário.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agenda}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-agenda}
+    volumes:
+      - agenda-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-agenda}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Obrigatórias (veja .env.example). Vêm do .env ao lado ou do ambiente.
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET}
+      CPF_HASH_SECRET: ${CPF_HASH_SECRET:?defina CPF_HASH_SECRET}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      PUBLIC_API_URL: ${PUBLIC_API_URL}
+      PORT: 3000
+      # Opcionais (degradam se vazias): ANTHROPIC_API_KEY, Stripe, VAPID, SMTP,
+      # Google OAuth, WhatsApp e storage S3 (S3_BUCKET, S3_REGION, S3_ENDPOINT,
+      # S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_PUBLIC_URL).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+    env_file:
+      - .env
+    ports:
+      - '${PORT:-3000}:3000'
+    # Só necessário enquanto usar storage em disco local (sem S3_BUCKET).
+    volumes:
+      - agenda-uploads:/app/uploads
+
+volumes:
+  agenda-pgdata:
+  agenda-uploads:

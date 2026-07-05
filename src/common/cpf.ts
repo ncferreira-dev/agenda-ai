@@ -17,7 +17,10 @@ export function normalizeCpf(value: string): string {
 export function hashCpf(value: string): string {
   const secret = process.env.CPF_HASH_SECRET;
   if (!secret) {
-    throw new Error('CPF_HASH_SECRET não configurado.');
+    throw new Error(
+      'CPF_HASH_SECRET não configurado — defina um segredo forte e DEFINITIVO ' +
+        'antes do primeiro cadastro (mudá-lo depois invalida todos os CPFs já gravados).',
+    );
   }
   return createHmac('sha256', secret).update(normalizeCpf(value)).digest('hex');
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,8 +11,23 @@ const MAX_TOOL_TURNS = 6; // trava de segurança contra loop infinito
 
 @Injectable()
 export class AgentService {
-  private anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // Init preguiçoso: sem ANTHROPIC_API_KEY o app sobe normal (a página de
+  // agendamento não depende de IA); só o agente do WhatsApp exige a chave.
+  private anthropic: Anthropic | null = null;
   private executor: ToolExecutor;
+
+  private getAnthropic(): Anthropic {
+    if (!this.anthropic) {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        throw new ServiceUnavailableException(
+          'Agente indisponível: configure ANTHROPIC_API_KEY no servidor.',
+        );
+      }
+      this.anthropic = new Anthropic({ apiKey });
+    }
+    return this.anthropic;
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -83,7 +98,7 @@ export class AgentService {
     let finalText = '';
 
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-      const response = await this.anthropic.messages.create({
+      const response = await this.getAnthropic().messages.create({
         model: MODEL,
         max_tokens: 1024,
         system: this.systemPrompt(business.name, business.timezone),
