@@ -2,7 +2,9 @@ export interface Service {
   id: string;
   name: string;
   durationMinutes: number;
-  priceCents: number;
+  priceCents: number; // preço cheio
+  finalPriceCents?: number; // preço com desconto aplicado (quando houver)
+  discountKind?: 'PERCENT' | 'FIXED' | null;
 }
 
 export interface Professional {

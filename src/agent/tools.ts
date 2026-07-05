@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { effectivePriceCents } from '../pricing/service-price';
 
 // ---------------------------------------------------------------------------
 // Ferramentas que o agente pode usar. Regra de ouro: o modelo NUNCA cria um
@@ -91,15 +92,27 @@ export class ToolExecutor {
       case 'listar_servicos': {
         const services = await this.prisma.service.findMany({
           where: { businessId: ctx.businessId, active: true },
-          select: { id: true, name: true, durationMinutes: true, priceCents: true },
+          select: {
+            id: true,
+            name: true,
+            durationMinutes: true,
+            priceCents: true,
+            discountKind: true,
+            discountValue: true,
+          },
         });
         return JSON.stringify(
-          services.map((s) => ({
-            id: s.id,
-            nome: s.name,
-            duracaoMin: s.durationMinutes,
-            preco: (s.priceCents / 100).toFixed(2),
-          })),
+          services.map((s) => {
+            const finalCents = effectivePriceCents(s);
+            return {
+              id: s.id,
+              nome: s.name,
+              duracaoMin: s.durationMinutes,
+              // preço a ofertar ao cliente = COM desconto; precoCheio só quando há desconto.
+              preco: (finalCents / 100).toFixed(2),
+              ...(finalCents < s.priceCents ? { precoCheio: (s.priceCents / 100).toFixed(2) } : {}),
+            };
+          }),
         );
       }
 

@@ -300,6 +300,13 @@ model WorkingHour {
   @@index([professionalId, weekday])
 }
 
+// Tipo de desconto de um serviço. PERCENT = discountValue em % (1–99);
+// FIXED = discountValue em centavos abatidos do preço cheio. null = sem desconto.
+enum DiscountKind {
+  PERCENT
+  FIXED
+}
+
 // Serviço ofertado (corte, troca de óleo, banho e tosa...).
 model Service {
   id         String   @id @default(uuid())
@@ -310,6 +317,12 @@ model Service {
   durationMinutes Int
   priceCents      Int     @default(0)
   active          Boolean @default(true)
+
+  // Desconto ofertado ao cliente. O preço final (helper puro effectivePriceCents,
+  // src/pricing/service-price.ts) é o que vale pra página, pro agente e pro
+  // snapshot do booking. null = sem desconto (mostra só o preço cheio).
+  discountKind  DiscountKind? // null = sem desconto
+  discountValue Int           @default(0) // PERCENT: 1–99 | FIXED: centavos
 
   // Modo de atendimento por serviço (preparado pro futuro). null = herda o do negócio.
   serviceMode ServiceMode?

@@ -252,9 +252,22 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
               <div>
                 <div className={styles.serviceName}>{s.name}</div>
                 <div className={styles.serviceMeta}>
-                  {formatPrice(s.priceCents) && (
-                    <span className={styles.servicePrice}>{formatPrice(s.priceCents)}</span>
-                  )}
+                  {(() => {
+                    const full = s.priceCents;
+                    const final = s.finalPriceCents ?? full;
+                    const hasDiscount = final < full;
+                    if (!full && !final) return null;
+                    return (
+                      <span className={styles.priceGroup}>
+                        {hasDiscount && (
+                          <span className={styles.priceFull}>{formatPrice(full)}</span>
+                        )}
+                        {formatPrice(final) && (
+                          <span className={styles.servicePrice}>{formatPrice(final)}</span>
+                        )}
+                      </span>
+                    );
+                  })()}
                   <span>{s.durationMinutes} min</span>
                 </div>
               </div>

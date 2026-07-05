@@ -35,6 +35,21 @@ function followUpDays(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
+// Desconto do form -> unidade do backend: PERCENT em % inteiro, FIXED em centavos.
+// kind vazio (ou valor em branco) = sem desconto.
+function discount(form: FormData): { discountKind: 'PERCENT' | 'FIXED' | null; discountValue: number } {
+  const kind = String(form.get('discountKind') ?? '').trim();
+  const raw = String(form.get('discountValue') ?? '').trim();
+  if ((kind !== 'PERCENT' && kind !== 'FIXED') || !raw) {
+    return { discountKind: null, discountValue: 0 };
+  }
+  if (kind === 'PERCENT') {
+    const n = Math.round(Number(raw.replace(',', '.')));
+    return { discountKind: 'PERCENT', discountValue: Number.isFinite(n) ? n : 0 };
+  }
+  return { discountKind: 'FIXED', discountValue: reais(raw) };
+}
+
 export async function createService(_prev: ActionState, form: FormData): Promise<ActionState> {
   const res = await authFetch('/me/services', {
     method: 'POST',
@@ -44,6 +59,7 @@ export async function createService(_prev: ActionState, form: FormData): Promise
       priceCents: reais(form.get('preco')),
       followUpDays: followUpDays(form.get('followUpDays')),
       followUpMessage: String(form.get('followUpMessage') ?? '').trim() || null,
+      ...discount(form),
     }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível criar o serviço.') };
@@ -61,6 +77,7 @@ export async function updateService(_prev: ActionState, form: FormData): Promise
       priceCents: reais(form.get('preco')),
       followUpDays: followUpDays(form.get('followUpDays')),
       followUpMessage: String(form.get('followUpMessage') ?? '').trim() || null,
+      ...discount(form),
     }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };

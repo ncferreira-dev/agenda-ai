@@ -80,6 +80,8 @@ export interface Service {
   active: boolean;
   followUpDays: number | null;
   followUpMessage: string | null;
+  discountKind: 'PERCENT' | 'FIXED' | null;
+  discountValue: number;
 }
 
 export interface Professional {

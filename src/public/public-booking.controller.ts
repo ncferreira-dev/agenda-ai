@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
+import { effectivePriceCents } from '../pricing/service-price';
 
 // ---------------------------------------------------------------------------
 // API pública do cliente final. Tenant resolvido pelo slug na URL.
@@ -94,11 +95,28 @@ export class PublicBookingController {
   async getBusinessPage(@Param('slug') slug: string) {
     const business = await this.resolveBusiness(slug);
 
-    const services = await this.prisma.service.findMany({
+    const rawServices = await this.prisma.service.findMany({
       where: { businessId: business.id, active: true },
-      select: { id: true, name: true, durationMinutes: true, priceCents: true },
+      select: {
+        id: true,
+        name: true,
+        durationMinutes: true,
+        priceCents: true,
+        discountKind: true,
+        discountValue: true,
+      },
       orderBy: { name: 'asc' },
     });
+
+    // priceCents = preço cheio; finalPriceCents = com desconto (helper puro).
+    const services = rawServices.map((s) => ({
+      id: s.id,
+      name: s.name,
+      durationMinutes: s.durationMinutes,
+      priceCents: s.priceCents,
+      finalPriceCents: effectivePriceCents(s),
+      discountKind: s.discountKind,
+    }));
 
     const professionals = await this.prisma.professional.findMany({
       where: { businessId: business.id, active: true },

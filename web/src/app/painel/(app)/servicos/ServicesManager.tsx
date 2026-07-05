@@ -27,6 +27,61 @@ function Submit({ label }: { label: string }) {
   );
 }
 
+// Bloco de desconto (opcional): tipo (%, R$) + valor. Campos não controlados
+// entram no submit do <form> pai; o backend valida (%: 1–99, R$: 1..preço).
+function DiscountFields({
+  defaultKind,
+  defaultValue,
+}: {
+  defaultKind?: 'PERCENT' | 'FIXED' | null;
+  defaultValue?: number;
+}) {
+  const [kind, setKind] = useState<string>(defaultKind ?? '');
+  // FIXED chega em centavos -> mostra em reais; PERCENT chega como inteiro.
+  const initialValue =
+    defaultKind === 'FIXED'
+      ? reais(defaultValue ?? 0)
+      : defaultValue
+        ? String(defaultValue)
+        : '';
+
+  return (
+    <details className={styles.followUp} open={Boolean(defaultKind)}>
+      <summary className={styles.followUpSummary}>Desconto (opcional)</summary>
+      <p className={styles.rowMeta} style={{ margin: '6px 0 10px' }}>
+        O cliente vê o preço cheio riscado e o preço com desconto na página.
+      </p>
+      <div className={`${styles.formRow} ${styles.gap}`}>
+        <label className={styles.field} style={{ maxWidth: 220 }}>
+          <span className={styles.label}>Tipo</span>
+          <select
+            className={styles.input}
+            name="discountKind"
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+          >
+            <option value="">Sem desconto</option>
+            <option value="PERCENT">Percentual (%)</option>
+            <option value="FIXED">Valor fixo (R$)</option>
+          </select>
+        </label>
+        {kind && (
+          <label className={styles.field} style={{ maxWidth: 220 }}>
+            <span className={styles.label}>{kind === 'PERCENT' ? 'Desconto (%)' : 'Desconto (R$)'}</span>
+            <input
+              className={styles.input}
+              name="discountValue"
+              inputMode="decimal"
+              defaultValue={initialValue}
+              placeholder={kind === 'PERCENT' ? 'ex.: 10' : 'ex.: 5,00'}
+            />
+          </label>
+        )}
+      </div>
+    </details>
+  );
+}
+
 // Bloco "Lembrete de retorno" reutilizado no criar e no editar.
 // Campos não controlados (name=…) -> entram no submit do <form> pai e o reset()
 // do form os limpa. O botão "Sugerir com IA" preenche via ref.
@@ -149,6 +204,7 @@ function CreateForm({ profession }: { profession: string | null }) {
         </label>
       </div>
 
+      <DiscountFields />
       <FollowUpFields profession={profession} getDescription={() => nameRef.current?.value ?? ''} />
 
       <div className={styles.toolbar}>
@@ -182,6 +238,7 @@ function EditRow({
         <input className={styles.input} name="preco" inputMode="decimal" defaultValue={reais(service.priceCents)} />
       </div>
 
+      <DiscountFields defaultKind={service.discountKind} defaultValue={service.discountValue} />
       <FollowUpFields
         profession={profession}
         getDescription={() => nameRef.current?.value ?? service.name}
@@ -226,6 +283,11 @@ export function ServicesManager({
                   <div className={styles.rowName}>
                     {s.name}
                     {!s.active && <span className={`${styles.chip} ${styles.chipOff}`}>inativo</span>}
+                    {s.discountKind && (
+                      <span className={styles.tag}>
+                        {s.discountKind === 'PERCENT' ? `-${s.discountValue}%` : `-R$ ${reais(s.discountValue)}`}
+                      </span>
+                    )}
                     {s.followUpDays && (
                       <span className={styles.tag}>retorno {s.followUpDays}d</span>
                     )}

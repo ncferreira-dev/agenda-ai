@@ -308,6 +308,18 @@
   color: var(--muted);
 }
 
+.priceGroup {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.priceFull {
+  text-decoration: line-through;
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .servicePrice {
   color: var(--price);
   font-weight: 600;

@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { effectivePriceCents } from '../pricing/service-price';
 
 @Injectable()
 export class BookingService {
@@ -161,6 +162,10 @@ export class BookingService {
           throw new ConflictException('Esse horário não está mais disponível.');
         }
 
+        // Preço COM desconto (helper puro). É o que vale pro faturamento; o dono
+        // ainda pode reajustar os itens depois (até pagar) e o total acompanha.
+        const priceCents = effectivePriceCents(service);
+
         const appointment = await tx.appointment.create({
           data: {
             businessId,
@@ -173,11 +178,11 @@ export class BookingService {
             status: 'CONFIRMED',
             // Item espelho do serviço principal + total inicial. O dono pode
             // acrescentar/editar itens depois (até pagar) e o total acompanha.
-            totalCents: service.priceCents,
+            totalCents: priceCents,
             items: {
               create: {
                 name: service.name,
-                priceCents: service.priceCents,
+                priceCents,
                 sourceServiceId: service.id,
               },
             },
