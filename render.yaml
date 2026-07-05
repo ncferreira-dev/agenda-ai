@@ -1,0 +1,30 @@
+# Blueprint do Render: cria o backend (Docker) + um Postgres e liga tudo sozinho.
+# O Render gera JWT_SECRET/CPF_HASH_SECRET (generateValue) e injeta a DATABASE_URL
+# do banco criado. WEB_ORIGIN começa com placeholder e é trocado pela URL da Vercel.
+# As migrations rodam no start (docker-entrypoint.sh -> prisma migrate deploy).
+databases:
+  - name: agendai-db
+    plan: free
+    databaseName: agenda
+    user: agenda
+
+services:
+  - type: web
+    name: agendai-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agendai-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CPF_HASH_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      # Trocado pela URL real da Vercel depois (libera o navegador a chamar a API).
+      - key: WEB_ORIGIN
+        value: https://placeholder.vercel.app
