@@ -23,7 +23,7 @@ export interface FollowUpSuggestion {
 @Injectable()
 export class SuggestionService {
   private readonly logger = new Logger(SuggestionService.name);
-  // Init preguiçoso (como Stripe/Push): o app sobe sem ANTHROPIC_API_KEY e a
+  // Init preguiçoso (como o Push): o app sobe sem ANTHROPIC_API_KEY e a
   // sugestão degrada pro preset determinístico. Só instancia na 1ª chamada real.
   private anthropic: Anthropic | null = null;
   private get aiEnabled() {

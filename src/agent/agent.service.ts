@@ -51,7 +51,6 @@ export class AgentService {
       `- Se o cliente não escolher profissional, ofereça os disponíveis ou sugira um.`,
       `- Se faltar o nome do cliente na primeira marcação, pergunte de leve.`,
       `- Se der conflito ao agendar, peça desculpa e ofereça os próximos horários livres.`,
-      `- Se criar_agendamento responder aguardandoPagamento, mande o linkPagamento pro cliente e avise que o horário só fica garantido após pagar o sinal (reserva de 15 min).`,
     ].join('\n');
   }
 

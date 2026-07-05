@@ -7,7 +7,7 @@ import { requiredInProd } from '../common/env';
 
 // ---------------------------------------------------------------------------
 // Storage plugável das imagens (logo/capa). Init preguiçoso, degradação graciosa
-// (mesmo padrão de Stripe/Push):
+// (mesmo padrão do Push):
 //
 //   - Sem envs de S3 → grava em disco local (uploads/) e serve por /uploads.
 //     Ótimo pra dev; em deploy efêmero (container/Heroku) as imagens somem no

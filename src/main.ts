@@ -9,8 +9,7 @@ import { UPLOADS_DIR } from './storage/storage.service';
 import { corsOrigins } from './common/env';
 
 async function bootstrap(): Promise<void> {
-  // rawBody: true preserva o corpo cru pro webhook do Stripe validar a assinatura.
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Libera o(s) frontend(s) Next a chamar a API do navegador. WEB_ORIGIN é
   // obrigatória em produção (falha no boot se faltar) e aceita várias origens

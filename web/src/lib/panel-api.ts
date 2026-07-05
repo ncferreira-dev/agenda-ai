@@ -59,8 +59,6 @@ export interface Me {
     inactiveDays: number;
     vipMinSpentCents: number | null;
     recurringMinVisits: number;
-    requireDeposit: boolean;
-    depositCents: number | null;
     notifyWhatsApp: boolean;
     notifyEmail: boolean;
     notifyPush: boolean;
@@ -130,8 +128,7 @@ export interface Appointment {
   startAt: string;
   endAt: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
-  paymentStatus: 'NONE' | 'PENDING' | 'PAID'; // sinal/Stripe (Fase 5)
-  paid: boolean; // pagamento marcado à mão pelo dono (independe do sinal)
+  paid: boolean; // pagamento marcado à mão pelo dono
   confirmedByCustomer: boolean;
   service: string;
   totalCents: number; // total editado (soma dos itens)
@@ -248,6 +245,28 @@ export interface Report {
 export function getReport(from: string, to: string) {
   const qs = new URLSearchParams({ from, to });
   return getJson<Report>(`/me/report?${qs}`);
+}
+
+export interface ProRevenueRow {
+  professionalId: string;
+  name: string;
+  count: number;
+  generatedCents: number;
+  workedMinutes: number;
+  daysWorked: number;
+}
+export interface ProfessionalRevenueReport {
+  professionals: ProRevenueRow[];
+  totalCount: number;
+  totalGeneratedCents: number;
+  totalWorkedMinutes: number;
+  totalDaysWorked: number;
+}
+
+export function getProfessionalRevenue(from: string, to: string, professionalId?: string) {
+  const qs = new URLSearchParams({ from, to });
+  if (professionalId) qs.set('professionalId', professionalId);
+  return getJson<ProfessionalRevenueReport>(`/me/report/by-professional?${qs}`);
 }
 
 export function listAppointments(params: { from?: string; to?: string; status?: string } = {}) {

@@ -4,7 +4,6 @@ import { PrismaModule } from './prisma/prisma.module';
 import { StorageModule } from './storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { PanelModule } from './panel/panel.module';
-import { PaymentsModule } from './payments/payments.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingModule } from './booking/booking.module';
 import { AgentModule } from './agent/agent.module';
@@ -23,7 +22,6 @@ import { PushModule } from './push/push.module';
     StorageModule,
     AuthModule,
     PanelModule,
-    PaymentsModule,
     AvailabilityModule,
     BookingModule,
     AgentModule,

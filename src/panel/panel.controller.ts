@@ -64,8 +64,6 @@ export class PanelController {
       themePreset?: string;
       logoUrl?: string;
       coverUrl?: string;
-      requireDeposit?: boolean;
-      depositCents?: number | null;
       notifyWhatsApp?: boolean;
       notifyEmail?: boolean;
       notifyPush?: boolean;
@@ -151,7 +149,7 @@ export class PanelController {
     return this.panel.setAppointmentStatus(businessId, id, body.status);
   }
 
-  /** Marca/desmarca o pagamento manual do atendimento (à parte do sinal/Stripe). */
+  /** Marca/desmarca o pagamento manual do atendimento. */
   @Patch('appointments/:id/paid')
   setPaid(
     @CurrentBusiness() businessId: string,
@@ -209,5 +207,21 @@ export class PanelController {
       throw new BadRequestException('Período inválido (use ISO em from/to).');
     }
     return this.panel.getRevenueReport(businessId, f, t);
+  }
+
+  /** Faturamento por profissional num período (ISO de/até). */
+  @Get('report/by-professional')
+  byProfessional(
+    @CurrentBusiness() businessId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('professionalId') professionalId?: string,
+  ) {
+    const f = new Date(from);
+    const t = new Date(to);
+    if (isNaN(f.getTime()) || isNaN(t.getTime())) {
+      throw new BadRequestException('Período inválido (use ISO em from/to).');
+    }
+    return this.panel.getProfessionalRevenueReport(businessId, f, t, professionalId || undefined);
   }
 }

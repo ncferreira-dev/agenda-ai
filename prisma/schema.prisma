@@ -70,10 +70,6 @@ model Business {
   // wizard (o painel força a etapa); preenchido = já passou (ou pulou).
   onboardedAt DateTime?
 
-  // Sinal (Fase 5) — cobrança no ato pra derrubar no-show.
-  requireDeposit Boolean @default(false)
-  depositCents   Int? // valor fixo do sinal por negócio
-
   // Segmentação de clientes (CRM). Limiares ajustáveis pelo dono.
   inactiveDays       Int  @default(60) // "Sumido" se a última visita passou disso
   vipMinSpentCents   Int? // VIP se o total gasto atingir isso; null = sem regra de gasto
@@ -310,12 +306,6 @@ model Customer {
   @@index([businessId])
 }
 
-enum PaymentStatus {
-  NONE // não exige sinal
-  PENDING // aguardando pagamento do sinal
-  PAID // sinal pago
-}
-
 enum AppointmentStatus {
   PENDING // criado, aguardando confirmação (se o negócio exigir)
   CONFIRMED // confirmado
@@ -353,14 +343,7 @@ model Appointment {
   customerConfirmedAt DateTime? // quando o cliente respondeu SIM ao lembrete
   followUpSentAt     DateTime? // quando disparou o convite de retorno (trava anti-duplo)
 
-  // Sinal (Fase 5)
-  paymentStatus   PaymentStatus @default(NONE)
-  depositCents    Int? // valor do sinal cobrado neste agendamento
-  stripeSessionId String? // Checkout Session do Stripe
-  paidAt          DateTime?
-  holdExpiresAt   DateTime? // se PENDING não pagar até aqui, libera o horário
-
-  // Pagamento marcado À MÃO pelo dono no painel (independe do sinal/Stripe acima).
+  // Pagamento marcado À MÃO pelo dono no painel.
   // null = não pago; preenchido = pago (o timestamp serve de auditoria).
   manualPaidAt DateTime?
 

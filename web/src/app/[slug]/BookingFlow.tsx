@@ -173,10 +173,6 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         email: email.trim() || undefined,
         notes: notes.trim() || undefined,
       });
-      if (res.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
-        return;
-      }
       setResult(res);
     } catch (e: any) {
       setError(e?.message ?? 'Não consegui concluir o agendamento.');

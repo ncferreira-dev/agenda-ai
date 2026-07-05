@@ -395,25 +395,6 @@ export async function savePassword(_prev: ActionState, form: FormData): Promise<
   return OK;
 }
 
-// --- Pagamentos (sinal) --------------------------------------------------
-
-export async function savePayments(_prev: ActionState, form: FormData): Promise<ActionState> {
-  const requireDeposit = form.get('requireDeposit') === 'on';
-  const depositCents = requireDeposit ? reais(form.get('valor')) : null;
-
-  if (requireDeposit && (!depositCents || depositCents <= 0)) {
-    return { ok: false, error: 'Defina um valor de sinal maior que zero.' };
-  }
-
-  const res = await authFetch('/me/business', {
-    method: 'PATCH',
-    body: JSON.stringify({ requireDeposit, depositCents }),
-  });
-  if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
-  revalidatePath('/painel/pagamentos');
-  return OK;
-}
-
 // --- Notificações pro dono ----------------------------------------------
 
 export async function saveNotifications(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -489,7 +470,7 @@ export async function setAppointmentStatus(form: FormData): Promise<void> {
   revalidatePath('/painel');
 }
 
-// Pagamento manual (à parte do sinal/Stripe): marca/desmarca como pago.
+// Pagamento manual: marca/desmarca como pago.
 // Revalida o faturamento também: o valor migra de previsto/a receber p/ recebido.
 export async function setAppointmentPaid(form: FormData): Promise<void> {
   const id = String(form.get('id'));

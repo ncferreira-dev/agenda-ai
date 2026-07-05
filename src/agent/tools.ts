@@ -142,7 +142,7 @@ export class ToolExecutor {
           await this.booking.findOrCreateCustomer(ctx.businessId, ctx.phone, input.customerName);
         }
         try {
-          const { appointment: appt, checkoutUrl } = await this.booking.createAppointment({
+          const { appointment: appt } = await this.booking.createAppointment({
             businessId: ctx.businessId,
             customerId: ctx.customerId,
             professionalId: input.professionalId,
@@ -154,16 +154,6 @@ export class ToolExecutor {
             .setZone(ctx.timezone)
             .setLocale('pt-BR')
             .toFormat("cccc, dd/LL 'às' HH:mm");
-          // Com sinal: ainda não confirmado — mande o link e peça o pagamento.
-          if (checkoutUrl) {
-            return JSON.stringify({
-              ok: true,
-              id: appt.id,
-              aguardandoPagamento: true,
-              linkPagamento: checkoutUrl,
-              instrucao: `Pra garantir ${appt.service.name} com ${appt.professional.name} — ${when}, mande este link pro cliente pagar o sinal. O horário fica reservado por 15 minutos.`,
-            });
-          }
           return JSON.stringify({
             ok: true,
             id: appt.id,

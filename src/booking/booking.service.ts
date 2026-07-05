@@ -1,13 +1,8 @@
 import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
-import { StripeService } from '../payments/stripe.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
-
-const HOLD_MINUTES = 15; // janela pra pagar o sinal antes de liberar o horário
-const FAR_FUTURE_DAYS = 60; // > 2 meses: exige sinal mesmo sem o toggle ligado
-const FAR_FUTURE_DEPOSIT_PCT = 0.3; // sinal padrão p/ data distante quando o negócio não definiu valor
 
 @Injectable()
 export class BookingService {
@@ -15,7 +10,6 @@ export class BookingService {
 
   constructor(
     private prisma: PrismaService,
-    private stripe: StripeService,
     private mail: MailService,
     private notifications: NotificationsService,
   ) {}
@@ -37,9 +31,7 @@ export class BookingService {
    * permitir overbooking. startAtIso deve ser um instante ISO (com offset)
    * que veio de um slot ofertado pelo motor de disponibilidade.
    *
-   * Se o negócio exige sinal, o agendamento nasce PENDING segurando o horário e
-   * volta um `checkoutUrl`; só vira CONFIRMED quando o pagamento cai (webhook).
-   * Sem sinal, já nasce CONFIRMED como antes.
+   * O agendamento já nasce CONFIRMED.
    */
   async createAppointment(params: {
     businessId: string;
@@ -65,32 +57,10 @@ export class BookingService {
       notes,
     });
 
-    // Cobrança do sinal fica FORA da transação (chamada externa ao Stripe).
-    if (created.deposit) {
-      let checkout: { url: string; sessionId: string };
-      try {
-        checkout = await this.stripe.createDepositCheckout({
-          appointmentId: created.appointment.id,
-          slug: created.slug,
-          serviceName: created.appointment.service.name,
-          depositCents: created.deposit,
-        });
-      } catch (err) {
-        // Falhou abrir o pagamento: solta o horário na hora (não deixa hold órfão).
-        await this.prisma.appointment.delete({ where: { id: created.appointment.id } });
-        throw err;
-      }
-      await this.prisma.appointment.update({
-        where: { id: created.appointment.id },
-        data: { stripeSessionId: checkout.sessionId },
-      });
-      return { appointment: created.appointment, checkoutUrl: checkout.url };
-    }
-
-    // Já confirmado (sem sinal): avisa o dono (canais ligados) e o cliente (e-mail). Fire-and-forget.
+    // Confirmado: avisa o dono (canais ligados) e o cliente (e-mail). Fire-and-forget.
     void this.notifications.notifyNewBooking(created.appointment.id);
     void this.sendCustomerEmail(created.appointment);
-    return { appointment: created.appointment, checkoutUrl: undefined as string | undefined };
+    return { appointment: created.appointment };
   }
 
   /** E-mail de confirmação pro cliente (se ele deu email e o SMTP estiver ligado). */
@@ -138,7 +108,7 @@ export class BookingService {
         const service = await tx.service.findUniqueOrThrow({ where: { id: serviceId } });
         const business = await tx.business.findUniqueOrThrow({
           where: { id: businessId },
-          select: { slug: true, requireDeposit: true, depositCents: true, timezone: true },
+          select: { timezone: true },
         });
         const startAt = start.toUTC().toJSDate();
         const endAt = start.plus({ minutes: service.durationMinutes }).toUTC().toJSDate();
@@ -191,21 +161,6 @@ export class BookingService {
           throw new ConflictException('Esse horário não está mais disponível.');
         }
 
-        // Sinal: ligado pelo dono OU automático pra datas > 2 meses (anti no-show).
-        // Valor: o que o dono definiu; se não definiu, 30% do preço pra data distante.
-        // Só cobra se o Stripe estiver configurado (senão segue sem sinal).
-        const farFuture = startAt.getTime() > Date.now() + FAR_FUTURE_DAYS * 86_400_000;
-        let deposit: number | null = null;
-        if ((business.requireDeposit || farFuture) && this.stripe.enabled) {
-          deposit =
-            business.depositCents && business.depositCents > 0
-              ? business.depositCents
-              : farFuture
-                ? Math.round(service.priceCents * FAR_FUTURE_DEPOSIT_PCT)
-                : null;
-          if (!deposit || deposit <= 0) deposit = null;
-        }
-
         const appointment = await tx.appointment.create({
           data: {
             businessId,
@@ -215,10 +170,7 @@ export class BookingService {
             startAt,
             endAt,
             notes,
-            status: deposit ? 'PENDING' : 'CONFIRMED',
-            paymentStatus: deposit ? 'PENDING' : 'NONE',
-            depositCents: deposit,
-            holdExpiresAt: deposit ? new Date(Date.now() + HOLD_MINUTES * 60_000) : null,
+            status: 'CONFIRMED',
             // Item espelho do serviço principal + total inicial. O dono pode
             // acrescentar/editar itens depois (até pagar) e o total acompanha.
             totalCents: service.priceCents,
@@ -233,7 +185,7 @@ export class BookingService {
           include: { service: true, professional: true, customer: true },
         });
 
-        return { appointment, slug: business.slug, deposit };
+        return { appointment };
       });
     } catch (e) {
       // Última linha contra overbooking: a exclusion constraint do banco

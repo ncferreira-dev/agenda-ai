@@ -235,8 +235,6 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                             <ItemsEditor appointment={a} />
                           </div>
                           <div className={styles.rowActions}>
-                            {a.paymentStatus === 'PENDING' && <span className={`${styles.chip} ${styles.chipWarn}`}>aguardando sinal</span>}
-                            {a.paymentStatus === 'PAID' && <span className={`${styles.chip} ${styles.chipOk}`}>sinal pago</span>}
                             {a.confirmedByCustomer && <span className={`${styles.chip} ${styles.chipOk}`}>✓ confirmou</span>}
                             {waHref && (
                               <a

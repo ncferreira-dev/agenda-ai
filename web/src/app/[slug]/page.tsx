@@ -6,13 +6,10 @@ import styles from './booking.module.css';
 
 export default async function Page({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ pago?: string; pagamento?: string }>;
 }) {
   const { slug } = await params;
-  const sp = await searchParams;
 
   let data;
   try {
@@ -114,17 +111,6 @@ export default async function Page({
           <span className={styles.trustLabel}>Sem cadastro</span>
         </div>
       </div>
-
-      {sp.pago === '1' && (
-        <div className={`${styles.banner} ${styles.bannerOk}`}>
-          Pagamento recebido! Seu horário está confirmado. ✓
-        </div>
-      )}
-      {sp.pagamento === 'cancelado' && (
-        <div className={`${styles.banner} ${styles.bannerWarn}`}>
-          Pagamento não concluído. O horário não foi reservado, pode tentar de novo.
-        </div>
-      )}
 
       <BookingFlow slug={slug} data={data} />
 

@@ -72,8 +72,6 @@ export class PanelService {
     inactiveDays: true,
     vipMinSpentCents: true,
     recurringMinVisits: true,
-    requireDeposit: true,
-    depositCents: true,
     notifyWhatsApp: true,
     notifyEmail: true,
     notifyPush: true,
@@ -121,8 +119,6 @@ export class PanelService {
       themePreset?: string;
       logoUrl?: string;
       coverUrl?: string;
-      requireDeposit?: boolean;
-      depositCents?: number | null;
       notifyWhatsApp?: boolean;
       notifyEmail?: boolean;
       notifyPush?: boolean;
@@ -198,17 +194,6 @@ export class PanelService {
     if (input.notifyDailySummary !== undefined) data.notifyDailySummary = Boolean(input.notifyDailySummary);
     if (input.ownerWhatsApp !== undefined) data.ownerWhatsApp = this.normalizePhone(input.ownerWhatsApp);
     if (input.ownerEmail !== undefined) data.ownerEmail = this.normalizeEmail(input.ownerEmail);
-
-    if (input.requireDeposit !== undefined) data.requireDeposit = Boolean(input.requireDeposit);
-    if (input.depositCents !== undefined) {
-      if (input.depositCents === null) {
-        data.depositCents = null;
-      } else if (!Number.isInteger(input.depositCents) || input.depositCents < 0) {
-        throw new BadRequestException('O valor do sinal deve ser um inteiro em centavos (>= 0).');
-      } else {
-        data.depositCents = input.depositCents;
-      }
-    }
 
     if (input.name !== undefined) {
       const name = input.name.trim();
@@ -554,7 +539,6 @@ export class PanelService {
       startAt: a.startAt.toISOString(),
       endAt: a.endAt.toISOString(),
       status: a.status,
-      paymentStatus: a.paymentStatus,
       paid: a.manualPaidAt !== null,
       confirmedByCustomer: a.customerConfirmedAt !== null,
       service: a.service.name,
@@ -920,6 +904,96 @@ export class PanelService {
       recebidoCount: bucket.recebido.count,
       byService: toList(byService),
       byProfessional: toList(byProfessional),
+    };
+  }
+
+  /**
+   * Relatório de FATURAMENTO por profissional num período [from, to).
+   * Conta só atendimentos REALIZADOS: status COMPLETED OU pago à mão
+   * (manualPaidAt != null); NO_SHOW nunca entra (mesmo se sinal foi retido).
+   * Faturamento = Appointment.totalCents (valor final/editado do atendimento).
+   * Também apura tempo trabalhado (soma das durações) e dias distintos no fuso
+   * do negócio. Filtrável por professionalId (opcional). Escopado por businessId.
+   */
+  async getProfessionalRevenueReport(
+    businessId: string,
+    from: Date,
+    to: Date,
+    professionalId?: string,
+  ) {
+    // Fuso do negócio pra apurar "dias trabalhados" na data local, não em UTC.
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+      select: { timezone: true },
+    });
+    const tz = business?.timezone ?? 'America/Sao_Paulo';
+
+    const appts = await this.prisma.appointment.findMany({
+      where: {
+        businessId,
+        ...(professionalId ? { professionalId } : {}),
+        startAt: { gte: from, lt: to },
+        // Realizado = concluído ou pago; falta não gera comissão.
+        OR: [{ status: 'COMPLETED' }, { manualPaidAt: { not: null } }],
+        NOT: { status: 'NO_SHOW' },
+      },
+      select: {
+        startAt: true,
+        endAt: true,
+        totalCents: true,
+        professional: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    type Acc = {
+      name: string;
+      count: number;
+      generatedCents: number;
+      workedMinutes: number;
+      days: Set<string>; // datas locais distintas (YYYY-MM-DD no fuso do negócio)
+    };
+    const byPro = new Map<string, Acc>();
+    const allDays = new Set<string>(); // dias trabalhados do negócio (p/ o total)
+
+    for (const a of appts) {
+      const pro = a.professional;
+      const cur =
+        byPro.get(pro.id) ?? {
+          name: pro.name,
+          count: 0,
+          generatedCents: 0,
+          workedMinutes: 0,
+          days: new Set<string>(),
+        };
+      const minutes = Math.max(0, Math.round((a.endAt.getTime() - a.startAt.getTime()) / 60_000));
+      const dayKey = DateTime.fromJSDate(a.startAt, { zone: tz }).toISODate() ?? '';
+      cur.count += 1;
+      cur.generatedCents += a.totalCents;
+      cur.workedMinutes += minutes;
+      cur.days.add(dayKey);
+      byPro.set(pro.id, cur);
+      allDays.add(dayKey);
+    }
+
+    const professionals = [...byPro.entries()]
+      .map(([id, v]) => ({
+        professionalId: id,
+        name: v.name,
+        count: v.count,
+        generatedCents: v.generatedCents,
+        workedMinutes: v.workedMinutes,
+        daysWorked: v.days.size,
+      }))
+      .sort((a, b) => b.generatedCents - a.generatedCents);
+
+    return {
+      professionals,
+      totalCount: professionals.reduce((s, p) => s + p.count, 0),
+      totalGeneratedCents: professionals.reduce((s, p) => s + p.generatedCents, 0),
+      totalWorkedMinutes: professionals.reduce((s, p) => s + p.workedMinutes, 0),
+      totalDaysWorked: allDays.size,
     };
   }
 
