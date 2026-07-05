@@ -50,7 +50,15 @@ function discount(form: FormData): { discountKind: 'PERCENT' | 'FIXED' | null; d
   return { discountKind: 'FIXED', discountValue: reais(raw) };
 }
 
+// Campos de kit do form. isKit vem do checkbox; kitMemberIds são os serviços marcados.
+function kit(form: FormData): { isKit: boolean; kitMemberIds: string[] } {
+  const isKit = form.get('isKit') === 'on' || form.get('isKit') === 'true';
+  const kitMemberIds = form.getAll('kitMemberIds').map((v) => String(v)).filter(Boolean);
+  return { isKit, kitMemberIds };
+}
+
 export async function createService(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { isKit, kitMemberIds } = kit(form);
   const res = await authFetch('/me/services', {
     method: 'POST',
     body: JSON.stringify({
@@ -60,6 +68,8 @@ export async function createService(_prev: ActionState, form: FormData): Promise
       followUpDays: followUpDays(form.get('followUpDays')),
       followUpMessage: String(form.get('followUpMessage') ?? '').trim() || null,
       ...discount(form),
+      isKit,
+      ...(isKit ? { kitMemberIds } : {}),
     }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível criar o serviço.') };
@@ -69,6 +79,7 @@ export async function createService(_prev: ActionState, form: FormData): Promise
 
 export async function updateService(_prev: ActionState, form: FormData): Promise<ActionState> {
   const id = String(form.get('id'));
+  const { isKit, kitMemberIds } = kit(form);
   const res = await authFetch(`/me/services/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({
@@ -78,6 +89,8 @@ export async function updateService(_prev: ActionState, form: FormData): Promise
       followUpDays: followUpDays(form.get('followUpDays')),
       followUpMessage: String(form.get('followUpMessage') ?? '').trim() || null,
       ...discount(form),
+      // Só reenvia a composição quando é um kit (o form de kit expõe os membros).
+      ...(isKit ? { kitMemberIds } : {}),
     }),
   });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };

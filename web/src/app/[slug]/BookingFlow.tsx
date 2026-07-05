@@ -251,6 +251,9 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
             >
               <div>
                 <div className={styles.serviceName}>{s.name}</div>
+                {s.isKit && s.includes && s.includes.length > 0 && (
+                  <div className={styles.serviceIncludes}>Inclui: {s.includes.join(' + ')}</div>
+                )}
                 <div className={styles.serviceMeta}>
                   {(() => {
                     const full = s.priceCents;

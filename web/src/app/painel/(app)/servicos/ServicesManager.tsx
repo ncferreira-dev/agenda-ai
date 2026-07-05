@@ -82,6 +82,62 @@ function DiscountFields({
   );
 }
 
+// Bloco de kit (opcional): marca "montar como kit" e escolhe os serviços inclusos
+// (mín. 2, do mesmo negócio, sem outros kits). A duração vira a soma deles.
+function KitFields({
+  candidates,
+  defaultMembers,
+  defaultIsKit,
+}: {
+  candidates: Service[];
+  defaultMembers?: string[];
+  defaultIsKit?: boolean;
+}) {
+  const [isKit, setIsKit] = useState(Boolean(defaultIsKit));
+  const selected = new Set(defaultMembers ?? []);
+
+  return (
+    <details className={styles.followUp} open={isKit}>
+      <summary className={styles.followUpSummary}>Kit / combo (opcional)</summary>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+        <input
+          type="checkbox"
+          name="isKit"
+          checked={isKit}
+          onChange={(e) => setIsKit(e.target.checked)}
+        />
+        <span>Montar este serviço como um kit</span>
+      </label>
+      {isKit && (
+        <>
+          <p className={styles.rowMeta} style={{ marginBottom: 10 }}>
+            Marque os serviços inclusos (mín. 2). A duração é a soma deles; o preço é o que
+            você definiu acima. Executado por um profissional só, num bloco único.
+          </p>
+          {candidates.length === 0 ? (
+            <p className={styles.rowMeta}>Cadastre ao menos 2 serviços comuns antes de montar um kit.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: 6 }}>
+              {candidates.map((c) => (
+                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    name="kitMemberIds"
+                    value={c.id}
+                    defaultChecked={selected.has(c.id)}
+                  />
+                  <span>{c.name}</span>
+                  <span className={styles.rowMeta}>· {c.durationMinutes} min · R$ {reais(c.priceCents)}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </details>
+  );
+}
+
 // Bloco "Lembrete de retorno" reutilizado no criar e no editar.
 // Campos não controlados (name=…) -> entram no submit do <form> pai e o reset()
 // do form os limpa. O botão "Sugerir com IA" preenche via ref.
@@ -177,7 +233,7 @@ function FollowUpFields({
   );
 }
 
-function CreateForm({ profession }: { profession: string | null }) {
+function CreateForm({ profession, candidates }: { profession: string | null; candidates: Service[] }) {
   const [state, action] = useFormState(createService, INIT);
   const ref = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -205,6 +261,7 @@ function CreateForm({ profession }: { profession: string | null }) {
       </div>
 
       <DiscountFields />
+      <KitFields candidates={candidates} />
       <FollowUpFields profession={profession} getDescription={() => nameRef.current?.value ?? ''} />
 
       <div className={styles.toolbar}>
@@ -217,10 +274,12 @@ function CreateForm({ profession }: { profession: string | null }) {
 function EditRow({
   service,
   profession,
+  candidates,
   onDone,
 }: {
   service: Service;
   profession: string | null;
+  candidates: Service[];
   onDone: () => void;
 }) {
   const [state, action] = useFormState(updateService, INIT);
@@ -234,11 +293,21 @@ function EditRow({
       <input type="hidden" name="id" value={service.id} />
       <div className={`${styles.formRow} ${styles.gap}`} style={{ width: '100%' }}>
         <input ref={nameRef} className={styles.input} name="name" defaultValue={service.name} required />
-        <input className={styles.input} name="durationMinutes" type="number" min={1} defaultValue={service.durationMinutes} required />
+        {/* Kit: a duração é calculada (soma dos membros); não editável aqui. */}
+        {!service.isKit && (
+          <input className={styles.input} name="durationMinutes" type="number" min={1} defaultValue={service.durationMinutes} required />
+        )}
         <input className={styles.input} name="preco" inputMode="decimal" defaultValue={reais(service.priceCents)} />
       </div>
 
       <DiscountFields defaultKind={service.discountKind} defaultValue={service.discountValue} />
+      {service.isKit && (
+        <KitFields
+          candidates={candidates}
+          defaultIsKit
+          defaultMembers={service.kitItems.map((k) => k.memberServiceId)}
+        />
+      )}
       <FollowUpFields
         profession={profession}
         getDescription={() => nameRef.current?.value ?? service.name}
@@ -265,10 +334,12 @@ export function ServicesManager({
   profession: string | null;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
+  // Candidatos a membro de kit: serviços comuns e ativos (kits não aninham).
+  const kitCandidates = services.filter((s) => !s.isKit && s.active);
 
   return (
     <>
-      <CreateForm profession={profession} />
+      <CreateForm profession={profession} candidates={kitCandidates} />
 
       <div className={`${styles.panel} ${styles.gap}`}>
         {services.length === 0 ? (
@@ -276,12 +347,19 @@ export function ServicesManager({
         ) : (
           services.map((s) =>
             editing === s.id ? (
-              <EditRow key={s.id} service={s} profession={profession} onDone={() => setEditing(null)} />
+              <EditRow
+                key={s.id}
+                service={s}
+                profession={profession}
+                candidates={kitCandidates.filter((c) => c.id !== s.id)}
+                onDone={() => setEditing(null)}
+              />
             ) : (
               <div key={s.id} className={styles.row}>
                 <div className={styles.rowMain}>
                   <div className={styles.rowName}>
                     {s.name}
+                    {s.isKit && <span className={styles.tag}>kit</span>}
                     {!s.active && <span className={`${styles.chip} ${styles.chipOff}`}>inativo</span>}
                     {s.discountKind && (
                       <span className={styles.tag}>
@@ -294,6 +372,9 @@ export function ServicesManager({
                   </div>
                   <div className={styles.rowMeta}>
                     {s.durationMinutes} min · <span className={styles.price}>R$ {reais(s.priceCents)}</span>
+                    {s.isKit && s.kitItems.length > 0 && (
+                      <> · inclui {s.kitItems.map((k) => k.member.name).join(' + ')}</>
+                    )}
                   </div>
                 </div>
                 <div className={styles.rowActions}>

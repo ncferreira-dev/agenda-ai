@@ -308,6 +308,12 @@
   color: var(--muted);
 }
 
+.serviceIncludes {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .priceGroup {
   display: inline-flex;
   align-items: baseline;

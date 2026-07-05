@@ -308,6 +308,10 @@ enum DiscountKind {
 }
 
 // Serviço ofertado (corte, troca de óleo, banho e tosa...).
+// Um "kit" (isKit) é um Service com nome e preço PRÓPRIOS cuja durationMinutes é a
+// SOMA das durações dos serviços membros (cacheada aqui). Assim o motor de slots, a
+// disponibilidade e o recheck de overbooking tratam o kit como um bloco único, sem
+// mudar nada — o booking já escolhe UM profissional pro bloco inteiro.
 model Service {
   id         String   @id @default(uuid())
   businessId String
@@ -324,6 +328,13 @@ model Service {
   discountKind  DiscountKind? // null = sem desconto
   discountValue Int           @default(0) // PERCENT: 1–99 | FIXED: centavos
 
+  // Kit/pacote: este Service junta vários serviços num bloco só, com preço próprio.
+  isKit    Boolean   @default(false)
+  // Composição do kit (só quando isKit). Os membros são outros Services do MESMO
+  // negócio e nunca kits (sem aninhamento). kitOf = kits que INCLUEM este serviço.
+  kitItems KitItem[] @relation("KitToItems")
+  kitOf    KitItem[] @relation("ServiceInKits")
+
   // Modo de atendimento por serviço (preparado pro futuro). null = herda o do negócio.
   serviceMode ServiceMode?
 
@@ -337,6 +348,29 @@ model Service {
   createdAt DateTime @default(now())
 
   @@index([businessId])
+}
+
+// Composição de um kit: liga o Service-kit aos serviços membros que ele agrupa.
+// Ambos os lados são Service do mesmo negócio (multi-tenant garantido na service).
+// position ordena a exibição. A durationMinutes do kit é a soma das durações dos
+// membros, recalculada quando a composição muda ou quando a duração de um membro muda.
+//
+// TODO (kit multi-profissional / agendas sincronizadas): hoje o kit inteiro roda com
+// UM profissional num bloco contíguo. Pra permitir membros com profissionais
+// diferentes encadeando slots, este modelo ganharia um professionalId por membro e o
+// booking viraria multi-bloco. NÃO implementado agora, de propósito — não mexer no motor.
+model KitItem {
+  id              String  @id @default(uuid())
+  kitServiceId    String  // o Service que é o kit
+  memberServiceId String  // o serviço incluído no kit
+  position        Int     @default(0)
+
+  kit    Service @relation("KitToItems", fields: [kitServiceId], references: [id], onDelete: Cascade)
+  member Service @relation("ServiceInKits", fields: [memberServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([kitServiceId, memberServiceId])
+  @@index([kitServiceId])
+  @@index([memberServiceId])
 }
 
 // Quais profissionais executam quais serviços (N:N).

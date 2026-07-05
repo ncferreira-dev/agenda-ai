@@ -72,6 +72,12 @@ export interface Me {
   };
 }
 
+export interface KitMember {
+  memberServiceId: string;
+  position: number;
+  member: { id: string; name: string; durationMinutes: number; priceCents: number };
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -82,6 +88,8 @@ export interface Service {
   followUpMessage: string | null;
   discountKind: 'PERCENT' | 'FIXED' | null;
   discountValue: number;
+  isKit: boolean;
+  kitItems: KitMember[];
 }
 
 export interface Professional {

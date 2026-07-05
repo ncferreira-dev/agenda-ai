@@ -104,11 +104,17 @@ export class PublicBookingController {
         priceCents: true,
         discountKind: true,
         discountValue: true,
+        isKit: true,
+        kitItems: {
+          select: { member: { select: { name: true } } },
+          orderBy: { position: 'asc' },
+        },
       },
       orderBy: { name: 'asc' },
     });
 
     // priceCents = preço cheio; finalPriceCents = com desconto (helper puro).
+    // Kits expõem os serviços inclusos pra página listar o que vem no pacote.
     const services = rawServices.map((s) => ({
       id: s.id,
       name: s.name,
@@ -116,6 +122,8 @@ export class PublicBookingController {
       priceCents: s.priceCents,
       finalPriceCents: effectivePriceCents(s),
       discountKind: s.discountKind,
+      isKit: s.isKit,
+      includes: s.isKit ? s.kitItems.map((k) => k.member.name) : [],
     }));
 
     const professionals = await this.prisma.professional.findMany({

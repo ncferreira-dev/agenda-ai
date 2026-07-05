@@ -162,8 +162,8 @@ export class BookingService {
           throw new ConflictException('Esse horário não está mais disponível.');
         }
 
-        // Preço COM desconto (helper puro). É o que vale pro faturamento; o dono
-        // ainda pode reajustar os itens depois (até pagar) e o total acompanha.
+        // Preço COM desconto (helper puro). É o que vale pro faturamento: um kit
+        // vira um único item (nome + preço do kit), preservando "total = preço do kit".
         const priceCents = effectivePriceCents(service);
 
         const appointment = await tx.appointment.create({

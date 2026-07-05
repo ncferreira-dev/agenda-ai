@@ -5,6 +5,8 @@ export interface Service {
   priceCents: number; // preço cheio
   finalPriceCents?: number; // preço com desconto aplicado (quando houver)
   discountKind?: 'PERCENT' | 'FIXED' | null;
+  isKit?: boolean;
+  includes?: string[]; // serviços inclusos no kit (nomes)
 }
 
 export interface Professional {

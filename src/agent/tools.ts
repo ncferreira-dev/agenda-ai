@@ -99,6 +99,11 @@ export class ToolExecutor {
             priceCents: true,
             discountKind: true,
             discountValue: true,
+            isKit: true,
+            kitItems: {
+              select: { member: { select: { name: true } } },
+              orderBy: { position: 'asc' },
+            },
           },
         });
         return JSON.stringify(
@@ -111,6 +116,7 @@ export class ToolExecutor {
               // preço a ofertar ao cliente = COM desconto; precoCheio só quando há desconto.
               preco: (finalCents / 100).toFixed(2),
               ...(finalCents < s.priceCents ? { precoCheio: (s.priceCents / 100).toFixed(2) } : {}),
+              ...(s.isKit ? { kit: true, inclui: s.kitItems.map((k) => k.member.name) } : {}),
             };
           }),
         );
