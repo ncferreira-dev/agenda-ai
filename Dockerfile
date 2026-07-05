@@ -48,6 +48,11 @@ COPY --from=build /app/dist ./dist
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
+# Pasta de uploads gravável pelo usuário não-root (sem S3, as imagens vão pra cá;
+# é efêmera — some no restart. Pra persistir, configure S3_BUCKET). Sem isso o
+# boot quebra com EACCES ao criar /app/uploads.
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+
 # Roda como usuário não-root.
 USER node
 
