@@ -1,6 +1,8 @@
 # Blueprint do Render: cria o backend (Docker) + um Postgres e liga tudo sozinho.
 # O Render gera JWT_SECRET/CPF_HASH_SECRET (generateValue) e injeta a DATABASE_URL
-# do banco criado. WEB_ORIGIN começa com placeholder e é trocado pela URL da Vercel.
+# do banco criado. Este arquivo é a fonte da verdade pro Blueprint: qualquer edição
+# manual de env var no dashboard que também exista aqui é sobrescrita a cada sync
+# (deploy por push). Por isso a URL da Vercel fica fixada aqui, não só no dashboard.
 # As migrations rodam no start (docker-entrypoint.sh -> prisma migrate deploy).
 databases:
   - name: agendai-db
@@ -25,9 +27,10 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
-      # Trocado pela URL real da Vercel depois (libera o navegador a chamar a API).
+      # Origem pública do site na Vercel (pra onde o navegador volta após o OAuth
+      # e o CORS libera). Se o domínio da Vercel mudar, atualiza aqui.
       - key: WEB_ORIGIN
-        value: https://placeholder.vercel.app
+        value: https://agenda-ai-alpha.vercel.app
       # URL pública desta própria API no Render (ex.: https://agendai-api.onrender.com).
       # Obrigatória em produção quando o Google está configurado (vira o callback do OAuth).
       - key: PUBLIC_API_URL
