@@ -28,3 +28,15 @@ services:
       # Trocado pela URL real da Vercel depois (libera o navegador a chamar a API).
       - key: WEB_ORIGIN
         value: https://placeholder.vercel.app
+      # URL pública desta própria API no Render (ex.: https://agendai-api.onrender.com).
+      # Obrigatória em produção quando o Google está configurado (vira o callback do OAuth).
+      - key: PUBLIC_API_URL
+        sync: false
+      # Login social do dono — Google (opcional). Credenciais criadas em
+      # console.cloud.google.com (OAuth 2.0, Aplicativo da Web). Redirect autorizado:
+      #   <PUBLIC_API_URL>/auth/oauth/google/callback
+      # sync: false = preenchido manualmente no dashboard do Render, nunca no git.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
