@@ -6,7 +6,6 @@ import {
   createService,
   updateService,
   setServiceActive,
-  suggestFollowUp,
   type ActionState,
 } from '../../actions';
 import type { Service } from '@/lib/panel-api';
@@ -140,71 +139,27 @@ function KitFields({
 
 // Bloco "Lembrete de retorno" reutilizado no criar e no editar.
 // Campos não controlados (name=…) -> entram no submit do <form> pai e o reset()
-// do form os limpa. O botão "Sugerir com IA" preenche via ref.
+// do form os limpa.
 function FollowUpFields({
-  profession,
-  getDescription,
   defaultDays,
   defaultMessage,
   open,
 }: {
-  profession: string | null;
-  getDescription: () => string;
   defaultDays?: number | null;
   defaultMessage?: string | null;
   open?: boolean;
 }) {
-  const daysRef = useRef<HTMLInputElement>(null);
-  const msgRef = useRef<HTMLTextAreaElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [hint, setHint] = useState<string | null>(null);
-
-  async function suggest() {
-    const description = getDescription().trim();
-    if (!description) {
-      setHint('Escreva o nome do serviço primeiro.');
-      return;
-    }
-    setBusy(true);
-    setHint(null);
-    try {
-      const r = await suggestFollowUp({ description, profession });
-      if (r.ok) {
-        if (daysRef.current && r.followUpDays != null) daysRef.current.value = String(r.followUpDays);
-        if (msgRef.current && r.message) msgRef.current.value = r.message;
-        setHint(r.source === 'ai' ? 'Sugerido por IA ✨' : 'Sugestão pronta ✨');
-      } else {
-        setHint(r.error ?? 'Não consegui sugerir.');
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <details className={styles.followUp} open={open || Boolean(defaultDays)}>
       <summary className={styles.followUpSummary}>Lembrete de retorno (opcional)</summary>
       <p className={styles.rowMeta} style={{ margin: '6px 0 10px' }}>
-        Convide o cliente a refazer depois de um tempo. Descreva o serviço e deixe a IA sugerir.
+        Convide o cliente a refazer depois de um tempo.
       </p>
-
-      <div className={styles.toolbar} style={{ justifyContent: 'flex-start', marginBottom: 10 }}>
-        <button
-          type="button"
-          className={`${styles.smallBtn}`}
-          onClick={suggest}
-          disabled={busy}
-        >
-          {busy ? 'Pensando…' : 'Sugerir com IA ✨'}
-        </button>
-        {hint && <span className={styles.rowMeta}>{hint}</span>}
-      </div>
 
       <div className={`${styles.formRow} ${styles.gap}`}>
         <label className={styles.field} style={{ maxWidth: 220 }}>
           <span className={styles.label}>Lembrar de refazer a cada (dias)</span>
           <input
-            ref={daysRef}
             className={styles.input}
             name="followUpDays"
             type="number"
@@ -218,7 +173,6 @@ function FollowUpFields({
       <label className={styles.field} style={{ marginTop: 10 }}>
         <span className={styles.label}>Mensagem de retorno</span>
         <textarea
-          ref={msgRef}
           className={styles.input}
           name="followUpMessage"
           rows={3}
@@ -233,7 +187,7 @@ function FollowUpFields({
   );
 }
 
-function CreateForm({ profession, candidates }: { profession: string | null; candidates: Service[] }) {
+function CreateForm({ candidates }: { candidates: Service[] }) {
   const [state, action] = useFormState(createService, INIT);
   const ref = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -262,7 +216,7 @@ function CreateForm({ profession, candidates }: { profession: string | null; can
 
       <DiscountFields />
       <KitFields candidates={candidates} />
-      <FollowUpFields profession={profession} getDescription={() => nameRef.current?.value ?? ''} />
+      <FollowUpFields />
 
       <div className={styles.toolbar}>
         <Submit label="Adicionar serviço" />
@@ -273,12 +227,10 @@ function CreateForm({ profession, candidates }: { profession: string | null; can
 
 function EditRow({
   service,
-  profession,
   candidates,
   onDone,
 }: {
   service: Service;
-  profession: string | null;
   candidates: Service[];
   onDone: () => void;
 }) {
@@ -309,8 +261,6 @@ function EditRow({
         />
       )}
       <FollowUpFields
-        profession={profession}
-        getDescription={() => nameRef.current?.value ?? service.name}
         defaultDays={service.followUpDays}
         defaultMessage={service.followUpMessage}
       />
@@ -328,10 +278,8 @@ function EditRow({
 
 export function ServicesManager({
   services,
-  profession,
 }: {
   services: Service[];
-  profession: string | null;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   // Candidatos a membro de kit: serviços comuns e ativos (kits não aninham).
@@ -339,7 +287,7 @@ export function ServicesManager({
 
   return (
     <>
-      <CreateForm profession={profession} candidates={kitCandidates} />
+      <CreateForm candidates={kitCandidates} />
 
       <div className={`${styles.panel} ${styles.gap}`}>
         {services.length === 0 ? (
@@ -350,7 +298,6 @@ export function ServicesManager({
               <EditRow
                 key={s.id}
                 service={s}
-                profession={profession}
                 candidates={kitCandidates.filter((c) => c.id !== s.id)}
                 onDone={() => setEditing(null)}
               />

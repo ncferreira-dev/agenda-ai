@@ -98,27 +98,6 @@ export async function updateService(_prev: ActionState, form: FormData): Promise
   return OK;
 }
 
-// Sugere intervalo + mensagem de follow-up (IA com fallback no backend).
-export interface SuggestResult {
-  ok: boolean;
-  error?: string;
-  followUpDays?: number;
-  message?: string;
-  source?: 'ai' | 'preset' | 'default';
-}
-export async function suggestFollowUp(input: {
-  description: string;
-  profession?: string | null;
-}): Promise<SuggestResult> {
-  const res = await authFetch('/me/services/suggest-followup', {
-    method: 'POST',
-    body: JSON.stringify({ description: input.description, profession: input.profession ?? null }),
-  });
-  if (!res.ok) return { ok: false, error: await readError(res, 'Não consegui sugerir agora.') };
-  const data = (await res.json()) as { followUpDays: number; message: string; source: SuggestResult['source'] };
-  return { ok: true, followUpDays: data.followUpDays, message: data.message, source: data.source };
-}
-
 export async function setServiceActive(form: FormData): Promise<void> {
   const id = String(form.get('id'));
   const active = String(form.get('active')) === 'true';

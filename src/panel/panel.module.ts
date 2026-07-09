@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { BookingModule } from '../booking/booking.module';
-import { SuggestionModule } from '../suggestion/suggestion.module';
 import { PanelController } from './panel.controller';
 import { PanelService } from './panel.service';
 import { ServicesController } from './services/services.controller';
@@ -14,7 +13,7 @@ import { UploadsController } from './uploads.controller';
 
 // Painel do dono: tudo protegido por JWT e escopado pelo businessId do token.
 @Module({
-  imports: [AuthModule, BookingModule, SuggestionModule],
+  imports: [AuthModule, BookingModule],
   controllers: [
     PanelController,
     ServicesController,

@@ -119,8 +119,7 @@ export function BusinessForm({ business }: { business: Me['business'] }) {
         </label>
         <p className={styles.rowMeta}>
           O WhatsApp é o número que recebe os agendamentos. No presencial, o endereço aparece pro
-          cliente com link pro mapa; no remoto, mostramos o link de atendimento. A profissão ajuda a
-          IA a sugerir os lembretes de retorno dos seus serviços.
+          cliente com link pro mapa; no remoto, mostramos o link de atendimento.
         </p>
       </div>
 
