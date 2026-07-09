@@ -1,0 +1,27 @@
+/* Splash de boas-vindas sobreposto ao login: cobre a tela com o azul
+   profundo do sistema enquanto digita, depois some com um fade revelando o
+   card de login que já estava montado por baixo. */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #172554;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.splashHidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.wordmark {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(28px, 5vw, 44px);
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}

@@ -3,7 +3,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Typewriter } from '@/components/Typewriter';
 import styles from '../painel.module.css';
+import splashStyles from './login.module.css';
 
 function GoogleIcon() {
   return (
@@ -18,6 +20,7 @@ function GoogleIcon() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const [splashDone, setSplashDone] = useState(false);
   const [method, setMethod] = useState<'choose' | 'email'>('choose');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -64,8 +67,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={styles.loginWrap}>
-      <div className={`${styles.card} ${styles.rise}`}>
+    <>
+      <div className={`${splashStyles.splash} ${splashDone ? splashStyles.splashHidden : ''}`}>
+        <h1 className={splashStyles.wordmark}>
+          <Typewriter text="Bem-vindo ao agend.ai" durationMs={1900} onDone={() => setSplashDone(true)} />
+        </h1>
+      </div>
+      <div className={styles.loginWrap}>
+        <div className={`${styles.card} ${styles.rise}`}>
         <p className={styles.mark}>agend.ai</p>
         <h1 className={styles.title}>Entre no painel</h1>
         <p className={styles.subtitle}>Gerencie sua agenda em um lugar só.</p>
@@ -112,6 +121,7 @@ export default function LoginPage() {
           Ainda não tem conta? <Link href="/painel/registro">Criar conta</Link>
         </p>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
