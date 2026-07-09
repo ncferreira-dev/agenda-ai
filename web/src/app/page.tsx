@@ -15,13 +15,15 @@ export default function Home() {
   function irParaLogin() {
     if (done) return;
     setDone(true);
-    setTimeout(() => router.replace('/painel/login'), 500);
+    // Segura a tela de propósito depois de terminar de digitar, pra dar
+    // tempo de perceber a animação antes de trocar de rota.
+    setTimeout(() => router.replace('/painel/login'), 1400);
   }
 
   return (
     <main className={styles.splash}>
       <h1 className={styles.wordmark}>
-        <Typewriter text="Bem-vindo ao agend.ai" speed={65} onDone={irParaLogin} />
+        <Typewriter text="Bem-vindo ao agend.ai" speed={90} onDone={irParaLogin} />
       </h1>
     </main>
   );
