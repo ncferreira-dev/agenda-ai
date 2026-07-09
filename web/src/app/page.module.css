@@ -1,0 +1,16 @@
+.splash {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* azul profundo do sistema (ver --deep em painel.module.css) */
+  background: #172554;
+  color: #ffffff;
+}
+
+.wordmark {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(28px, 5vw, 44px);
+  letter-spacing: -0.01em;
+}
