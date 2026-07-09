@@ -23,7 +23,7 @@ export default function Home() {
   return (
     <main className={styles.splash}>
       <h1 className={styles.wordmark}>
-        <Typewriter text="Bem-vindo ao agend.ai" speed={90} onDone={irParaLogin} />
+        <Typewriter text="Bem-vindo ao agend.ai" durationMs={1900} onDone={irParaLogin} />
       </h1>
     </main>
   );

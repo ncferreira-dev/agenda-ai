@@ -1,40 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
+import styles from './Typewriter.module.css';
 
 interface TypewriterProps {
   text: string;
-  speed?: number;
-  cursor?: boolean;
-  cursorChar?: string;
+  durationMs?: number;
   onDone?: () => void;
 }
 
-// Digita `text` uma vez (sem apagar/repetir) e avisa via onDone ao terminar.
-export function Typewriter({ text, speed = 70, cursor = true, cursorChar = '|', onDone }: TypewriterProps) {
-  const [charIndex, setCharIndex] = useState(0);
-  const [showCursor, setShowCursor] = useState(true);
+// Efeito de digitação em CSS puro (animação de "revelar" a largura do texto).
+// Evita depender de uma cadeia de setTimeout por letra: em navegadores
+// mobile, temporizadores JS de uma aba em segundo plano podem ser
+// atrasados/agrupados pelo navegador e "estourar" tudo de uma vez, fazendo a
+// animação nunca aparecer. Animação CSS é tocada pelo motor de renderização,
+// não pelo relógio de timers do JS.
+export function Typewriter({ text, durationMs = 1800, onDone }: TypewriterProps) {
+  const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (charIndex >= text.length) {
-      onDone?.();
-      return;
+    const el = ref.current;
+    if (!el || !onDone) return;
+    function handleEnd(e: AnimationEvent) {
+      if (e.animationName === 'reveal') onDone?.();
     }
-    const timeout = setTimeout(() => setCharIndex((i) => i + 1), speed);
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [charIndex, text, speed]);
+    el.addEventListener('animationend', handleEnd);
+    return () => el.removeEventListener('animationend', handleEnd);
+  }, [onDone]);
 
-  useEffect(() => {
-    if (!cursor) return;
-    const interval = setInterval(() => setShowCursor((v) => !v), 500);
-    return () => clearInterval(interval);
-  }, [cursor]);
+  const style = {
+    '--chars': text.length,
+    '--duration': `${durationMs}ms`,
+  } as CSSProperties;
 
   return (
-    <span>
-      {text.slice(0, charIndex)}
-      {cursor && <span style={{ marginLeft: 2, opacity: showCursor ? 1 : 0 }}>{cursorChar}</span>}
+    <span ref={ref} className={styles.type} style={style}>
+      {text}
     </span>
   );
 }
