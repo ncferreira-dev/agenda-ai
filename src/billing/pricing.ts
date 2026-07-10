@@ -11,7 +11,7 @@ import {
 // (`npm run test:pricing`) — mesma disciplina do slot-engine (regra de ouro 3).
 //
 // Nada aqui cobra: quem consome é a tela de confirmação (mostra o quote antes de
-// assinar) e o BillingService (grava as datas no ato). O checkout Mercado Pago,
+// assinar) e o BillingService (grava as datas no ato). O checkout Stripe,
 // quando existir, lê o mesmo quote pra abrir a cobrança.
 // ---------------------------------------------------------------------------
 

@@ -47,7 +47,7 @@ export class BillingController {
   /**
    * Ativa a assinatura (grava datas + realiza os benefícios de indicação).
    *
-   * GANCHO DO CHECKOUT: enquanto o Mercado Pago não existe, este endpoint só
+   * GANCHO DO CHECKOUT: enquanto o Stripe não existe, este endpoint só
    * responde se ENABLE_DEV_BILLING=1 (pra dar pra testar as telas sem cobrar).
    * Quando o checkout entrar, o WEBHOOK de pagamento aprovado chama
    * BillingService.confirmSubscription direto — e este endpoint dev sai de cena.
@@ -59,7 +59,7 @@ export class BillingController {
   ) {
     if (process.env.ENABLE_DEV_BILLING !== '1') {
       throw new ForbiddenException(
-        'Assinatura ainda não disponível: o checkout (Mercado Pago) não está ligado.',
+        'Assinatura ainda não disponível: o checkout (Stripe) não está ligado.',
       );
     }
     return this.billing.confirmSubscription(businessId, planId);

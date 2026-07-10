@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { API_BASE, PANEL_COOKIE } from '@/lib/panel-session';
 
 // Proxy de confirmação de assinatura: injeta o JWT do cookie httpOnly e chama o
-// backend. Enquanto o checkout (Mercado Pago) não existe, o backend só ativa de
+// backend. Enquanto o checkout (Stripe) não existe, o backend só ativa de
 // verdade se ENABLE_DEV_BILLING=1; caso contrário responde 403 com a mensagem
 // "checkout não ligado", que a tela mostra. Nenhuma cobrança acontece aqui.
 export async function POST(req: Request) {

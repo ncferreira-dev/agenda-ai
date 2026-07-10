@@ -1,5 +1,5 @@
 // Catálogo de planos do agend.ai — FONTE ÚNICA DA VERDADE dos preços no backend.
-// A cobrança (checkout Mercado Pago, Fase 5) e as telas de assinatura leem daqui.
+// A cobrança (checkout Stripe, Fase 5) e as telas de assinatura leem daqui.
 // A UI de marketing (web/.../planos/plans.ts + landing) espelha estes valores.
 //
 // Preço de lançamento: `promoCents` vale os 3 primeiros meses da assinatura;
@@ -85,8 +85,6 @@ export const PLAN_CATALOG: Record<PlanId, PlanDef> = {
     ],
   },
 };
-
-export const PLAN_IDS: PlanId[] = ['START', 'PRO', 'ULTRA'];
 
 export function isPlanId(v: unknown): v is PlanId {
   return v === 'START' || v === 'PRO' || v === 'ULTRA';
