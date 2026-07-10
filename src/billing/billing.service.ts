@@ -135,7 +135,7 @@ export class BillingService {
    * benefícios de indicação (desconto do indicado + crédito do indicador).
    *
    * Hoje é chamado pelo endpoint dev (POST /me/plan/confirm) pra dar pra ver as
-   * telas funcionando. Quando o Mercado Pago entrar, o WEBHOOK de pagamento
+   * telas funcionando. Quando o Stripe entrar, o WEBHOOK de pagamento
    * aprovado chama exatamente este método — nada mais muda.
    */
   async confirmSubscription(businessId: string, planId: string) {

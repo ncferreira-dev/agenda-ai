@@ -12,7 +12,7 @@ function brl(cents: number): string {
 
 // Botão "Assinar" -> abre a confirmação com a PROMESSA DE PREÇO por escrito
 // (requisito do preço de lançamento) antes de confirmar. O clique final é o
-// gancho do checkout: enquanto o Mercado Pago não existe, o backend responde
+// gancho do checkout: enquanto o Stripe não existe, o backend responde
 // "checkout não ligado" (salvo ENABLE_DEV_BILLING=1, pra testar as telas).
 export function AssinarButton({
   planId,

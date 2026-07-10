@@ -1,6 +1,6 @@
 // Fonte única dos planos do agend.ai. Mesma redação da landing (index.html, seção
 // #planos) e da matriz de recursos do ROADMAP. Usada só pra montar a tela — a
-// cobrança (Fase 5) lê o `id` daqui pra abrir o checkout do Mercado Pago.
+// cobrança (Fase 5) lê o `id` daqui pra abrir o checkout do Stripe.
 
 export type PlanId = 'START' | 'PRO' | 'ULTRA';
 
