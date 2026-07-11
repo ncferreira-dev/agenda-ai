@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { notFound } from 'next/navigation';
 import { getBusinessPage } from '@/lib/api';
 import { BookingFlow } from './BookingFlow';
+import { CoverImage, LogoAvatar } from './BrandImage';
 import styles from './booking.module.css';
 
 export default async function Page({
@@ -26,97 +27,90 @@ export default async function Page({
     : undefined;
 
   return (
-    <main className={styles.page} style={accentStyle} data-skin={business.themePreset ?? undefined}>
-      {business.coverUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.cover} src={business.coverUrl} alt="" />
-      ) : (
-        <div className={styles.heroGradient} />
-      )}
+    <div className={styles.pageOuter}>
+      <main className={styles.page} style={accentStyle} data-skin={business.themePreset ?? undefined}>
+        <CoverImage src={business.coverUrl} />
 
-      <header className={styles.header}>
-        {business.logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className={styles.logo} src={business.logoUrl} alt={business.name} />
-        )}
-        <h1 className={styles.businessName}>{business.name}</h1>
-        <p className={styles.tagline}>Agende seu horário</p>
+        <header className={styles.header}>
+          <LogoAvatar src={business.logoUrl} name={business.name} />
+          <h1 className={styles.businessName}>{business.name}</h1>
 
-        {business.serviceMode !== 'REMOTO' && business.address && (
-          <a
-            className={styles.address}
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            {business.address}
-          </a>
-        )}
-
-        {business.serviceMode !== 'PRESENCIAL' &&
-          (business.meetingUrl ? (
-            <a className={styles.address} href={business.meetingUrl} target="_blank" rel="noopener noreferrer">
+          {business.serviceMode !== 'REMOTO' && business.address && (
+            <a
+              className={styles.address}
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 7l-7 5 7 5V7z" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
+                <circle cx="12" cy="10" r="3" />
               </svg>
-              Atendimento online
+              {business.address}
             </a>
-          ) : (
-            <span className={styles.address}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 7l-7 5 7 5V7z" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-              </svg>
-              Atendimento online
-            </span>
-          ))}
+          )}
 
-        {business.about && <p className={styles.about}>{business.about}</p>}
+          {business.serviceMode !== 'PRESENCIAL' &&
+            (business.meetingUrl ? (
+              <a className={styles.address} href={business.meetingUrl} target="_blank" rel="noopener noreferrer">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 7l-7 5 7 5V7z" />
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                </svg>
+                Atendimento online
+              </a>
+            ) : (
+              <span className={styles.address}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 7l-7 5 7 5V7z" />
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                </svg>
+                Atendimento online
+              </span>
+            ))}
 
-        {business.instagramUrl && (
-          <a
-            className={styles.instagram}
-            href={business.instagramUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Instagram ↗
-          </a>
-        )}
-      </header>
+          {business.about && <p className={styles.about}>{business.about}</p>}
 
-      <div className={styles.trust}>
-        <div className={styles.trustItem}>
-          <svg className={styles.trustIcon} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
-          </svg>
-          <span className={styles.trustLabel}>Confirmação na hora</span>
+          {business.instagramUrl && (
+            <a
+              className={styles.instagram}
+              href={business.instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Instagram ↗
+            </a>
+          )}
+        </header>
+
+        <div className={styles.trust}>
+          <div className={styles.trustItem}>
+            <svg className={styles.trustIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+            </svg>
+            <span className={styles.trustLabel}>Confirmação na hora</span>
+          </div>
+          <div className={styles.trustItem}>
+            <svg className={styles.trustIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+            </svg>
+            <span className={styles.trustLabel}>Lembrete no WhatsApp</span>
+          </div>
+          <div className={styles.trustItem}>
+            <svg className={styles.trustIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span className={styles.trustLabel}>Sem cadastro</span>
+          </div>
         </div>
-        <div className={styles.trustItem}>
-          <svg className={styles.trustIcon} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
-          <span className={styles.trustLabel}>Lembrete no WhatsApp</span>
-        </div>
-        <div className={styles.trustItem}>
-          <svg className={styles.trustIcon} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <span className={styles.trustLabel}>Sem cadastro</span>
-        </div>
-      </div>
 
-      <BookingFlow slug={slug} data={data} />
+        <BookingFlow slug={slug} data={data} />
 
-      <footer className={styles.footer}>
-        feito com <span className={styles.brand}>agend.ai</span>
-      </footer>
-    </main>
+        <footer className={styles.footer}>
+          feito com <span className={styles.brand}>agend.ai</span>
+        </footer>
+      </main>
+    </div>
   );
 }
