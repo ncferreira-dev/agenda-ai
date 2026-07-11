@@ -12,6 +12,15 @@ do horário reduz no-show.
 Stack: NestJS + Prisma + PostgreSQL + Luxon + Anthropic SDK (api/) e Next.js
 App Router (web/). Idioma do produto e dos commits: pt-BR.
 
+## Como você deve trabalhar comigo (IMPORTANTE)
+
+- SEMPRE me mostre um plano do que vai fazer ANTES de editar arquivos. Espere meu OK.
+- Faça UMA tarefa por vez. Se eu pedir várias coisas, me proponha uma ordem e faça uma de cada vez.
+- Trabalhe numa branch nova para qualquer mudança que não seja trivial. Não commite sem eu revisar.
+- Depois de QUALQUER alteração, rode `tsc --noEmit` e a build (web e/ou backend) e me diga se passou. Se der erro, conserte antes de me entregar.
+- Nunca remova código só por parecer "não usado" sem primeiro me mostrar onde confirmou que não é chamado.
+- Se algo for irreversível (apagar dados, migração destrutiva, mudar permissão), me avise e espere confirmação antes de agir.
+
 ## Estrutura
 
 ```
@@ -49,6 +58,15 @@ web/               → frontend Next.js (página pública de agendamento)
    - Agendamento do cliente (slug/subdomínio ou WhatsApp) — **sem login**,
      cliente identificado por telefone (`Customer` = businessId + phone).
 
+6. **Cliente final nunca loga.** É sempre identificado por telefone. Nunca
+   adicione fluxo de login pro cliente final.
+
+7. **Envs críticas sem fallback inseguro.** `JWT_SECRET` e `CPF_HASH_SECRET`
+   são obrigatórias — nunca coloque um valor padrão hardcoded no lugar delas.
+
+8. **Pagamento é Stripe** (assinatura recorrente). Ignore/remova referências a
+   Mercado Pago quando eu pedir.
+
 ## Rodar
 
 Backend:
@@ -67,6 +85,8 @@ npm run dev                # porta 3001 -> http://localhost:3001/barbearia-do-ze
 
 ## Convenções
 
+- Siga os padrões que já existem no arquivo que você está editando; não
+  reformate o projeto inteiro.
 - TypeScript estrito. Comentários e mensagens ao usuário em pt-BR.
 - Nunca use `any` sem necessidade; tipe os contratos de API.
 - Datas: Luxon, fuso do negócio. Nunca `new Date()` pra lógica de agenda sem fuso.
