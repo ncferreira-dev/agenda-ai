@@ -94,19 +94,25 @@ npm run dev                # porta 3001 -> http://localhost:3001/barbearia-do-ze
 
 ## O que já está pronto
 
-Motor de slots (testado), booking transacional, agente conversacional, webhook
-de WhatsApp, API pública REST, página de agendamento (web/), lembrete via cron.
+Motor de slots (testado), booking transacional com exclusion constraint no
+Postgres (`appointment_no_overlap`), agente conversacional, webhook de WhatsApp
+com dedupe (`ProcessedWebhook`), API pública REST, página de agendamento (web/),
+lembrete via cron com confirmação SIM/NÃO de volta no WhatsApp, painel do dono
+completo (serviços, profissionais, horários, bloqueios pontuais e recorrentes,
+CRM com segmentação), auth do dono (JWT + argon2 + Google OAuth + reset de senha
+por link), guard/decorator de tenant, billing/assinatura Stripe com trial de 14
+dias e programa de indicações, web push e resumo diário pro dono, tema por
+negócio (`--accent` a partir do Business).
 
 ## Próximos passos (peça ao Claude Code conforme for precisando)
 
-- **Auth do dono**: módulo NestJS com Passport JWT, senha com hash (argon2/bcrypt),
-  sessão carregando `businessId`. Guard que injeta o tenant no contexto.
-- **Middleware de tenant**: resolve `businessId` por subdomínio/slug (público) ou
-  por JWT (painel) e escopa todas as queries.
-- **Painel do dono** (Next): CRUD de serviços/profissionais/horários, agenda
-  visual, bloqueios. Reaproveita a API; é majoritariamente tela.
-- **Resposta SIM/NÃO do lembrete**: tratar a confirmação que volta no WhatsApp.
-- **Exclusion constraint** (`btree_gist`) no Postgres como garantia extra de
-  zero overbooking, além do recheck.
-- **Stripe**: cobrança de sinal no ato do agendamento pra derrubar no-show.
-- **Tema por negócio**: injetar `--accent` da página a partir de um campo do Business.
+- **Stripe ao vivo**: hoje a assinatura é confirmada por endpoint de dev
+  (`BillingService.confirmSubscription`). Falta ligar o webhook de produção do
+  Stripe (assinatura criada / paga / cancelada) escrevendo `subscriptionStatus`,
+  datas do período e crédito de indicação de forma idempotente.
+- **Agenda visual no painel**: visão de calendário (dia/semana) pro dono, além
+  das listas atuais.
+
+> Descartado de propósito (não repropor): **cobrança de sinal no agendamento** —
+> removido junto com `client_deposit`. Pagamento é só a assinatura recorrente do
+> dono via Stripe.

@@ -93,7 +93,7 @@ model Business {
 
   // Datas da assinatura ATIVA. Preenchidas quando vira ACTIVE — hoje pelo hook
   // BillingService.confirmSubscription (endpoint dev), amanhã pelo webhook do
-  // Mercado Pago. Enquanto não assina, ficam null.
+  // Stripe. Enquanto não assina, ficam null.
   subscribedAt        DateTime? // instante em que a assinatura passou a ACTIVE
   launchPricingEndsAt DateTime? // fim do preço de lançamento (subscribedAt + 3 meses); null = plano sem transição de preço (Start)
   currentPeriodEndsAt DateTime? // data de renovação mostrada em "Meu plano"
