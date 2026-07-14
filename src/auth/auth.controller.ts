@@ -8,6 +8,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService, type OAuthProfile } from './auth.service';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
@@ -31,6 +32,15 @@ interface RegisterBody {
   address?: string; // presencial/híbrido
   meetingUrl?: string; // remoto/híbrido
   referralCode?: string; // código de indicação (?ref= no link)
+}
+
+interface ForgotPasswordBody {
+  email: string;
+}
+
+interface ResetPasswordBody {
+  token: string;
+  password: string;
 }
 
 @Controller('auth')
@@ -59,6 +69,28 @@ export class AuthController {
       meetingUrl: body.meetingUrl,
       referralCode: body.referralCode,
     });
+  }
+
+  // Resposta sempre genérica (não revela se o email existe).
+  // Rate limit por IP: no máx. 5 pedidos a cada 15 min (anti-abuso de envio).
+  // Defesa adicional por email (cooldown) fica no AuthService.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: ForgotPasswordBody) {
+    await this.auth.requestPasswordReset(body?.email ?? '');
+    return {
+      message: 'Se existir uma conta com esse email, enviamos o link de redefinição.',
+    };
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() body: ResetPasswordBody) {
+    if (!body?.token || !body?.password) {
+      throw new BadRequestException('Informe o token e a nova senha.');
+    }
+    await this.auth.resetPassword(body.token, body.password);
+    return { message: 'Senha redefinida. Faça login com a nova senha.' };
   }
 
   // --- Login social: Google ------------------------------------------------

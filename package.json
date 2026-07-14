@@ -29,6 +29,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.4.4",
     "@nestjs/schedule": "^4.1.1",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^5.20.0",
     "@types/web-push": "^3.6.4",
     "argon2": "^0.44.0",

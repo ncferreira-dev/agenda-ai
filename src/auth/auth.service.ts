@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -9,6 +10,7 @@ import { OAuthProvider, Prisma, ServiceMode } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { RESERVED_SLUGS, SLUG_MAX, SLUG_MIN, slugify } from '../common/slug';
 import { newReferralCode, normalizeReferralCode } from '../common/referral-code';
 
@@ -18,6 +20,12 @@ const TRIAL_DAYS = 14;
 // Validade do code de troca pós-OAuth. Curto de propósito: só existe entre o
 // callback do provedor e o front trocar pelo JWT.
 const EXCHANGE_TTL_MS = 60 * 1000;
+
+// Validade do link de redefinição de senha.
+const RESET_TTL_MINUTES = 30;
+// Intervalo mínimo entre dois envios de link pro mesmo email (anti-flood da
+// caixa de entrada, independente do IP — o rate-limit por IP é no controller).
+const RESET_COOLDOWN_MINUTES = 2;
 
 // Perfil normalizado que vem da estratégia social (ex.: GoogleStrategy).
 export interface OAuthProfile {
@@ -34,6 +42,7 @@ export interface JwtPayload {
   sub: string; // ownerId
   businessId: string;
   email: string;
+  iat?: number; // emitido em (segundos); preenchido pelo JWT, usado p/ invalidar
 }
 
 // Formato injetado em req.user pela JwtStrategy.
@@ -45,9 +54,12 @@ export interface AuthenticatedOwner {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private mail: MailService,
   ) {}
 
   /** Hash de senha pra gravar. Usado pelo seed/registro. */
@@ -208,6 +220,99 @@ export class AuthService {
     }
 
     return this.buildSession(owner);
+  }
+
+  /**
+   * Pede a redefinição de senha. Resposta SEMPRE genérica (não revela se o
+   * email existe). Se existir, gera um token de uso único (guardamos só o hash)
+   * e manda o link por e-mail. Sem SMTP em dev, o link vai pro log.
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const normalized = (email ?? '').trim().toLowerCase();
+    if (!normalized) return; // resposta genérica mesmo assim
+
+    const owner = await this.prisma.owner.findUnique({
+      where: { email: normalized },
+      select: { id: true, business: { select: { name: true } } },
+    });
+    if (!owner) return; // não vaza que o email não existe
+
+    // Cooldown por email: se já mandamos um link há pouco, não manda outro
+    // (limita o volume na caixa do dono mesmo que o IP varie). Silencioso —
+    // a resposta ao cliente continua genérica.
+    const ultimo = await this.prisma.passwordReset.findFirst({
+      where: { ownerId: owner.id },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    if (ultimo && ultimo.createdAt > new Date(Date.now() - RESET_COOLDOWN_MINUTES * 60_000)) {
+      return;
+    }
+
+    // Invalida pedidos anteriores ainda válidos (só um link ativo por vez).
+    await this.prisma.passwordReset.updateMany({
+      where: { ownerId: owner.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60_000);
+    await this.prisma.passwordReset.create({
+      data: { ownerId: owner.id, tokenHash: this.hashResetToken(token), expiresAt },
+    });
+
+    const base = process.env.WEB_ORIGIN ?? 'http://localhost:3001';
+    const link = `${base}/painel/redefinir-senha?token=${token}`;
+
+    if (this.mail.enabled) {
+      await this.mail.sendPasswordReset(normalized, {
+        businessName: owner.business.name,
+        link,
+        ttlMinutes: RESET_TTL_MINUTES,
+      });
+    } else {
+      // Fallback de dev: sem SMTP, loga o link pra dar pra testar o fluxo.
+      this.logger.warn(`[reset de senha] SMTP desligado — link p/ ${normalized}: ${link}`);
+    }
+  }
+
+  /**
+   * Redefine a senha a partir do token do link. Recusa token inexistente,
+   * usado ou expirado. Em transação: troca a senha, marca o token como usado e
+   * grava passwordChangedAt (invalida as sessões/JWTs antigos via JwtStrategy).
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    if ((newPassword ?? '').length < 8) {
+      throw new BadRequestException('A senha deve ter ao menos 8 caracteres.');
+    }
+    if (!token) throw new BadRequestException('Link inválido ou expirado.');
+
+    const reset = await this.prisma.passwordReset.findUnique({
+      where: { tokenHash: this.hashResetToken(token) },
+    });
+    if (!reset || reset.usedAt || reset.expiresAt < new Date()) {
+      throw new BadRequestException('Link inválido ou expirado.');
+    }
+
+    const passwordHash = await this.hashPassword(newPassword);
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.owner.update({
+        where: { id: reset.ownerId },
+        data: { passwordHash, passwordChangedAt: now },
+      }),
+      this.prisma.passwordReset.update({
+        where: { id: reset.id },
+        data: { usedAt: now },
+      }),
+    ]);
+  }
+
+  // SHA-256 do token de reset. Sem segredo: o token já é aleatório forte (32
+  // bytes), então não há risco de força bruta — só não guardamos o cru. Mesmo
+  // padrão do codeHash em createExchangeCode.
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   // --- Login social (Google) ---------------------------------------------

@@ -108,6 +108,9 @@ export default function LoginPage() {
               <span className={styles.label}>Senha</span>
               <input className={styles.input} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </label>
+            <p className={styles.forgotRow}>
+              <Link href="/painel/esqueci-senha">Esqueci minha senha</Link>
+            </p>
             <button className={styles.button} type="submit" disabled={enviando}>
               {enviando ? 'Entrando…' : 'Entrar'}
             </button>

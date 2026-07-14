@@ -11,6 +11,8 @@ export function middleware(req: NextRequest) {
   if (
     pathname.startsWith('/painel/login') ||
     pathname.startsWith('/painel/registro') ||
+    pathname.startsWith('/painel/esqueci-senha') ||
+    pathname.startsWith('/painel/redefinir-senha') ||
     pathname.startsWith('/painel/oauth') || // callback do login social
     pathname.startsWith('/painel/api')
   ) {
