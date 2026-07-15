@@ -84,6 +84,44 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Avisa o dono que a cobrança da assinatura falhou (webhook Stripe:
+   * invoice.payment_failed). Diferente de notifyNewBooking: sempre tenta os
+   * dois canais disponíveis (não olha notifyWhatsApp/notifyEmail) — é alerta
+   * de billing, não preferência de ruído de agendamento.
+   */
+  async notifyPaymentFailed(businessId: string): Promise<void> {
+    try {
+      const business = await this.prisma.business.findUnique({
+        where: { id: businessId },
+        select: {
+          name: true,
+          ownerWhatsApp: true,
+          ownerEmail: true,
+          owners: { select: { phone: true, email: true }, take: 1 },
+        },
+      });
+      if (!business) return;
+
+      const { waTo, emailTo } = this.resolveContacts(business);
+      const planosUrl = `${process.env.WEB_ORIGIN ?? 'http://localhost:3001'}/painel/planos`;
+
+      if (waTo && process.env.WHATSAPP_TOKEN) {
+        const text =
+          `⚠️ O pagamento da sua assinatura do agend.ai falhou.\n` +
+          `Atualize o cartão pra não perder o acesso ao painel: ${planosUrl}`;
+        await this.whatsapp.sendText(waTo, text).catch((e) =>
+          this.logger.warn(`WhatsApp de pagamento falhado falhou: ${(e as Error).message}`),
+        );
+      }
+      if (emailTo && this.mail.enabled) {
+        await this.mail.sendPaymentFailed(emailTo, { businessName: business.name, planosUrl });
+      }
+    } catch (err) {
+      this.logger.warn(`Falha ao notificar pagamento falhado: ${(err as Error).message}`);
+    }
+  }
+
   // Avisa o dono pelos canais que ele ligou (WhatsApp / e-mail / push).
   private async notifyOwner(
     business: {

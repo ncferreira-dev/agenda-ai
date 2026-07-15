@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { API_BASE, PANEL_COOKIE } from './panel-session';
 
 // Client server-side do painel. Lê o JWT do cookie httpOnly e o injeta como
@@ -18,6 +19,17 @@ export async function authFetch(path: string, init?: RequestInit): Promise<Respo
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await authFetch(path);
+  if (res.status === 403) {
+    const body = await res.json().catch(() => null);
+    // Painel bloqueado (trial vencido/assinatura cancelada) — BillingGateGuard
+    // no backend. Manda pra Planos em vez de estourar um erro genérico.
+    // (Não cobre todo call site: uma página com try/catch próprio em volta de
+    // getJson pode engolir esse redirect — o bloqueio de verdade é o backend,
+    // isso aqui é só UX.)
+    if (body?.code === 'SUBSCRIPTION_REQUIRED') {
+      redirect('/painel/planos');
+    }
+  }
   if (!res.ok) throw new Error(`Falha ao carregar ${path} (${res.status}).`);
   return res.json() as Promise<T>;
 }

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { BillingGateGuard } from '../../billing/billing-gate.guard';
 import { CurrentBusiness } from '../../auth/decorators/current-business.decorator';
 import {
   ProfessionalsService,
@@ -8,7 +9,7 @@ import {
 } from './professionals.service';
 
 @Controller('me/professionals')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BillingGateGuard)
 export class ProfessionalsController {
   constructor(private professionals: ProfessionalsService) {}
 

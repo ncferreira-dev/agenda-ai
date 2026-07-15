@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { BillingGateGuard } from '../../billing/billing-gate.guard';
 import { CurrentBusiness } from '../../auth/decorators/current-business.decorator';
 import {
   BlocksService,
@@ -8,7 +9,7 @@ import {
 } from './blocks.service';
 
 @Controller('me/blocks')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BillingGateGuard)
 export class BlocksController {
   constructor(private blocks: BlocksService) {}
 
@@ -29,7 +30,7 @@ export class BlocksController {
 }
 
 @Controller('me/recurring-blocks')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BillingGateGuard)
 export class RecurringBlocksController {
   constructor(private blocks: BlocksService) {}
 

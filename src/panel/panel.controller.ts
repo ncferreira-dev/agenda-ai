@@ -1,17 +1,27 @@
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BillingGateGuard } from '../billing/billing-gate.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
 import { PanelService } from './panel.service';
 
 // Painel do dono. Tudo aqui é protegido por JWT e escopado pelo businessId do
 // token — o cliente nunca passa businessId. (CRUD completo é a Fase 2.)
+//
+// BillingGateGuard é aplicado MÉTODO A MÉTODO aqui (não na classe) com UMA
+// exceção de propósito: `me()` (GET /me, quem sou eu + meu negócio) fica de
+// fora do gate porque o layout do painel (web/.../painel/(app)/layout.tsx)
+// chama esse endpoint em TODA página, inclusive nas 3 telas de billing que
+// devem continuar acessíveis (planos/meu-plano/indicacoes) — se `me()`
+// travasse, o layout confundiria "bloqueado" com "sessão inválida" e
+// redirecionaria pro login, quebrando justamente as telas que deveriam
+// continuar abertas.
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class PanelController {
   constructor(private panel: PanelService) {}
 
-  /** Quem sou eu + meu negócio. */
+  /** Quem sou eu + meu negócio. FORA do BillingGateGuard — ver nota acima. */
   @Get()
   async me(
     @CurrentOwner() owner: AuthenticatedOwner,
@@ -26,6 +36,7 @@ export class PanelController {
 
   /** Atualiza o perfil do dono (nome, telefone, CPF, CEP, foto). */
   @Patch('profile')
+  @UseGuards(BillingGateGuard)
   updateProfile(
     @CurrentOwner() owner: AuthenticatedOwner,
     @Body()
@@ -42,6 +53,7 @@ export class PanelController {
 
   /** Define (conta social) ou troca a senha do dono. */
   @Patch('password')
+  @UseGuards(BillingGateGuard)
   setPassword(
     @CurrentOwner() owner: AuthenticatedOwner,
     @Body() body: { currentPassword?: string; newPassword?: string },
@@ -51,6 +63,7 @@ export class PanelController {
 
   /** Atualiza dados e branding do negócio (tela "Aparência"). */
   @Patch('business')
+  @UseGuards(BillingGateGuard)
   updateBusiness(
     @CurrentBusiness() businessId: string,
     @Body()
@@ -92,12 +105,14 @@ export class PanelController {
 
   /** Catálogo de verticais + peles pro wizard de onboarding. */
   @Get('verticais')
+  @UseGuards(BillingGateGuard)
   verticais() {
     return this.panel.getVerticais();
   }
 
   /** Aplica um vertical: cor/tema sugeridos + serviços-base. */
   @Post('onboarding/apply')
+  @UseGuards(BillingGateGuard)
   applyVertical(
     @CurrentBusiness() businessId: string,
     @Body() body: { vertical?: string; skin?: string },
@@ -108,12 +123,14 @@ export class PanelController {
 
   /** Conclui (ou pula) o onboarding. */
   @Post('onboarding/finish')
+  @UseGuards(BillingGateGuard)
   finishOnboarding(@CurrentBusiness() businessId: string) {
     return this.panel.finishOnboarding(businessId);
   }
 
   /** Agendamentos do meu negócio. Filtra por janela (from/to) e status. */
   @Get('appointments')
+  @UseGuards(BillingGateGuard)
   appointments(
     @CurrentBusiness() businessId: string,
     @Query('from') from?: string,
@@ -125,6 +142,7 @@ export class PanelController {
 
   /** Cancela um agendamento do meu negócio. */
   @Patch('appointments/:id/cancel')
+  @UseGuards(BillingGateGuard)
   cancel(@CurrentBusiness() businessId: string, @Param('id') id: string) {
     return this.panel.cancel(businessId, id);
   }
@@ -134,6 +152,7 @@ export class PanelController {
    * ou CONFIRMED (desfaz a marcação, volta ao estado ativo).
    */
   @Patch('appointments/:id/status')
+  @UseGuards(BillingGateGuard)
   setStatus(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
@@ -151,6 +170,7 @@ export class PanelController {
 
   /** Marca/desmarca o pagamento manual do atendimento. */
   @Patch('appointments/:id/paid')
+  @UseGuards(BillingGateGuard)
   setPaid(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
@@ -161,6 +181,7 @@ export class PanelController {
 
   /** Substitui os itens cobrados (serviço principal + extras) e recalcula o total. */
   @Patch('appointments/:id/items')
+  @UseGuards(BillingGateGuard)
   setItems(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
@@ -174,18 +195,21 @@ export class PanelController {
 
   /** Lista de clientes do negócio (com números de CRM). */
   @Get('customers')
+  @UseGuards(BillingGateGuard)
   customers(@CurrentBusiness() businessId: string) {
     return this.panel.listCustomers(businessId);
   }
 
   /** Ficha completa (CRM) de um cliente do negócio. */
   @Get('customers/:id')
+  @UseGuards(BillingGateGuard)
   customerDetail(@CurrentBusiness() businessId: string, @Param('id') id: string) {
     return this.panel.getCustomerDetail(businessId, id);
   }
 
   /** Salva a observação privada sobre um cliente. */
   @Patch('customers/:id')
+  @UseGuards(BillingGateGuard)
   updateCustomer(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
@@ -196,6 +220,7 @@ export class PanelController {
 
   /** Relatório de faturamento num período (ISO de/até). */
   @Get('report')
+  @UseGuards(BillingGateGuard)
   report(
     @CurrentBusiness() businessId: string,
     @Query('from') from: string,
@@ -211,6 +236,7 @@ export class PanelController {
 
   /** Faturamento por profissional num período (ISO de/até). */
   @Get('report/by-professional')
+  @UseGuards(BillingGateGuard)
   byProfessional(
     @CurrentBusiness() businessId: string,
     @Query('from') from: string,

@@ -9,13 +9,14 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BillingGateGuard } from '../billing/billing-gate.guard';
 import { StorageService } from '../storage/storage.service';
 
 // Upload de imagens (logo/capa). O arquivo chega em memória e é persistido pelo
 // StorageService, que decide o backend por env (disco local em dev, S3-compatível
 // em prod). Trocar de storage não mexe neste controller.
 @Controller('me/uploads')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BillingGateGuard)
 export class UploadsController {
   constructor(private readonly storage: StorageService) {}
 
