@@ -114,6 +114,10 @@ export class StripeWebhookController {
           this.logger.warn(`Subscription ${sub.id} ativa sem planId no metadata — ignorando.`);
           return;
         }
+        // Sem guarda de "é a oficial" de propósito: uma subscription ativa é
+        // sempre o sinal legítimo de que ELA passa a ser a oficial do negócio
+        // (1ª ativação, troca de plano na mesma subscription, ou reassinatura
+        // com uma subscription nova após CANCELED).
         await this.billing.syncActiveFromStripe({
           businessId,
           planId,
@@ -124,11 +128,26 @@ export class StripeWebhookController {
         break;
       }
       case 'past_due':
-        await this.billing.markPastDue(businessId);
+        // Só derruba o negócio se for a subscription que É hoje a oficial —
+        // uma antiga/duplicada (ex.: cancelada manualmente depois de uma
+        // troca de plano) não pode mais mexer no estado do negócio.
+        if (await this.isStillCurrentSubscription(businessId, sub.id)) {
+          await this.billing.markPastDue(businessId);
+        } else {
+          this.logger.warn(
+            `Subscription ${sub.id} ficou past_due mas não é mais a subscription oficial de ${businessId} — ignorando.`,
+          );
+        }
         break;
       case 'canceled':
       case 'unpaid':
-        await this.billing.markCanceled(businessId);
+        if (await this.isStillCurrentSubscription(businessId, sub.id)) {
+          await this.billing.markCanceled(businessId);
+        } else {
+          this.logger.warn(
+            `Subscription ${sub.id} cancelada/unpaid mas não é mais a subscription oficial de ${businessId} — ignorando.`,
+          );
+        }
         break;
       default:
         // incomplete/incomplete_expired/trialing: não usamos trial nativo do
@@ -137,9 +156,24 @@ export class StripeWebhookController {
     }
   }
 
+  /** A subscription do evento ainda é a que o negócio tem gravada como oficial? */
+  private async isStillCurrentSubscription(businessId: string, subscriptionId: string): Promise<boolean> {
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+      select: { stripeSubscriptionId: true },
+    });
+    return business?.stripeSubscriptionId === subscriptionId;
+  }
+
   private async onSubscriptionDeleted(sub: Stripe.Subscription): Promise<void> {
     const businessId = sub.metadata?.businessId;
     if (!businessId) return;
+    if (!(await this.isStillCurrentSubscription(businessId, sub.id))) {
+      this.logger.warn(
+        `Subscription ${sub.id} deletada mas não é mais a subscription oficial de ${businessId} — ignorando.`,
+      );
+      return;
+    }
     await this.billing.markCanceled(businessId);
   }
 

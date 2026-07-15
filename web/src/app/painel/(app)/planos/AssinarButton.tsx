@@ -41,13 +41,25 @@ export function AssinarButton({
         body: JSON.stringify({ planId }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body?.url) {
+      if (!res.ok) {
         setErro(body?.message ?? 'Não foi possível abrir o checkout agora.');
         setEnviando(false);
         return;
       }
-      // Redirect de página inteira pro Stripe — não é navegação interna do Next.
-      window.location.href = body.url;
+      if (body?.url) {
+        // Redirect de página inteira pro Stripe — não é navegação interna do Next.
+        window.location.href = body.url;
+        return;
+      }
+      if (body?.switched) {
+        // Já tinha assinatura ativa: o plano foi trocado na mesma subscription
+        // (sem novo checkout). Reaproveita o banner de "voltou do Stripe" —
+        // quem confirma de fato é o webhook, que pode levar alguns segundos.
+        window.location.href = '/painel/planos?checkout=sucesso';
+        return;
+      }
+      setErro('Não foi possível abrir o checkout agora.');
+      setEnviando(false);
     } catch {
       setErro('Falha de conexão. Tente de novo.');
       setEnviando(false);

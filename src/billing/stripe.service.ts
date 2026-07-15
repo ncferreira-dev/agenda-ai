@@ -8,12 +8,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import { isPlanId, type PlanId } from './plan-catalog';
 
 // Nome da env de Price ID (Stripe) por plano. Os produtos no Stripe ficam com
-// o PREÇO CHEIO (fullCents do catálogo) — desconto de lançamento é cupom
-// digitado no próprio Checkout (allow_promotion_codes), nunca preço separado.
+// o PREÇO CHEIO (fullCents do catálogo) — o desconto de lançamento é o cupom
+// automático de PLAN_COUPON_ENV, nunca um preço separado.
 const PLAN_PRICE_ENV: Record<PlanId, string> = {
   START: 'STRIPE_PRICE_START',
   PRO: 'STRIPE_PRICE_PRO',
   ULTRA: 'STRIPE_PRICE_ULTRA',
+};
+
+// Cupom do desconto de lançamento (3 primeiros meses, ver LAUNCH_PRICING_MONTHS
+// em plan-catalog.ts) aplicado AUTOMÁTICO no Checkout — não depende do cliente
+// digitar nada. Start não tem entrada aqui: preço dele já é o cheio (sem
+// transição), então não precisa de cupom.
+const PLAN_COUPON_ENV: Partial<Record<PlanId, string>> = {
+  PRO: 'STRIPE_COUPON_PRO',
+  ULTRA: 'STRIPE_COUPON_ULTRA',
 };
 
 function requireEnv(name: string): string {
@@ -72,11 +81,88 @@ export class StripeService {
   }
 
   /**
+   * Ponto de entrada do botão "Assinar". Se o negócio JÁ tem uma subscription
+   * Stripe ativa, troca o plano NELA (proration) em vez de abrir um novo
+   * Checkout — evita duas subscriptions cobrando em paralelo no mesmo
+   * customer (bug real: assinar Pro com o Start ainda ativo deixava as duas
+   * ligadas). Só abre Checkout novo pra quem ainda não tem assinatura viva
+   * (1º checkout) ou já está CANCELED (nada pra trocar).
+   */
+  async subscribe(params: {
+    businessId: string;
+    planId: string;
+    ownerEmail: string;
+  }): Promise<{ url: string } | { switched: true }> {
+    if (!isPlanId(params.planId)) {
+      throw new BadRequestException('Plano inválido.');
+    }
+    const business = await this.prisma.business.findUniqueOrThrow({
+      where: { id: params.businessId },
+      select: { stripeSubscriptionId: true, subscriptionStatus: true },
+    });
+
+    if (business.stripeSubscriptionId && business.subscriptionStatus === 'ACTIVE') {
+      await this.switchSubscriptionPlan({
+        businessId: params.businessId,
+        planId: params.planId,
+        stripeSubscriptionId: business.stripeSubscriptionId,
+      });
+      return { switched: true };
+    }
+
+    const url = await this.createCheckoutSessionUrl(params);
+    return { url };
+  }
+
+  /** ID do cupom de lançamento do plano (undefined = plano sem transição, ex. Start). */
+  private launchCouponId(planId: PlanId): string | undefined {
+    const envName = PLAN_COUPON_ENV[planId];
+    return envName ? requireEnv(envName) : undefined;
+  }
+
+  /**
+   * Troca o price da subscription existente (mesmo `subscription_data.metadata`
+   * de businessId+planId que o Checkout gravaria) — o webhook
+   * `customer.subscription.updated` disparado por essa chamada é quem de fato
+   * sincroniza o `plan` no banco (ver `BillingService.syncActiveFromStripe`).
+   * Reaplica (ou remove, se o plano novo não tiver) o cupom de lançamento —
+   * senão um upgrade herdaria o desconto do plano antigo, ou um downgrade pro
+   * Start ficaria com o desconto de um cupom que não é mais dele.
+   */
+  private async switchSubscriptionPlan(params: {
+    businessId: string;
+    planId: PlanId;
+    stripeSubscriptionId: string;
+  }): Promise<void> {
+    const priceId = requireEnv(PLAN_PRICE_ENV[params.planId]);
+    const couponId = this.launchCouponId(params.planId);
+    const sub = await this.stripe().subscriptions.retrieve(params.stripeSubscriptionId);
+    const itemId = sub.items.data[0]?.id;
+    if (!itemId) {
+      throw new InternalServerErrorException('Assinatura sem item pra trocar de plano.');
+    }
+    await this.stripe().subscriptions.update(params.stripeSubscriptionId, {
+      items: [{ id: itemId, price: priceId }],
+      proration_behavior: 'create_prorations',
+      // A API do Stripe só limpa desconto com STRING VAZIA — um array vazio
+      // (`[]`) é tratado como "nenhuma mudança" e mantém o cupom antigo preso
+      // na subscription (confirmado testando: `discounts: []` não some com
+      // nada, só `discounts: ''` remove de fato).
+      discounts: couponId ? [{ coupon: couponId }] : '',
+      metadata: { businessId: params.businessId, planId: params.planId },
+    });
+  }
+
+  /**
    * Cria a Checkout Session de assinatura (mode: subscription) e devolve a URL
    * pra onde o front redireciona o dono. `subscription_data.metadata` carrega
    * businessId+planId pra todo evento futuro do webhook (renovação, falha,
    * cancelamento) saber de qual negócio se trata, sem depender de
-   * client_reference_id (que some após o 1º checkout).
+   * client_reference_id (que some após o 1º checkout). O desconto de
+   * lançamento (3 primeiros meses) entra automático via `discounts` quando o
+   * plano tem cupom — Stripe não deixa combinar `discounts` com
+   * `allow_promotion_codes`, então só liberamos código promocional manual
+   * pros planos sem cupom automático (Start).
    */
   async createCheckoutSessionUrl(params: {
     businessId: string;
@@ -87,6 +173,7 @@ export class StripeService {
       throw new BadRequestException('Plano inválido.');
     }
     const priceId = requireEnv(PLAN_PRICE_ENV[params.planId]);
+    const couponId = this.launchCouponId(params.planId);
     const customerId = await this.ensureCustomerId(
       params.businessId,
       params.ownerEmail,
@@ -97,7 +184,9 @@ export class StripeService {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      allow_promotion_codes: true,
+      ...(couponId
+        ? { discounts: [{ coupon: couponId }] }
+        : { allow_promotion_codes: true }),
       client_reference_id: params.businessId,
       subscription_data: {
         metadata: { businessId: params.businessId, planId: params.planId },

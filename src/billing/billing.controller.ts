@@ -45,10 +45,11 @@ export class BillingController {
   }
 
   /**
-   * Abre o checkout do Stripe pro plano escolhido. Devolve a URL da Checkout
-   * Session — o front só redireciona (window.location.href). Quem ativa a
-   * assinatura de verdade é o webhook (POST /webhook/stripe), não este
-   * endpoint: aqui só se abre a cobrança.
+   * Assina/troca o plano escolhido. Sem assinatura viva ainda: devolve a URL
+   * da Checkout Session do Stripe (front redireciona via window.location.href).
+   * Já com assinatura ativa: troca o plano na mesma subscription (sem novo
+   * checkout) e devolve `{ switched: true }` — o webhook (POST /webhook/stripe)
+   * é quem sincroniza o `plan` no banco nos dois casos.
    */
   @Post('billing/checkout-session')
   async createCheckoutSession(
@@ -56,12 +57,11 @@ export class BillingController {
     @CurrentOwner() owner: AuthenticatedOwner,
     @Body('planId') planId: string,
   ) {
-    const url = await this.stripe.createCheckoutSessionUrl({
+    return this.stripe.subscribe({
       businessId,
       planId,
       ownerEmail: owner.email,
     });
-    return { url };
   }
 
   /** Números da tela de indicações. */

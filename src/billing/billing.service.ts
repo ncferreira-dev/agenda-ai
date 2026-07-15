@@ -230,6 +230,8 @@ export class BillingService {
     stripeCustomerId: string;
     stripeSubscriptionId: string;
   }): Promise<void> {
+    if (!isPlanId(params.planId)) return; // metadata malformado — nada a fazer
+
     const business = await this.prisma.business.findUniqueOrThrow({
       where: { id: params.businessId },
       select: { subscribedAt: true },
@@ -244,9 +246,13 @@ export class BillingService {
       return;
     }
 
+    // Renovação (mesmo plano) OU troca de plano (StripeService.switchSubscriptionPlan
+    // reaproveita a mesma subscription) — grava `plan` sempre, senão um upgrade
+    // fica cobrando o preço novo no Stripe mas mostrando o plano antigo aqui.
     await this.prisma.business.update({
       where: { id: params.businessId },
       data: {
+        plan: params.planId,
         subscriptionStatus: 'ACTIVE',
         currentPeriodEndsAt: params.currentPeriodEndsAt,
         stripeCustomerId: params.stripeCustomerId,
