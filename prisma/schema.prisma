@@ -91,12 +91,18 @@ model Business {
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   trialEndsAt        DateTime?          // fim do teste grátis; base p/ "faltam N dias"
 
-  // Datas da assinatura ATIVA. Preenchidas quando vira ACTIVE — hoje pelo hook
-  // BillingService.confirmSubscription (endpoint dev), amanhã pelo webhook do
-  // Mercado Pago. Enquanto não assina, ficam null.
+  // Datas da assinatura ATIVA. Preenchidas quando vira ACTIVE — pelo hook
+  // BillingService.confirmSubscription, chamado pelo endpoint dev
+  // (ENABLE_DEV_BILLING) ou pelo webhook do Stripe. Enquanto não assina, ficam null.
   subscribedAt        DateTime? // instante em que a assinatura passou a ACTIVE
   launchPricingEndsAt DateTime? // fim do preço de lançamento (subscribedAt + 3 meses); null = plano sem transição de preço (Start)
-  currentPeriodEndsAt DateTime? // data de renovação mostrada em "Meu plano"
+  currentPeriodEndsAt DateTime? // data de renovação mostrada em "Meu plano" (vem do Stripe quando há assinatura)
+
+  // Identidade no Stripe. null até o 1º checkout. stripeCustomerId é criado no
+  // 1º checkout (reaproveitado em reassinaturas); stripeSubscriptionId é
+  // sobrescrito a cada nova assinatura (ex.: reassinar depois de CANCELED).
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
 
   // Programa de indicação ("indique e ganhe", desconto pros dois lados).
   referralCode        String? @unique // código único do dono p/ indicar (gerado no cadastro)
@@ -540,6 +546,16 @@ model Conversation {
 model ProcessedWebhook {
   providerMessageId String   @id
   createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Mesmo dedupe acima, só que pro webhook do Stripe (event.id, ex. "evt_...").
+// Tabela separada da ProcessedWebhook pra não misturar os dois domínios
+// (WhatsApp x Stripe) numa mesma chave de unicidade.
+model ProcessedStripeEvent {
+  eventId   String   @id
+  createdAt DateTime @default(now())
 
   @@index([createdAt])
 }

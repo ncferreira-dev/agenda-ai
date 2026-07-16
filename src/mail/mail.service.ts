@@ -136,6 +136,30 @@ export class MailService {
     }
   }
 
+  /** Avisa o dono (best-effort) que a cobrança da assinatura falhou. No-op sem SMTP. */
+  async sendPaymentFailed(
+    to: string,
+    data: { businessName: string; planosUrl: string },
+  ): Promise<void> {
+    if (!this.transporter || !to) return;
+    const linhas = [
+      `O pagamento da assinatura da ${data.businessName} no agend.ai falhou.`,
+      ``,
+      `Atualize o cartão pra não perder o acesso ao painel:`,
+      data.planosUrl,
+    ];
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to,
+        subject: 'Pagamento da assinatura falhou — agend.ai',
+        text: linhas.join('\n'),
+      });
+    } catch (err) {
+      this.logger.warn(`Falha ao avisar pagamento falhado por e-mail: ${(err as Error).message}`);
+    }
+  }
+
   /** Manda ao dono (best-effort) o resumo da agenda do dia. No-op sem SMTP. */
   async sendOwnerDailySummary(
     to: string,

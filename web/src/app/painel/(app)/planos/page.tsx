@@ -56,9 +56,31 @@ function statusBanner(business: {
   return { tone: 'ok' as const, title: 'Teste grátis', hint: 'Escolha um plano quando quiser.' };
 }
 
-export default async function PlanosPage() {
+export default async function PlanosPage({
+  searchParams,
+}: {
+  searchParams: { checkout?: string };
+}) {
   const me = await getMe();
   if (!me) return null;
+
+  // Volta do redirect do Stripe (success_url/cancel_url). Quem ativa de
+  // verdade é o webhook — isso é só feedback imediato pro dono, que pode
+  // chegar aqui antes do webhook processar.
+  const checkoutFeedback =
+    searchParams.checkout === 'sucesso'
+      ? {
+          tone: 'ok' as const,
+          title: 'Pagamento recebido!',
+          hint: 'Pode levar alguns segundos pra confirmar. Atualize a página em instantes.',
+        }
+      : searchParams.checkout === 'cancelado'
+        ? {
+            tone: 'warn' as const,
+            title: 'Checkout cancelado',
+            hint: 'Nenhuma cobrança foi feita. Pode tentar de novo quando quiser.',
+          }
+        : null;
 
   const banner = statusBanner(me.business);
   const isActive = me.business.subscriptionStatus === 'ACTIVE';
@@ -87,6 +109,18 @@ export default async function PlanosPage() {
           </p>
         </div>
       </div>
+
+      {/* Feedback da volta do Stripe (success_url/cancel_url) */}
+      {checkoutFeedback && (
+        <div
+          className={`${styles.banner} ${checkoutFeedback.tone === 'warn' ? styles.bannerWarn : styles.bannerOk}`}
+        >
+          <div>
+            <p className={styles.bannerTitle}>{checkoutFeedback.title}</p>
+            <p className={styles.bannerHint}>{checkoutFeedback.hint}</p>
+          </div>
+        </div>
+      )}
 
       {/* Status atual da assinatura */}
       <div className={`${styles.banner} ${banner.tone === 'warn' ? styles.bannerWarn : styles.bannerOk}`}>

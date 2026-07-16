@@ -130,15 +130,26 @@ export class BillingService {
   }
 
   /**
-   * PONTO DE LIGAÇÃO ÚNICO DO CHECKOUT. Marca a assinatura como ativa, grava as
-   * datas (incl. a data em que o preço de lançamento vira cheio) e realiza os
-   * benefícios de indicação (desconto do indicado + crédito do indicador).
+   * PONTO DE LIGAÇÃO ÚNICO DA 1ª ATIVAÇÃO. Marca a assinatura como ativa, grava
+   * as datas (incl. a data em que o preço de lançamento vira cheio) e realiza
+   * os benefícios de indicação (desconto do indicado + crédito do indicador).
    *
-   * Hoje é chamado pelo endpoint dev (POST /me/plan/confirm) pra dar pra ver as
-   * telas funcionando. Quando o Stripe entrar, o WEBHOOK de pagamento
-   * aprovado chama exatamente este método — nada mais muda.
+   * Chamado pelo endpoint dev (POST /me/plan/confirm, sem `stripe`) e pelo
+   * webhook do Stripe na 1ª ativação de verdade (`stripe` preenchido — nesse
+   * caso `currentPeriodEndsAt` vem do Stripe em vez de calculado por nós, e os
+   * IDs do Stripe são gravados junto). Chamadas de RENOVAÇÃO não passam por
+   * aqui — usam `syncActiveFromStripe`, que decide qual dos dois caminhos
+   * tomar (ver abaixo).
    */
-  async confirmSubscription(businessId: string, planId: string) {
+  async confirmSubscription(
+    businessId: string,
+    planId: string,
+    stripe?: {
+      currentPeriodEndsAt: Date;
+      stripeCustomerId: string;
+      stripeSubscriptionId: string;
+    },
+  ) {
     if (!isPlanId(planId)) throw new BadRequestException('Plano inválido.');
     const plan = getPlan(planId);
 
@@ -169,8 +180,12 @@ export class BillingService {
           subscriptionStatus: 'ACTIVE',
           subscribedAt: now,
           launchPricingEndsAt: launchPricingEndsAt(now, b.timezone, plan),
-          currentPeriodEndsAt: nextRenewalAt(now, b.timezone),
+          currentPeriodEndsAt: stripe?.currentPeriodEndsAt ?? nextRenewalAt(now, b.timezone),
           referralCreditCents: { decrement: q.creditAppliedCents },
+          ...(stripe && {
+            stripeCustomerId: stripe.stripeCustomerId,
+            stripeSubscriptionId: stripe.stripeSubscriptionId,
+          }),
         },
       });
 
@@ -197,6 +212,68 @@ export class BillingService {
         firstChargeCents: q.firstChargeCents,
         subscribedAt: now.toISOString(),
       };
+    });
+  }
+
+  /**
+   * Chamado pelo webhook do Stripe sempre que a subscription está `active`
+   * (1ª ativação, renovação mensal, ou recuperação depois de PAST_DUE).
+   * Decide qual caminho tomar: se `subscribedAt` ainda é null, é a 1ª vez de
+   * verdade (roda `confirmSubscription` — referral, launchPricingEndsAt, etc.);
+   * senão é só uma atualização de estado/período (NÃO reseta subscribedAt nem
+   * reconverte indicação — faria isso de novo a cada renovação mensal).
+   */
+  async syncActiveFromStripe(params: {
+    businessId: string;
+    planId: string;
+    currentPeriodEndsAt: Date;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
+  }): Promise<void> {
+    if (!isPlanId(params.planId)) return; // metadata malformado — nada a fazer
+
+    const business = await this.prisma.business.findUniqueOrThrow({
+      where: { id: params.businessId },
+      select: { subscribedAt: true },
+    });
+
+    if (!business.subscribedAt) {
+      await this.confirmSubscription(params.businessId, params.planId, {
+        currentPeriodEndsAt: params.currentPeriodEndsAt,
+        stripeCustomerId: params.stripeCustomerId,
+        stripeSubscriptionId: params.stripeSubscriptionId,
+      });
+      return;
+    }
+
+    // Renovação (mesmo plano) OU troca de plano (StripeService.switchSubscriptionPlan
+    // reaproveita a mesma subscription) — grava `plan` sempre, senão um upgrade
+    // fica cobrando o preço novo no Stripe mas mostrando o plano antigo aqui.
+    await this.prisma.business.update({
+      where: { id: params.businessId },
+      data: {
+        plan: params.planId,
+        subscriptionStatus: 'ACTIVE',
+        currentPeriodEndsAt: params.currentPeriodEndsAt,
+        stripeCustomerId: params.stripeCustomerId,
+        stripeSubscriptionId: params.stripeSubscriptionId,
+      },
+    });
+  }
+
+  /** Cobrança de renovação falhou (Stripe já entrou em retry automático). */
+  async markPastDue(businessId: string): Promise<void> {
+    await this.prisma.business.update({
+      where: { id: businessId },
+      data: { subscriptionStatus: 'PAST_DUE' },
+    });
+  }
+
+  /** Assinatura cancelada (esgotou retry, ou o dono cancelou). */
+  async markCanceled(businessId: string): Promise<void> {
+    await this.prisma.business.update({
+      where: { id: businessId },
+      data: { subscriptionStatus: 'CANCELED' },
     });
   }
 }

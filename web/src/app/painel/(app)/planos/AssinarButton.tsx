@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { PlanId } from './plans';
 import type { Quote } from '@/lib/panel-api';
 import styles from './planos.module.css';
@@ -11,9 +10,10 @@ function brl(cents: number): string {
 }
 
 // Botão "Assinar" -> abre a confirmação com a PROMESSA DE PREÇO por escrito
-// (requisito do preço de lançamento) antes de confirmar. O clique final é o
-// gancho do checkout: enquanto o Stripe não existe, o backend responde
-// "checkout não ligado" (salvo ENABLE_DEV_BILLING=1, pra testar as telas).
+// (requisito do preço de lançamento) antes de confirmar. O clique final abre
+// o Checkout do Stripe (redirect de página inteira — não é SPA daqui pra
+// frente). Quem ativa a assinatura de verdade é o webhook (/webhook/stripe),
+// não este botão: aqui só se abre a cobrança.
 export function AssinarButton({
   planId,
   planName,
@@ -27,32 +27,41 @@ export function AssinarButton({
   isCurrent?: boolean;
   quote: Quote | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
-  const [ok, setOk] = useState(false);
 
-  async function confirmar() {
+  async function assinar() {
     setErro('');
     setEnviando(true);
     try {
-      const res = await fetch('/painel/api/plan/confirm', {
+      const res = await fetch('/painel/api/billing/checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planId }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setErro(body?.message ?? 'Não foi possível assinar agora.');
+        setErro(body?.message ?? 'Não foi possível abrir o checkout agora.');
+        setEnviando(false);
         return;
       }
-      setOk(true);
-      router.refresh();
-      setTimeout(() => router.push('/painel/meu-plano'), 900);
+      if (body?.url) {
+        // Redirect de página inteira pro Stripe — não é navegação interna do Next.
+        window.location.href = body.url;
+        return;
+      }
+      if (body?.switched) {
+        // Já tinha assinatura ativa: o plano foi trocado na mesma subscription
+        // (sem novo checkout). Reaproveita o banner de "voltou do Stripe" —
+        // quem confirma de fato é o webhook, que pode levar alguns segundos.
+        window.location.href = '/painel/planos?checkout=sucesso';
+        return;
+      }
+      setErro('Não foi possível abrir o checkout agora.');
+      setEnviando(false);
     } catch {
       setErro('Falha de conexão. Tente de novo.');
-    } finally {
       setEnviando(false);
     }
   }
@@ -99,24 +108,23 @@ export function AssinarButton({
             {quote.firstMonthNote && <p className={styles.modalNote}>{quote.firstMonthNote}</p>}
 
             {erro && <p className={styles.modalErr}>{erro}</p>}
-            {ok && <p className={styles.modalOk}>Assinatura ativada ✓ Redirecionando…</p>}
 
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.modalCancel}
                 onClick={() => setOpen(false)}
-                disabled={enviando || ok}
+                disabled={enviando}
               >
                 Voltar
               </button>
               <button
                 type="button"
                 className={styles.modalConfirm}
-                onClick={confirmar}
-                disabled={enviando || ok}
+                onClick={assinar}
+                disabled={enviando}
               >
-                {enviando ? 'Confirmando…' : 'Confirmar assinatura'}
+                {enviando ? 'Abrindo pagamento…' : 'Ir para o pagamento'}
               </button>
             </div>
           </div>
