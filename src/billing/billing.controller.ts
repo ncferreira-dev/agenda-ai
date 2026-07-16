@@ -14,18 +14,16 @@ import {
 } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
 import { BillingService } from './billing.service';
-import { ReferralService } from './referral.service';
 import { StripeService } from './stripe.service';
 
-// Assinatura + indicação do painel. Tudo protegido por JWT e escopado pelo
-// businessId do token (multi-tenant). NENHUMA cobrança acontece aqui — as
-// leituras alimentam as telas e o confirm é o gancho do checkout (ver abaixo).
+// Assinatura do painel. Tudo protegido por JWT e escopado pelo businessId do
+// token (multi-tenant). NENHUMA cobrança acontece aqui — as leituras
+// alimentam as telas e o confirm é o gancho do checkout (ver abaixo).
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class BillingController {
   constructor(
     private billing: BillingService,
-    private referral: ReferralService,
     private stripe: StripeService,
   ) {}
 
@@ -62,12 +60,6 @@ export class BillingController {
       planId,
       ownerEmail: owner.email,
     });
-  }
-
-  /** Números da tela de indicações. */
-  @Get('referrals')
-  getReferrals(@CurrentBusiness() businessId: string) {
-    return this.referral.getStats(businessId);
   }
 
   /**

@@ -55,12 +55,10 @@ const tests: Array<[string, () => void]> = [
     },
   ],
   [
-    'quote Pro sem indicação: disclosure promo->cheio, sem nota de 1º mês',
+    'quote Pro: disclosure promo->cheio, sem nota de 1º mês',
     () => {
-      const q = quote({ plan: PRO, referred: false, referralCreditCents: 0 });
+      const q = quote({ plan: PRO });
       assert.strictEqual(q.firstChargeCents, 5990);
-      assert.strictEqual(q.referredDiscountCents, 0);
-      assert.strictEqual(q.creditAppliedCents, 0);
       assert.strictEqual(q.firstMonthNote, null);
       assert.strictEqual(
         q.disclosureText,
@@ -70,39 +68,12 @@ const tests: Array<[string, () => void]> = [
     },
   ],
   [
-    'quote Start sem indicação: disclosure sem "depois" (promo permanente)',
+    'quote Start: disclosure sem "depois" (promo permanente)',
     () => {
-      const q = quote({ plan: START, referred: false, referralCreditCents: 0 });
+      const q = quote({ plan: START });
       assert.strictEqual(q.disclosureText, 'R$ 49,90/mês.');
       assert.strictEqual(q.hasTransition, false);
-    },
-  ],
-  [
-    'quote Pro com indicação: 10% no 1º mês (5990 -> 5391)',
-    () => {
-      const q = quote({ plan: PRO, referred: true, referralCreditCents: 0 });
-      assert.strictEqual(q.referredDiscountCents, 599);
-      assert.strictEqual(q.firstChargeCents, 5391);
-      assert.ok(q.firstMonthNote?.includes('10% de indicação'));
-      assert.strictEqual(q.lineItems.length, 2);
-    },
-  ],
-  [
-    'quote Pro com indicação + crédito: desconto e crédito abatem no 1º mês',
-    () => {
-      const q = quote({ plan: PRO, referred: true, referralCreditCents: 2000 });
-      // 5990 - 599 (10%) - 2000 (crédito) = 3391
-      assert.strictEqual(q.creditAppliedCents, 2000);
-      assert.strictEqual(q.firstChargeCents, 3391);
-      assert.strictEqual(q.lineItems.length, 3);
-    },
-  ],
-  [
-    'crédito nunca deixa a 1ª cobrança negativa (satura no valor após desconto)',
-    () => {
-      const q = quote({ plan: START, referred: false, referralCreditCents: 999999 });
-      assert.strictEqual(q.firstChargeCents, 0);
-      assert.strictEqual(q.creditAppliedCents, 4990);
+      assert.strictEqual(q.firstChargeCents, 4990);
     },
   ],
 ];

@@ -14,13 +14,6 @@ import {
   type Quote,
 } from './pricing';
 
-// Recompensa do INDICADOR por indicação convertida: crédito equivalente ao 1º
-// mês pago pelo indicado (o promo do plano que ele assinou). Empilha em
-// Business.referralCreditCents e é abatido na próxima cobrança do indicador.
-function referrerRewardCents(plan: ReturnType<typeof getPlan>): number {
-  return plan.promoCents;
-}
-
 export interface MyPlanView {
   status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
   planId: PlanId | null;
@@ -34,21 +27,11 @@ export interface MyPlanView {
   // Quando/para quanto o preço muda (null = sem mudança agendada).
   priceChange: { at: string; toCents: number } | null;
   trialEndsAt: string | null;
-  referralCreditCents: number;
 }
 
 @Injectable()
 export class BillingService {
   constructor(private prisma: PrismaService) {}
-
-  /** Este negócio veio de uma indicação que ainda não foi convertida? */
-  private async isReferredPending(businessId: string): Promise<boolean> {
-    const ref = await this.prisma.referral.findUnique({
-      where: { referredBusinessId: businessId },
-      select: { status: true },
-    });
-    return ref?.status === 'PENDING';
-  }
 
   /** Dados da aba "Meu plano". Só leitura. */
   async getMyPlan(businessId: string): Promise<MyPlanView> {
@@ -61,14 +44,12 @@ export class BillingService {
         currentPeriodEndsAt: true,
         launchPricingEndsAt: true,
         trialEndsAt: true,
-        referralCreditCents: true,
       },
     });
 
     const base = {
       status: b.subscriptionStatus,
       trialEndsAt: b.trialEndsAt?.toISOString() ?? null,
-      referralCreditCents: b.referralCreditCents,
     };
 
     // Ainda não assinou (ou sem plano definido): a tela mostra o estado de trial.
@@ -117,22 +98,12 @@ export class BillingService {
    */
   async getQuote(businessId: string, planId: string): Promise<Quote> {
     if (!isPlanId(planId)) throw new BadRequestException('Plano inválido.');
-    const b = await this.prisma.business.findUniqueOrThrow({
-      where: { id: businessId },
-      select: { referralCreditCents: true },
-    });
-    const referred = await this.isReferredPending(businessId);
-    return quote({
-      plan: getPlan(planId),
-      referred,
-      referralCreditCents: b.referralCreditCents,
-    });
+    return quote({ plan: getPlan(planId) });
   }
 
   /**
-   * PONTO DE LIGAÇÃO ÚNICO DA 1ª ATIVAÇÃO. Marca a assinatura como ativa, grava
-   * as datas (incl. a data em que o preço de lançamento vira cheio) e realiza
-   * os benefícios de indicação (desconto do indicado + crédito do indicador).
+   * PONTO DE LIGAÇÃO ÚNICO DA 1ª ATIVAÇÃO. Marca a assinatura como ativa e
+   * grava as datas (incl. a data em que o preço de lançamento vira cheio).
    *
    * Chamado pelo endpoint dev (POST /me/plan/confirm, sem `stripe`) e pelo
    * webhook do Stripe na 1ª ativação de verdade (`stripe` preenchido — nesse
@@ -156,23 +127,13 @@ export class BillingService {
     return this.prisma.$transaction(async (tx) => {
       const b = await tx.business.findUniqueOrThrow({
         where: { id: businessId },
-        select: { timezone: true, referralCreditCents: true },
+        select: { timezone: true },
       });
-
-      const referral = await tx.referral.findUnique({
-        where: { referredBusinessId: businessId },
-        select: { id: true, status: true, referrerBusinessId: true },
-      });
-      const referred = referral?.status === 'PENDING';
 
       const now = new Date();
-      const q = quote({
-        plan,
-        referred,
-        referralCreditCents: b.referralCreditCents,
-      });
+      const q = quote({ plan });
 
-      // Ativa a assinatura e consome o crédito aplicado no 1º mês.
+      // Ativa a assinatura.
       await tx.business.update({
         where: { id: businessId },
         data: {
@@ -181,30 +142,12 @@ export class BillingService {
           subscribedAt: now,
           launchPricingEndsAt: launchPricingEndsAt(now, b.timezone, plan),
           currentPeriodEndsAt: stripe?.currentPeriodEndsAt ?? nextRenewalAt(now, b.timezone),
-          referralCreditCents: { decrement: q.creditAppliedCents },
           ...(stripe && {
             stripeCustomerId: stripe.stripeCustomerId,
             stripeSubscriptionId: stripe.stripeSubscriptionId,
           }),
         },
       });
-
-      // Realiza a indicação: marca o desconto do indicado e credita o indicador.
-      if (referral && referred) {
-        await tx.referral.update({
-          where: { id: referral.id },
-          data: {
-            status: 'CONVERTED',
-            convertedAt: now,
-            referredDiscountApplied: q.referredDiscountCents > 0,
-            referrerRewarded: true,
-          },
-        });
-        await tx.business.update({
-          where: { id: referral.referrerBusinessId },
-          data: { referralCreditCents: { increment: referrerRewardCents(plan) } },
-        });
-      }
 
       return {
         ok: true,
@@ -219,9 +162,9 @@ export class BillingService {
    * Chamado pelo webhook do Stripe sempre que a subscription está `active`
    * (1ª ativação, renovação mensal, ou recuperação depois de PAST_DUE).
    * Decide qual caminho tomar: se `subscribedAt` ainda é null, é a 1ª vez de
-   * verdade (roda `confirmSubscription` — referral, launchPricingEndsAt, etc.);
-   * senão é só uma atualização de estado/período (NÃO reseta subscribedAt nem
-   * reconverte indicação — faria isso de novo a cada renovação mensal).
+   * verdade (roda `confirmSubscription` — launchPricingEndsAt, etc.); senão é
+   * só uma atualização de estado/período (NÃO reseta subscribedAt — faria isso
+   * de novo a cada renovação mensal).
    */
   async syncActiveFromStripe(params: {
     businessId: string;

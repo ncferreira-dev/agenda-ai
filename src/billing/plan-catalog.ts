@@ -11,9 +11,6 @@ export type PlanId = 'START' | 'PRO' | 'ULTRA';
 // Por quantos meses vale o preço de lançamento antes de virar o preço cheio.
 export const LAUNCH_PRICING_MONTHS = 3;
 
-// Desconto do INDICADO no 1º mês (fração). Aplicado no checkout via BillingService.
-export const REFERRED_FIRST_MONTH_DISCOUNT = 0.1; // 10%
-
 // Um benefício acionável do plano: texto + rota do painel pra onde o botão leva.
 // É o que a aba "Meu plano" mostra (cada item vira um card com um botão).
 export interface PlanBenefit {

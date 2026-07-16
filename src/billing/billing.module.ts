@@ -4,17 +4,16 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { BillingController } from './billing.controller';
 import { StripeWebhookController } from './stripe-webhook.controller';
 import { BillingService } from './billing.service';
-import { ReferralService } from './referral.service';
 import { StripeService } from './stripe.service';
 
-// Assinatura e indicação. Importa AuthModule pelo JwtAuthGuard (mesma peça que o
-// painel usa) e NotificationsModule pro webhook avisar o dono quando a
-// cobrança falha (invoice.payment_failed). StripeWebhookController não usa
+// Assinatura. Importa AuthModule pelo JwtAuthGuard (mesma peça que o painel
+// usa) e NotificationsModule pro webhook avisar o dono quando a cobrança
+// falha (invoice.payment_failed). StripeWebhookController não usa
 // JwtAuthGuard — é autenticado pela assinatura do Stripe, não por JWT.
 @Module({
   imports: [AuthModule, NotificationsModule],
   controllers: [BillingController, StripeWebhookController],
-  providers: [BillingService, ReferralService, StripeService],
+  providers: [BillingService, StripeService],
   exports: [BillingService, StripeService],
 })
 export class BillingModule {}

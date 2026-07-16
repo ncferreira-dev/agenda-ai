@@ -11,11 +11,10 @@ import { PanelService } from './panel.service';
 // BillingGateGuard é aplicado MÉTODO A MÉTODO aqui (não na classe) com UMA
 // exceção de propósito: `me()` (GET /me, quem sou eu + meu negócio) fica de
 // fora do gate porque o layout do painel (web/.../painel/(app)/layout.tsx)
-// chama esse endpoint em TODA página, inclusive nas 3 telas de billing que
-// devem continuar acessíveis (planos/meu-plano/indicacoes) — se `me()`
-// travasse, o layout confundiria "bloqueado" com "sessão inválida" e
-// redirecionaria pro login, quebrando justamente as telas que deveriam
-// continuar abertas.
+// chama esse endpoint em TODA página, inclusive nas telas de billing que
+// devem continuar acessíveis (planos/meu-plano) — se `me()` travasse, o
+// layout confundiria "bloqueado" com "sessão inválida" e redirecionaria pro
+// login, quebrando justamente as telas que deveriam continuar abertas.
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class PanelController {
