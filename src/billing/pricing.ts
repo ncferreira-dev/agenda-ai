@@ -1,9 +1,5 @@
 import { DateTime } from 'luxon';
-import {
-  LAUNCH_PRICING_MONTHS,
-  REFERRED_FIRST_MONTH_DISCOUNT,
-  type PlanDef,
-} from './plan-catalog';
+import { LAUNCH_PRICING_MONTHS, type PlanDef } from './plan-catalog';
 
 // ---------------------------------------------------------------------------
 // Motor de preço da assinatura. PURO (só depende de Luxon p/ datas). É a fonte
@@ -49,17 +45,8 @@ export function nextRenewalAt(subscribedAt: Date, timezone: string): Date {
     .toJSDate();
 }
 
-// Desconto do indicado no 1º mês, em centavos (arredondado).
-export function referredDiscountCents(plan: PlanDef): number {
-  return Math.round(plan.promoCents * REFERRED_FIRST_MONTH_DISCOUNT);
-}
-
 export interface QuoteInput {
   plan: PlanDef;
-  /** Este negócio veio de uma indicação ainda não convertida? (ganha 10% no 1º mês) */
-  referred: boolean;
-  /** Crédito acumulado de indicações feitas por este negócio (abatido no 1º mês). */
-  referralCreditCents: number;
 }
 
 export interface QuoteLine {
@@ -72,13 +59,10 @@ export interface Quote {
   promoCents: number; // preço de lançamento (mensal, 3 primeiros meses)
   fullCents: number; // preço cheio (mensal, após os 3 meses)
   hasTransition: boolean;
-  referredDiscountCents: number; // 10% do 1º mês (0 se não veio de indicação)
-  creditAppliedCents: number; // crédito abatido no 1º mês
-  firstChargeCents: number; // total cobrado no 1º mês (após descontos)
+  firstChargeCents: number; // total cobrado no 1º mês
   lineItems: QuoteLine[]; // quebra pra exibir na confirmação
   /** Promessa de preço por escrito (requisito do lançamento). */
   disclosureText: string;
-  /** Nota do 1º mês quando há desconto de indicação/crédito; null se não houver. */
   firstMonthNote: string | null;
 }
 
@@ -89,42 +73,21 @@ export function quote(input: QuoteInput): Quote {
   const { plan } = input;
   const transition = hasLaunchTransition(plan);
 
-  const discount = input.referred ? referredDiscountCents(plan) : 0;
-  const afterDiscount = plan.promoCents - discount;
-  const credit = Math.max(0, Math.min(input.referralCreditCents, afterDiscount));
-  const firstChargeCents = afterDiscount - credit;
-
   const lineItems: QuoteLine[] = [
     { label: `Plano ${plan.name} (preço de lançamento)`, amountCents: plan.promoCents },
   ];
-  if (discount > 0) {
-    lineItems.push({ label: 'Desconto de indicação (10% no 1º mês)', amountCents: -discount });
-  }
-  if (credit > 0) {
-    lineItems.push({ label: 'Crédito de indicações', amountCents: -credit });
-  }
 
   const disclosureText = transition
     ? `${formatBRL(plan.promoCents)}/mês nos ${LAUNCH_PRICING_MONTHS} primeiros meses, depois ${formatBRL(plan.fullCents)}/mês.`
     : `${formatBRL(plan.promoCents)}/mês.`;
 
-  let firstMonthNote: string | null = null;
-  if (discount > 0 || credit > 0) {
-    const partes: string[] = [];
-    if (discount > 0) partes.push('10% de indicação');
-    if (credit > 0) partes.push(`${formatBRL(credit)} de crédito`);
-    firstMonthNote = `No 1º mês você paga ${formatBRL(firstChargeCents)} (${partes.join(' + ')}).`;
-  }
-
   return {
     promoCents: plan.promoCents,
     fullCents: plan.fullCents,
     hasTransition: transition,
-    referredDiscountCents: discount,
-    creditAppliedCents: credit,
-    firstChargeCents,
+    firstChargeCents: plan.promoCents,
     lineItems,
     disclosureText,
-    firstMonthNote,
+    firstMonthNote: null,
   };
 }

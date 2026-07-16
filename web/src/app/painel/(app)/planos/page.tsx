@@ -85,8 +85,8 @@ export default async function PlanosPage({
   const banner = statusBanner(me.business);
   const isActive = me.business.subscriptionStatus === 'ACTIVE';
 
-  // Orçamento de cada plano (promessa de preço + descontos), calculado no
-  // backend com o estado de indicação/crédito do negócio. Alimenta a confirmação.
+  // Orçamento de cada plano (promessa de preço), calculado no backend.
+  // Alimenta a confirmação.
   const quotes = new Map<PlanId, Quote>();
   await Promise.all(
     PLANS.map(async (p) => {

@@ -12,7 +12,6 @@ import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { RESERVED_SLUGS, SLUG_MAX, SLUG_MIN, slugify } from '../common/slug';
-import { newReferralCode, normalizeReferralCode } from '../common/referral-code';
 
 // Duração do teste grátis do dono (só o status; o bloqueio é da Fase 5).
 const TRIAL_DAYS = 14;
@@ -129,7 +128,6 @@ export class AuthService {
     serviceMode?: string;
     address?: string;
     meetingUrl?: string;
-    referralCode?: string; // código de indicação vindo do link (?ref=)
   }) {
     const name = (input.name ?? '').trim();
     const email = (input.email ?? '').trim().toLowerCase();
@@ -166,20 +164,10 @@ export class AuthService {
     const slug = await this.generateUniqueSlug(businessName);
     const passwordHash = await this.hashPassword(password);
     const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-    const referredByCode = normalizeReferralCode(input.referralCode);
 
     let owner: { id: string; businessId: string; name: string; email: string };
     try {
       owner = await this.prisma.$transaction(async (tx) => {
-        // Resolve a indicação DENTRO da transação. Código inválido/inexistente é
-        // ignorado em silêncio (não trava o cadastro por um link errado).
-        const referrer = referredByCode
-          ? await tx.business.findUnique({
-              where: { referralCode: referredByCode },
-              select: { id: true },
-            })
-          : null;
-
         const business = await tx.business.create({
           data: {
             name: businessName,
@@ -189,22 +177,8 @@ export class AuthService {
             serviceMode,
             address,
             meetingUrl,
-            referralCode: await this.generateUniqueReferralCode(tx),
-            referredByCode: referrer ? referredByCode : null,
           },
         });
-
-        // Grava a atribuição (PENDING). O desconto/recompensa só são realizados
-        // quando este negócio ASSINAR (BillingService.confirmSubscription).
-        if (referrer && referrer.id !== business.id) {
-          await tx.referral.create({
-            data: {
-              referrerBusinessId: referrer.id,
-              referredBusinessId: business.id,
-              code: referredByCode as string,
-            },
-          });
-        }
 
         return tx.owner.create({
           data: { businessId: business.id, name, email, passwordHash },
@@ -382,7 +356,6 @@ export class AuthService {
             slug,
             subscriptionStatus: 'TRIALING',
             trialEndsAt,
-            referralCode: await this.generateUniqueReferralCode(tx),
           },
         });
         return tx.owner.create({
@@ -538,24 +511,5 @@ export class AuthService {
     }
     // Praticamente inalcançável; fallback determinístico curto.
     return `${base}`.slice(0, SLUG_MAX - 7) + '-' + Math.floor(Date.now() % 1e6).toString(36);
-  }
-
-  /**
-   * Gera um código de indicação único (respeitando o @unique de referralCode).
-   * Recebe o client da transação pra checar unicidade no mesmo escopo do insert.
-   */
-  private async generateUniqueReferralCode(
-    tx: Prisma.TransactionClient,
-  ): Promise<string> {
-    for (let n = 0; n < 20; n++) {
-      const candidate = newReferralCode();
-      const clash = await tx.business.findUnique({
-        where: { referralCode: candidate },
-        select: { id: true },
-      });
-      if (!clash) return candidate;
-    }
-    // Praticamente inalcançável (espaço ~729M); acrescenta entropia extra.
-    return newReferralCode() + newReferralCode().slice(0, 2);
   }
 }

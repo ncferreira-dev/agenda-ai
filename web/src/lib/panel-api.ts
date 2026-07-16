@@ -190,7 +190,6 @@ export interface MyPlan {
   currentPriceCents: number | null; // o que paga hoje
   priceChange: { at: string; toCents: number } | null; // quando/para quanto muda
   trialEndsAt: string | null;
-  referralCreditCents: number;
 }
 export const getMyPlan = () => getJson<MyPlan>('/me/plan');
 
@@ -202,8 +201,6 @@ export interface Quote {
   promoCents: number;
   fullCents: number;
   hasTransition: boolean;
-  referredDiscountCents: number;
-  creditAppliedCents: number;
   firstChargeCents: number;
   lineItems: QuoteLine[];
   disclosureText: string; // promessa de preço por escrito
@@ -211,15 +208,6 @@ export interface Quote {
 }
 export const getQuote = (planId: string) =>
   getJson<Quote>(`/me/plan/quote?planId=${encodeURIComponent(planId)}`);
-
-export interface ReferralStats {
-  code: string | null;
-  totalReferrals: number;
-  convertedReferrals: number;
-  pendingReferrals: number;
-  creditCents: number;
-}
-export const getReferralStats = () => getJson<ReferralStats>('/me/referrals');
 
 export type Segment =
   | { kind: 'NOVO' }

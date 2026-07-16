@@ -98,12 +98,6 @@ export default async function MeuPlanoPage() {
             <p className={styles.factValue}>{dataBR(p.subscribedAt)}</p>
           </div>
         )}
-        {p.referralCreditCents > 0 && (
-          <div className={styles.fact}>
-            <p className={styles.factLabel}>Crédito de indicações</p>
-            <p className={styles.factValue}>{brl(p.referralCreditCents)}</p>
-          </div>
-        )}
       </div>
 
       {/* Aviso da mudança de preço (fim do preço de lançamento) */}
