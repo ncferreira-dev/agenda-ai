@@ -14,6 +14,7 @@ App Router (web/). Idioma do produto e dos commits: pt-BR.
 
 ## Como você deve trabalhar comigo (IMPORTANTE)
 
+- **NUNCA entregue pela metade (regra do muro inteiro).** Se uma tarefa tem várias partes, faça TODAS e verifique o todo antes de dizer "pronto". Não siga um padrão cegamente nem pare no pedaço da frente. Se você (ou eu) deixou algo incompleto, SINALIZE e conserte — não passe por cima.
 - SEMPRE me mostre um plano do que vai fazer ANTES de editar arquivos. Espere meu OK.
 - Faça UMA tarefa por vez. Se eu pedir várias coisas, me proponha uma ordem e faça uma de cada vez.
 - Trabalhe numa branch nova para qualquer mudança que não seja trivial. Não commite sem eu revisar.
@@ -101,18 +102,21 @@ lembrete via cron com confirmação SIM/NÃO de volta no WhatsApp, painel do don
 completo (serviços, profissionais, horários, bloqueios pontuais e recorrentes,
 CRM com segmentação), auth do dono (JWT + argon2 + Google OAuth + reset de senha
 por link), guard/decorator de tenant, billing/assinatura Stripe com trial de 14
-dias e programa de indicações, web push e resumo diário pro dono, tema por
+dias (checkout + webhook de assinatura, testados em modo teste), web push e
+resumo diário pro dono, tema por
 negócio (`--accent` a partir do Business).
 
 ## Próximos passos (peça ao Claude Code conforme for precisando)
 
-- **Stripe ao vivo**: hoje a assinatura é confirmada por endpoint de dev
-  (`BillingService.confirmSubscription`). Falta ligar o webhook de produção do
-  Stripe (assinatura criada / paga / cancelada) escrevendo `subscriptionStatus`,
-  datas do período e crédito de indicação de forma idempotente.
+- **Stripe em produção**: checkout + webhook de assinatura já estão prontos e
+  testados em modo TESTE (ativação confirmada de ponta a ponta). Falta trocar
+  pelas chaves live (`sk_live_`), cadastrar o endpoint de webhook no dashboard
+  de produção e usar o signing secret dele. Cenários de cancelamento e past_due
+  ainda a validar.
 - **Agenda visual no painel**: visão de calendário (dia/semana) pro dono, além
   das listas atuais.
 
-> Descartado de propósito (não repropor): **cobrança de sinal no agendamento** —
-> removido junto com `client_deposit`. Pagamento é só a assinatura recorrente do
-> dono via Stripe.
+> Descartado de propósito (não repropor): **cobrança de sinal no agendamento**
+> (removido junto com `client_deposit`) e o **programa de indicações** (removido
+> por completo — código, schema e telas). Pagamento é só a assinatura recorrente
+> do dono via Stripe.

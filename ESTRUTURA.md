@@ -36,12 +36,14 @@ RAIZ (backend NestJS)
       availability.service.ts — liga o motor ao Prisma
 
     billing/ — assinatura do dono (planos/preços)
-      billing.controller.ts — GET /me/plan, /me/plan/quote, /me/referrals,
-        POST /me/plan/confirm (endpoint provisório — checkout ainda não ligado)
+      billing.controller.ts — GET /me/plan, /me/plan/quote,
+        POST /me/plan/confirm (dev), POST /me/billing/checkout-session
       billing.service.ts — grava datas de assinatura, confirmSubscription()
       plan-catalog.ts — catálogo dos planos (Start/Pro/Ultra)
       pricing.ts — cálculo de preço/quote
-      referral.service.ts — lógica do programa de indicação
+      stripe.service.ts — checkout session + verificação do webhook
+      stripe-webhook.controller.ts — /webhook/stripe (dedupe idempotente)
+      billing-gate.guard.ts — bloqueia o painel se a assinatura não estiver em dia
 
     booking/ — criação/cancelamento de agendamento
       booking.service.ts — cria Appointment com recheck transacional
@@ -50,7 +52,7 @@ RAIZ (backend NestJS)
     common/ — utilitários compartilhados
       cpf.ts — blind index do CPF via HMAC-SHA256 (CPF_HASH_SECRET, obrigatório)
       env.ts — helper requiredInProd() (falha o boot se faltar env crítica)
-      referral-code.ts, slug.ts
+      slug.ts
 
     follow-up/ — convite de retorno pro cliente
       follow-up.service.ts, render-message.ts
@@ -129,7 +131,6 @@ web/ (frontend Next.js — App Router)
         perfil/ — ProfileForm.tsx, PasswordForm.tsx
         planos/ — page.tsx, AssinarButton.tsx, plans.ts (catálogo local)
         meu-plano/page.tsx
-        indicacoes/ — ReferralLink.tsx, page.tsx (programa de indicação)
         divulgar/ — DivulgarView.tsx, page.tsx
         relatorio/page.tsx
 
@@ -152,12 +153,10 @@ Business — o comércio (tenant). Campos-chave: name, slug (único, usado na
   (inactiveDays, vipMinSpentCents, recurringMinVisits), flags de notificação
   (notifyWhatsApp/Email/Push/OwnerAllBookings/DailySummary), plan,
   subscriptionStatus (TRIALING/ACTIVE/PAST_DUE/CANCELED), trialEndsAt,
-  subscribedAt, launchPricingEndsAt, currentPeriodEndsAt, referralCode,
-  referredByCode, referralCreditCents.
+  subscribedAt, launchPricingEndsAt, currentPeriodEndsAt,
+  stripeCustomerId, stripeSubscriptionId.
 
-Referral — atribuição de indicação entre dois Business. Campos: referrer/
-  referredBusinessId, code, status (PENDING/CONVERTED/EXPIRED),
-  referredDiscountApplied, referrerRewarded, convertedAt.
+ProcessedStripeEvent — dedupe do webhook do Stripe. Campo: eventId (único).
 
 PushSubscription — inscrição Web Push do dono. endpoint (único), p256dh,
   auth, userAgent, businessId.
@@ -230,9 +229,11 @@ AUTH — /auth
 BILLING — /me
   GET  /me/plan
   GET  /me/plan/quote
-  GET  /me/referrals
-  POST /me/plan/confirm  (provisório — checkout ainda não ligado a nenhum
-       provedor de pagamento real)
+  POST /me/billing/checkout-session  (abre o checkout do Stripe)
+  POST /me/plan/confirm  (atalho de dev — só com ENABLE_DEV_BILLING)
+
+WEBHOOK
+  POST /webhook/stripe  (eventos de assinatura; autenticado pela assinatura do Stripe, sem JWT)
 
 PAINEL — /me
   GET    /me                          (dados do dono logado)
@@ -307,7 +308,6 @@ WHATSAPP — /webhook/whatsapp
 /painel/perfil             — perfil e senha do dono
 /painel/planos             — escolha de plano (Start/Pro/Ultra)
 /painel/meu-plano          — estado da assinatura atual
-/painel/indicacoes         — programa de indicação
 /painel/divulgar           — materiais de divulgação
 /painel/relatorio          — relatório/faturamento
 
