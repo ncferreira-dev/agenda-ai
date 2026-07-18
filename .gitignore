@@ -11,3 +11,6 @@ uploads/
 # Rascunhos avulsos na raiz (não fazem parte do projeto)
 /ROADMAP*.md
 /index.html
+/PLANO-STRIPE-CHECKOUT.md
+/PONTO-DE-PARADA.md
+/QUANDO-CHAMAR-O-CLAUDE.md
