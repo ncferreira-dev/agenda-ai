@@ -10,8 +10,10 @@ export function WhatsAppButton({ phone, message }: { phone: string; message: str
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(message);
 
-  // phone vem em E.164 sem "+" (ex.: 5511999998888) — formato que o wa.me espera.
-  const href = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
+  // phone vem em E.164 sem "+" (ex.: 5511999998888). Usamos api.whatsapp.com/send
+  // e NÃO wa.me: o wa.me quebra emojis no destinatário (viram "?"), confirmado em
+  // produção — o api.whatsapp.com/send preserva.
+  const href = `https://api.whatsapp.com/send?phone=${phone.replace(/\D/g, '')}&text=${encodeURIComponent(text)}`;
 
   if (!open) {
     return (

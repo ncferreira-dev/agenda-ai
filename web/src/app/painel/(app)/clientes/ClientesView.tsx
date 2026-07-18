@@ -7,6 +7,7 @@ import type { CustomerRow } from '@/lib/panel-api';
 import { saveCustomerNote, type ActionState } from '../../actions';
 import { maskFormat } from '../../MaskedInput';
 import { SegmentTag } from './SegmentTag';
+import { WhatsAppCallButton } from './WhatsAppCallButton';
 import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
@@ -30,7 +31,7 @@ function SaveNote() {
   );
 }
 
-function CustomerRowItem({ c }: { c: CustomerRow }) {
+function CustomerRowItem({ c, businessName }: { c: CustomerRow; businessName: string }) {
   const [editing, setEditing] = useState(false);
   const [state, action] = useFormState(saveCustomerNote, INIT);
   useEffect(() => {
@@ -53,6 +54,7 @@ function CustomerRowItem({ c }: { c: CustomerRow }) {
         <div className={styles.rowActions} style={{ gap: 16 }}>
           <span className={styles.rowMeta}>{brl(c.totalSpentCents)} · {c.visits} visitas</span>
           <span className={styles.rowMeta}>último: {lastLabel(c.lastAt)}</span>
+          <WhatsAppCallButton name={c.name} phone={c.phone} businessName={businessName} />
           <Link href={`/painel/clientes/${c.id}`} className={styles.smallBtn}>Ver ficha</Link>
           <button className={styles.smallBtn} type="button" onClick={() => setEditing((v) => !v)}>
             {c.ownerNote ? 'Editar nota' : 'Nota'}
@@ -88,7 +90,7 @@ function CustomerRowItem({ c }: { c: CustomerRow }) {
   );
 }
 
-export function ClientesView({ customers }: { customers: CustomerRow[] }) {
+export function ClientesView({ customers, businessName }: { customers: CustomerRow[]; businessName: string }) {
   const [q, setQ] = useState('');
 
   const filtered = useMemo(() => {
@@ -119,7 +121,7 @@ export function ClientesView({ customers }: { customers: CustomerRow[] }) {
             {customers.length === 0 ? 'Nenhum cliente ainda. Eles aparecem ao agendar.' : 'Nada encontrado.'}
           </p>
         ) : (
-          filtered.map((c) => <CustomerRowItem key={c.id} c={c} />)
+          filtered.map((c) => <CustomerRowItem key={c.id} c={c} businessName={businessName} />)
         )}
       </div>
     </>

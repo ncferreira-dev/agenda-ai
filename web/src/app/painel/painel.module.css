@@ -1597,3 +1597,18 @@ textarea.input {
 .followUp[open] .followUpSummary {
   margin-bottom: 6px;
 }
+
+/* Botão "Chamar" (win-back WhatsApp) na lista de clientes. */
+.waCallBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(37, 211, 102, 0.12);
+  color: #1a9e4b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.waCallBtn:hover { background: rgba(37, 211, 102, 0.2); }

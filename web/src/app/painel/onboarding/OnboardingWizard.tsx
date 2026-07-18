@@ -74,7 +74,7 @@ export function OnboardingWizard({
             agend<span className={styles.logoDot}>.</span>ai
           </span>
           <form action={skipOnboarding}>
-            <button className={styles.skip} type="submit">pular por agora</button>
+            <button className={styles.skip} type="submit">Pular por agora</button>
           </form>
         </header>
 

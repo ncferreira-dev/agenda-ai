@@ -13,18 +13,45 @@ function durationMin(a: Appointment): number {
   return Math.round((new Date(a.endAt).getTime() - new Date(a.startAt).getTime()) / 60000);
 }
 
-// Botão manual (custo zero): só quando o profissional NÃO tem canal automático
-// (sem e-mail) mas tem WhatsApp. Abre o wa.me com a mensagem pronta pro dono
-// repassar o agendamento na mão. Só faz sentido em agendamento ativo.
-function waNudgeHref(a: Appointment, whenLabel: string): string | null {
+// Capitaliza nome só pra EXIBIÇÃO ("bene" -> "Bene"). Não altera o que está
+// salvo no banco — é cosmético, pra nome cadastrado em minúsculo não vazar na tela.
+function nomeExibicao(s: string | null | undefined, fallback = 'cliente'): string {
+  const t = (s ?? '').trim();
+  if (!t) return fallback;
+  return t
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+// Monta o link do WhatsApp. SEMPRE api.whatsapp.com/send, NUNCA wa.me: o wa.me
+// quebra emojis no destinatário (viram "?"), confirmado em produção.
+function waHrefFor(phone: string, msg: string): string | null {
+  let d = phone.replace(/\D/g, '').replace(/^0+/, '');
+  if (!d) return null;
+  if (!(d.startsWith('55') && d.length >= 12)) d = `55${d}`;
+  return `https://api.whatsapp.com/send?phone=${d}&text=${encodeURIComponent(msg)}`;
+}
+
+// Botão manual (custo zero) 1: avisar o PROFISSIONAL que entrou um agendamento.
+function waProfissionalHref(a: Appointment, whenLabel: string): string | null {
   const ativo = a.status === 'CONFIRMED' || a.status === 'PENDING';
-  if (!ativo || a.professionalHasEmail || !a.professionalPhone) return null;
-  const cliente = `${a.customer.name ?? 'cliente'} (${a.customer.phone})`;
+  if (!ativo || !a.professionalPhone) return null;
   const msg =
-    `Oi ${a.professional}! Você tem um agendamento novo:\n` +
-    `${a.service} — ${whenLabel}\n` +
-    `Cliente: ${cliente}`;
-  return `https://wa.me/${a.professionalPhone}?text=${encodeURIComponent(msg)}`;
+    `Oi, ${nomeExibicao(a.professional, 'profissional')}! Você tem um agendamento novo:\n` +
+    `${a.service}, ${whenLabel}\n` +
+    `Cliente: ${nomeExibicao(a.customer.name)} (${a.customer.phone})`;
+  return waHrefFor(a.professionalPhone, msg);
+}
+
+// Botão manual (custo zero) 2: falar direto com o CLIENTE sobre o horário dele.
+function waClienteHref(a: Appointment, whenLabel: string): string | null {
+  const ativo = a.status === 'CONFIRMED' || a.status === 'PENDING';
+  if (!ativo || !a.customer.phone) return null;
+  const msg =
+    `Oi, ${nomeExibicao(a.customer.name)}! Passando pra confirmar seu horário de ` +
+    `${a.service}, ${whenLabel}. Qualquer coisa é só chamar por aqui. Até lá!`;
+  return waHrefFor(a.customer.phone, msg);
 }
 
 // Presença e pagamento são DOIS estados independentes — não se misturam.
@@ -220,7 +247,9 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                   <div className={styles.panel}>
                     {listaDia.map((a) => {
                       const t = DateTime.fromISO(a.startAt).setZone(tz);
-                      const waHref = waNudgeHref(a, t.setLocale('pt-BR').toFormat("dd/LL 'às' HH:mm"));
+                      const quando = t.setLocale('pt-BR').toFormat("dd/LL 'às' HH:mm");
+                      const waProf = waProfissionalHref(a, quando);
+                      const waCli = waClienteHref(a, quando);
                       return (
                         <div key={a.id} className={styles.appt}>
                           <div className={styles.apptTime}>
@@ -230,21 +259,32 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                           <div className={styles.rowMain}>
                             <div className={styles.rowName}>{a.service}</div>
                             <div className={styles.rowMeta}>
-                              com {a.professional} · {a.customer.name ?? 'cliente'} · {a.customer.phone}
+                              com {nomeExibicao(a.professional, 'profissional')} · {nomeExibicao(a.customer.name)} · {a.customer.phone}
                             </div>
                             <ItemsEditor appointment={a} />
                           </div>
                           <div className={styles.rowActions}>
                             {a.confirmedByCustomer && <span className={`${styles.chip} ${styles.chipOk}`}>✓ confirmou</span>}
-                            {waHref && (
+                            {waProf && (
                               <a
                                 className={styles.smallBtn}
-                                href={waHref}
+                                href={waProf}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Este profissional não tem e-mail de aviso. Repasse o agendamento no WhatsApp dele."
+                                title="Avisar o profissional deste agendamento no WhatsApp"
                               >
-                                Avisar no WhatsApp
+                                Avisar {nomeExibicao(a.professional, 'profissional')} (profissional)
+                              </a>
+                            )}
+                            {waCli && (
+                              <a
+                                className={styles.smallBtn}
+                                href={waCli}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Falar com o cliente sobre este horário no WhatsApp"
+                              >
+                                Avisar {nomeExibicao(a.customer.name)} (cliente)
                               </a>
                             )}
                             <ApptActions a={a} />

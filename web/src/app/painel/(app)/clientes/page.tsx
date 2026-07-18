@@ -20,7 +20,7 @@ export default async function ClientesPage() {
       </div>
 
       <SegmentationConfig business={me.business} />
-      <ClientesView customers={customers} />
+      <ClientesView customers={customers} businessName={me.business.name} />
     </div>
   );
 }
