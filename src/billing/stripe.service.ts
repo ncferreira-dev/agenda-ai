@@ -52,7 +52,11 @@ export class StripeService {
 
   private stripe(): Stripe {
     if (!this.client) {
-      this.client = new Stripe(requireEnv('STRIPE_SECRET_KEY'));
+      this.client = new Stripe(requireEnv('STRIPE_SECRET_KEY'), {
+        // Fixa a versão da API na que o SDK foi gerado — evita quebra
+        // silenciosa se a conta mudar o padrão no futuro.
+        apiVersion: '2026-06-24.dahlia',
+      });
     }
     return this.client;
   }
@@ -200,6 +204,29 @@ export class StripeService {
         'Stripe não devolveu a URL do Checkout.',
       );
     }
+    return session.url;
+  }
+
+  /**
+   * URL do Portal de Cobrança do Stripe: página hospedada onde o dono atualiza
+   * o cartão, vê faturas e cancela a assinatura sozinho. Exige stripeCustomerId
+   * (ou seja, já ter assinado alguma vez). O Portal precisa ser configurado uma
+   * vez no Dashboard do Stripe (Configurações > Billing > Customer portal).
+   */
+  async createPortalSessionUrl(businessId: string): Promise<string> {
+    const business = await this.prisma.business.findUniqueOrThrow({
+      where: { id: businessId },
+      select: { stripeCustomerId: true },
+    });
+    if (!business.stripeCustomerId) {
+      throw new BadRequestException(
+        'Você ainda não tem uma assinatura pra gerenciar.',
+      );
+    }
+    const session = await this.stripe().billingPortal.sessions.create({
+      customer: business.stripeCustomerId,
+      return_url: `${webBase()}/painel/planos`,
+    });
     return session.url;
   }
 

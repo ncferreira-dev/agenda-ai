@@ -1,6 +1,7 @@
 import { getMe, getQuote, type Quote } from '@/lib/panel-api';
 import { PLANS, planName, savingsLabel, type PlanId } from './plans';
 import { AssinarButton } from './AssinarButton';
+import { ManageSubscriptionButton } from './ManageSubscriptionButton';
 import panel from '../../painel.module.css';
 import styles from './planos.module.css';
 
@@ -128,6 +129,9 @@ export default async function PlanosPage({
           <p className={styles.bannerTitle}>{banner.title}</p>
           <p className={styles.bannerHint}>{banner.hint}</p>
         </div>
+        {['ACTIVE', 'PAST_DUE', 'CANCELED'].includes(me.business.subscriptionStatus) && (
+          <ManageSubscriptionButton />
+        )}
       </div>
 
       {/* Cards dos três planos */}

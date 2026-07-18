@@ -63,6 +63,16 @@ export class BillingController {
   }
 
   /**
+   * Abre o Portal de Cobrança do Stripe (atualizar cartão, ver faturas,
+   * cancelar). Só faz sentido pra quem já assinou — o StripeService valida.
+   */
+  @Post('billing/portal')
+  async createBillingPortal(@CurrentBusiness() businessId: string) {
+    const url = await this.stripe.createPortalSessionUrl(businessId);
+    return { url };
+  }
+
+  /**
    * Ativa a assinatura sem cobrar — só pra QA manual das telas. Trava dupla
    * de propósito: ENABLE_DEV_BILLING=1 E NODE_ENV !== "production", pra nunca
    * ligar em produção mesmo que a env seja setada por engano num deploy. Com
