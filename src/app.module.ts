@@ -14,11 +14,13 @@ import { FollowUpModule } from './follow-up/follow-up.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PushModule } from './push/push.module';
 import { BillingModule } from './billing/billing.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     // ScheduleModule.forRoot() habilita o cron do ReminderService.
     ScheduleModule.forRoot(),
+    HealthModule,
     PrismaModule,
     StorageModule,
     AuthModule,
