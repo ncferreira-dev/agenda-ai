@@ -153,12 +153,13 @@ function FollowUpFields({
     <details className={styles.followUp} open={open || Boolean(defaultDays)}>
       <summary className={styles.followUpSummary}>Lembrete de retorno (opcional)</summary>
       <p className={styles.rowMeta} style={{ margin: '6px 0 10px' }}>
-        Convide o cliente a refazer depois de um tempo.
+        Deixe a mensagem de retorno pronta. Ela aparece no botão de WhatsApp da ficha
+        do cliente, pra você enviar quando quiser.
       </p>
 
       <div className={`${styles.formRow} ${styles.gap}`}>
         <label className={styles.field} style={{ maxWidth: 220 }}>
-          <span className={styles.label}>Lembrar de refazer a cada (dias)</span>
+          <span className={styles.label}>Sugerir retorno a cada (dias)</span>
           <input
             className={styles.input}
             name="followUpDays"

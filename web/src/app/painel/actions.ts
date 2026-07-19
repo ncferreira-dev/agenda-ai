@@ -320,7 +320,6 @@ export async function saveBusiness(_prev: ActionState, form: FormData): Promise<
     slotStepMinutes: Number(form.get('slotStepMinutes')),
     minLeadMinutes: Number(form.get('minLeadMinutes')),
     maxAdvanceDays: Number(form.get('maxAdvanceDays')),
-    reminderHoursBefore: Number(form.get('reminderHoursBefore')),
   };
   const res = await authFetch('/me/business', { method: 'PATCH', body: JSON.stringify(body) });
   if (!res.ok) return { ok: false, error: await readError(res, 'Não foi possível salvar.') };
