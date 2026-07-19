@@ -1,0 +1,52 @@
+# Backup diário do banco de produção.
+#
+# Por que no GitHub e não no Render: se o serviço/banco do Render for embora
+# (plano free tem limite/prazo), um backup guardado lá dentro morre junto. Aqui
+# ele fica em outro lugar. Se o job falhar, o GitHub avisa o dono do repo por
+# e-mail automaticamente.
+#
+# PRECISA de um segredo no repositório: BACKUP_DATABASE_URL
+# (a URL EXTERNA do Postgres do Render — a "External Database URL").
+
+name: Backup diário do banco
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # 06:00 UTC = 03:00 no horário de Brasília
+  workflow_dispatch: {} # permite rodar na mão pelo botão "Run workflow"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gerar dump do banco
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "ERRO: segredo BACKUP_DATABASE_URL não configurado no repositório."
+            exit 1
+          fi
+          mkdir -p backup
+          NOME="agendai-$(date +%Y-%m-%d).sql.gz"
+          # pg_dump roda dentro da imagem oficial do Postgres (evita divergência
+          # de versão do cliente no runner). O gzip acontece aqui fora.
+          docker run --rm -e DBURL="$DATABASE_URL" postgres:16 \
+            sh -c 'pg_dump --no-owner --no-acl "$DBURL"' | gzip > "backup/${NOME}"
+          ls -lh "backup/${NOME}"
+          # Trava de sanidade: dump minúsculo = algo deu errado (banco vazio,
+          # conexão recusada). Melhor falhar e avisar do que guardar lixo.
+          TAM=$(stat -c%s "backup/${NOME}")
+          if [ "$TAM" -lt 1000 ]; then
+            echo "ERRO: dump suspeito (${TAM} bytes). Verifique a conexão."
+            exit 1
+          fi
+          echo "OK: backup gerado (${TAM} bytes)."
+
+      - name: Guardar o backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-banco
+          path: backup/
+          retention-days: 90
