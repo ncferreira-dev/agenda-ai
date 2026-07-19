@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { resolve4 } from 'node:dns/promises';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
@@ -8,23 +9,38 @@ import type { Transporter } from 'nodemailer';
 // ---------------------------------------------------------------------------
 
 @Injectable()
-export class MailService {
+export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
-  private readonly transporter: Transporter | null;
+  private readonly host = process.env.SMTP_HOST;
+  private transporter: Transporter | null = null;
   private readonly from = process.env.SMTP_FROM ?? 'agend.ai <no-reply@agend.ai>';
 
-  constructor() {
-    const host = process.env.SMTP_HOST;
-    this.transporter = host
-      ? nodemailer.createTransport({
-          host,
-          port: Number(process.env.SMTP_PORT ?? 587),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: process.env.SMTP_USER
-            ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-            : undefined,
-        })
-      : null;
+  async onModuleInit(): Promise<void> {
+    if (!this.host) return;
+
+    // O Nodemailer resolve o host sozinho combinando A/AAAA e sorteando um
+    // endereço aleatório da lista — no Render (sem rota de saída IPv6) isso
+    // falha com ENETUNREACH toda vez que sorteia um IPv6. Resolvendo pra um
+    // IPv4 literal aqui, o Nodemailer pula esse sorteio (host já é IP) e a
+    // conexão sai sempre por IPv4. `tls.servername` mantém a validação do
+    // certificado contra o hostname real (não o IP).
+    let host: string = this.host;
+    try {
+      const [ipv4] = await resolve4(this.host);
+      if (ipv4) host = ipv4;
+    } catch (err) {
+      this.logger.warn(`Não deu pra resolver IPv4 de ${this.host}, usando hostname direto: ${(err as Error).message}`);
+    }
+
+    this.transporter = nodemailer.createTransport({
+      host,
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      tls: { servername: this.host },
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    });
   }
 
   get enabled(): boolean {
