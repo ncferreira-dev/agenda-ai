@@ -1,0 +1,65 @@
+# Checagem automática a cada push. Objetivo: não deixar código quebrado chegar
+# em produção — hoje o deploy é automático (Vercel/Render), então um push com
+# erro vai direto pro ar e quebra na cara do cliente.
+#
+# Roda: tipos do backend, tipos do site, e os testes puros (não precisam banco).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  backend:
+    name: Backend — tipos e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar o Prisma Client
+        # Os tipos do banco vêm daqui; sem isso a checagem de tipos falha.
+        run: npx prisma generate
+
+      - name: Checar tipos (backend)
+        run: npx tsc --noEmit
+
+      - name: Teste — motor de horários
+        run: npm run test:engine
+
+      - name: Teste — preços do plano
+        run: npm run test:pricing
+
+      - name: Teste — preço do serviço
+        run: npm run test:pricing-service
+
+  web:
+    name: Site — tipos
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Checar tipos (site)
+        run: npx tsc --noEmit
