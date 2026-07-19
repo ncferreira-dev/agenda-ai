@@ -153,6 +153,8 @@ export class PublicBookingController {
         timezone: business.timezone,
         maxAdvanceDays: business.maxAdvanceDays,
         address: business.address,
+        // WhatsApp do negócio — vira botão de contato na página pública.
+        phone: business.phone,
         serviceMode: business.serviceMode,
         meetingUrl: business.meetingUrl,
         closedWeekdays,

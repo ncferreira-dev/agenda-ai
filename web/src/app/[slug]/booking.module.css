@@ -716,3 +716,31 @@
   color: var(--accent);
   font-weight: 700;
 }
+
+/* Botões de contato do negócio (WhatsApp, Instagram, Como chegar). */
+.contactRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 28px auto 4px;
+  padding: 0 16px;
+}
+.contactBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  color: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.contactBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

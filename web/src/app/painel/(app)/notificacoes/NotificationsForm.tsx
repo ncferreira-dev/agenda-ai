@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { saveNotifications, type ActionState } from '../../actions';
-import { MaskedInput } from '../../MaskedInput';
 import { PushDeviceButton } from './PushDeviceButton';
 import type { Me } from '@/lib/panel-api';
 import styles from '../../painel.module.css';
@@ -21,7 +20,6 @@ function Save() {
 
 export function NotificationsForm({
   business,
-  ownerPhone,
   ownerEmail,
 }: {
   business: Me['business'];
@@ -30,7 +28,6 @@ export function NotificationsForm({
 }) {
   const [state, action] = useFormState(saveNotifications, INIT);
   const [all, setAll] = useState(business.notifyOwnerAllBookings);
-  const [wa, setWa] = useState(business.notifyWhatsApp);
   const [email, setEmail] = useState(business.notifyEmail);
   const [push, setPush] = useState(business.notifyPush);
   const [daily, setDaily] = useState(business.notifyDailySummary);
@@ -70,18 +67,10 @@ export function NotificationsForm({
         <h2 className={styles.sectionTitle}>Meus canais (dono)</h2>
 
         <label className={styles.switchRow}>
-          <input type="checkbox" name="notifyWhatsApp" checked={wa} onChange={(e) => setWa(e.target.checked)} />
-          <span>
-            <span className={styles.switchTitle}>Avisar no WhatsApp</span>
-            <span className={styles.switchHint}>Mensagem na hora que entrar um agendamento novo.</span>
-          </span>
-        </label>
-
-        <label className={styles.switchRow} style={{ marginTop: 12 }}>
           <input type="checkbox" name="notifyEmail" checked={email} onChange={(e) => setEmail(e.target.checked)} />
           <span>
             <span className={styles.switchTitle}>Avisar por e-mail</span>
-            <span className={styles.switchHint}>O mesmo aviso, no seu e-mail.</span>
+            <span className={styles.switchHint}>Mensagem no seu e-mail quando entrar um agendamento novo.</span>
           </span>
         </label>
 
@@ -109,16 +98,6 @@ export function NotificationsForm({
           Deixe em branco para usar o que está no seu perfil.
         </p>
         <div className={styles.formRow}>
-          <label className={styles.field}>
-            <span className={styles.label}>WhatsApp do dono</span>
-            <MaskedInput
-              kind="phone"
-              className={styles.input}
-              name="ownerWhatsApp"
-              defaultValue={business.ownerWhatsApp}
-              placeholder={ownerPhone ? `perfil: ${ownerPhone}` : '(11) 99999-8888'}
-            />
-          </label>
           <label className={styles.field}>
             <span className={styles.label}>E-mail do dono</span>
             <input

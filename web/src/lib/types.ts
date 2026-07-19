@@ -24,6 +24,7 @@ export interface BusinessPage {
     timezone: string;
     maxAdvanceDays: number;
     address: string | null;
+    phone: string | null; // WhatsApp do negócio (botão de contato)
     serviceMode: 'PRESENCIAL' | 'REMOTO' | 'HIBRIDO';
     meetingUrl: string | null;
     closedWeekdays: number[]; // dias fechados por bloqueio recorrente do negócio (0=dom … 6=sáb)
