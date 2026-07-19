@@ -32,7 +32,11 @@ jobs:
           NOME="agendai-$(date +%Y-%m-%d).sql.gz"
           # pg_dump roda dentro da imagem oficial do Postgres (evita divergência
           # de versão do cliente no runner). O gzip acontece aqui fora.
-          docker run --rm -e DBURL="$DATABASE_URL" postgres:16 \
+          # ATENÇÃO à versão: o pg_dump só copia de servidor de versão IGUAL ou
+          # MAIS ANTIGA que ele. O banco do Render hoje é Postgres 18. Se um dia
+          # o Render atualizar, o job falha com "server version mismatch" — aí é
+          # só subir o número aqui (ex.: postgres:19).
+          docker run --rm -e DBURL="$DATABASE_URL" postgres:18 \
             sh -c 'pg_dump --no-owner --no-acl "$DBURL"' | gzip > "backup/${NOME}"
           ls -lh "backup/${NOME}"
           # Trava de sanidade: dump minúsculo = algo deu errado (banco vazio,
