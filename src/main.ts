@@ -7,6 +7,13 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { UPLOADS_DIR } from './storage/storage.service';
 import { corsOrigins } from './common/env';
+import { setDefaultResultOrder } from 'node:dns';
+
+// Preferir IPv4 ao resolver nomes. O Render não tem rota de saída por IPv6:
+// sem isto, o Node resolve hosts externos (ex.: smtp.gmail.com) para um
+// endereço IPv6 e a conexão morre com ENETUNREACH antes mesmo de autenticar.
+// Vale pro processo todo — e-mail, Stripe e qualquer outra chamada externa.
+setDefaultResultOrder('ipv4first');
 
 async function bootstrap(): Promise<void> {
   // rawBody: true preserva o corpo bruto de TODA request (em req.rawBody) sem
