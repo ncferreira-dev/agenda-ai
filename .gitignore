@@ -17,3 +17,9 @@ uploads/
 /CONTEXTO-SESSAO.md
 /GUIA-STRIPE-PRODUCAO.md
 /PLANO-LANCAMENTO.md
+
+# Notas internas de planejamento (não fazem parte do produto público)
+/CLAUDE.md
+/PLANO-DESIGN.md
+/ESTRUTURA.md
+docs/AUDITORIA-DEPLOY.md
