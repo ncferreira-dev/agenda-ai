@@ -1,15 +1,11 @@
-# Blueprint do Render: cria o backend (Docker) + um Postgres e liga tudo sozinho.
-# O Render gera JWT_SECRET/CPF_HASH_SECRET (generateValue) e injeta a DATABASE_URL
-# do banco criado. Este arquivo é a fonte da verdade pro Blueprint: qualquer edição
-# manual de env var no dashboard que também exista aqui é sobrescrita a cada sync
-# (deploy por push). Por isso a URL da Vercel fica fixada aqui, não só no dashboard.
+# Blueprint do Render: cria o backend (Docker). O Postgres NÃO mora aqui — fica no
+# Neon (externo), porque o banco free do Render expira em ~30 dias e derruba a API
+# quando morre (aconteceu em 08/2026). A DATABASE_URL é preenchida à mão no
+# dashboard; o Render gera JWT_SECRET/CPF_HASH_SECRET (generateValue).
+# Este arquivo é a fonte da verdade pro Blueprint: qualquer edição manual de env var
+# que também tenha valor aqui é sobrescrita a cada sync (deploy por push) — por isso
+# a URL da Vercel fica fixada aqui e os segredos ficam como sync: false.
 # As migrations rodam no start (docker-entrypoint.sh -> prisma migrate deploy).
-databases:
-  - name: agendai-db
-    plan: free
-    databaseName: agenda
-    user: agenda
-
 services:
   - type: web
     name: agendai-api
@@ -17,10 +13,11 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     envVars:
+      # Postgres no Neon (console.neon.tech). Use a connection string DIRETA, não a
+      # "-pooler": o pgbouncer do Neon quebra o `prisma migrate deploy` do entrypoint.
+      # Precisa terminar em ?sslmode=require. sync: false = colada no dashboard.
       - key: DATABASE_URL
-        fromDatabase:
-          name: agendai-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: CPF_HASH_SECRET
