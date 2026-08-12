@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Typewriter } from '@/components/Typewriter';
+import PasswordInput from '@/components/PasswordInput';
 import styles from '../painel.module.css';
 import splashStyles from './login.module.css';
 
@@ -106,7 +107,7 @@ export default function LoginPage() {
             </label>
             <label className={styles.field}>
               <span className={styles.label}>Senha</span>
-              <input className={styles.input} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <PasswordInput className={styles.input} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </label>
             <p className={styles.forgotRow}>
               <Link href="/painel/esqueci-senha">Esqueci minha senha</Link>

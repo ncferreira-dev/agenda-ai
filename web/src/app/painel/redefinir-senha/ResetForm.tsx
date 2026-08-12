@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PasswordInput from '@/components/PasswordInput';
 import styles from '../painel.module.css';
 
 export function ResetForm({ token }: { token: string }) {
@@ -62,9 +63,8 @@ export function ResetForm({ token }: { token: string }) {
       {erro && <p className={styles.error}>{erro}</p>}
       <label className={styles.field}>
         <span className={styles.label}>Nova senha</span>
-        <input
+        <PasswordInput
           className={styles.input}
-          type="password"
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -76,9 +76,8 @@ export function ResetForm({ token }: { token: string }) {
       </label>
       <label className={styles.field}>
         <span className={styles.label}>Confirmar senha</span>
-        <input
+        <PasswordInput
           className={styles.input}
-          type="password"
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}

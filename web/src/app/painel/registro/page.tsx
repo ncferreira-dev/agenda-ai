@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import PasswordInput from '@/components/PasswordInput';
 import styles from '../painel.module.css';
 
 function GoogleIcon() {
@@ -206,7 +207,7 @@ export default function RegistroPage() {
 
               <label className={styles.field}>
                 <span className={styles.label}>Senha</span>
-                <input className={styles.input} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Ao menos 8 caracteres" minLength={8} required />
+                <PasswordInput className={styles.input} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Ao menos 8 caracteres" minLength={8} required />
               </label>
 
               <button className={styles.button} type="submit">Continuar</button>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { savePassword, type ActionState } from '../../actions';
 import type { Me } from '@/lib/panel-api';
+import PasswordInput from '@/components/PasswordInput';
 import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
@@ -47,9 +48,8 @@ export function PasswordForm({ owner }: { owner: Me['owner'] }) {
       {hasPassword && (
         <label className={styles.field}>
           <span className={styles.label}>Senha atual</span>
-          <input
+          <PasswordInput
             className={styles.input}
-            type="password"
             name="currentPassword"
             autoComplete="current-password"
             required
@@ -60,9 +60,8 @@ export function PasswordForm({ owner }: { owner: Me['owner'] }) {
       <div className={styles.formRow}>
         <label className={styles.field}>
           <span className={styles.label}>Nova senha</span>
-          <input
+          <PasswordInput
             className={styles.input}
-            type="password"
             name="newPassword"
             autoComplete="new-password"
             placeholder="Ao menos 8 caracteres"
@@ -72,9 +71,8 @@ export function PasswordForm({ owner }: { owner: Me['owner'] }) {
         </label>
         <label className={styles.field}>
           <span className={styles.label}>Confirmar nova senha</span>
-          <input
+          <PasswordInput
             className={styles.input}
-            type="password"
             name="confirm"
             autoComplete="new-password"
             minLength={8}
