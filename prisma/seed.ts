@@ -11,6 +11,10 @@ import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
+// Senha dos donos de teste. Fixa em dev pra não atrapalhar; em produção o repo é
+// público, então "senha123" viraria porta aberta — passe SEED_OWNER_PASSWORD.
+const SENHA_DONO = process.env.SEED_OWNER_PASSWORD ?? 'senha123';
+
 // Horário comercial padrão. weekday: 0 = domingo ... 6 = sábado.
 // Minutos desde 00:00 no fuso do negócio: 9h = 540, 12h = 720, 13h = 780, 18h = 1080.
 const SEMANA = [1, 2, 3, 4, 5]; // seg a sex: 9-12 e 13-18
@@ -110,7 +114,7 @@ async function main(): Promise<void> {
     businessId: barbearia.id,
     email: 'ze@barbearia.com',
     name: 'Zé',
-    senha: 'senha123',
+    senha: SENHA_DONO,
   });
 
   // 2º negócio, pra provar isolamento entre tenants.
@@ -128,7 +132,7 @@ async function main(): Promise<void> {
     businessId: salao.id,
     email: 'carol@salao.com',
     name: 'Carol',
-    senha: 'senha123',
+    senha: SENHA_DONO,
   });
 }
 
