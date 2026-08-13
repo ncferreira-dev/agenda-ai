@@ -16,8 +16,19 @@ export interface InboundMessage {
 }
 
 export interface WhatsAppProvider {
-  /** Envia texto pro cliente. */
+  /** Envia texto pro cliente. Só vale DENTRO da janela de 24h (ver sendTemplate). */
   sendText(to: string, text: string): Promise<void>;
+  /**
+   * Envia template aprovado pela Meta. É o único jeito de falar com o cliente
+   * FORA da janela de 24h — lembrete, follow-up e resumo diário caem aí.
+   * `params` preenche os {{1}}, {{2}}… do corpo, na ordem.
+   */
+  sendTemplate(
+    to: string,
+    nome: string,
+    idioma: string,
+    params: string[],
+  ): Promise<void>;
   /** Normaliza o payload bruto do webhook em InboundMessage[] (pode vir em lote). */
   parseWebhook(body: unknown): InboundMessage[];
 }
@@ -31,6 +42,41 @@ export class CloudApiProvider implements WhatsAppProvider {
   private readonly apiVersion = process.env.WHATSAPP_API_VERSION ?? 'v21.0';
 
   async sendText(to: string, text: string): Promise<void> {
+    await this.post({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body: text },
+    });
+  }
+
+  async sendTemplate(
+    to: string,
+    nome: string,
+    idioma: string,
+    params: string[],
+  ): Promise<void> {
+    await this.post({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: nome,
+        language: { code: idioma },
+        components: params.length
+          ? [
+              {
+                type: 'body',
+                parameters: params.map((text) => ({ type: 'text', text })),
+              },
+            ]
+          : [],
+      },
+    });
+  }
+
+  /** POST na Graph API com o erro da Meta preservado (é ele que diz o motivo). */
+  private async post(payload: unknown): Promise<void> {
     const url = `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`;
     const res = await fetch(url, {
       method: 'POST',
@@ -38,12 +84,7 @@ export class CloudApiProvider implements WhatsAppProvider {
         Authorization: `Bearer ${this.token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'text',
-        text: { body: text },
-      }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const detail = await res.text();
