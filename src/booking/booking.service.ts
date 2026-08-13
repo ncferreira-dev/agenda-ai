@@ -106,7 +106,17 @@ export class BookingService {
     const { businessId, customerId, professionalId, serviceId, start, notes } = params;
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const service = await tx.service.findUniqueOrThrow({ where: { id: serviceId } });
+        // Serviço e profissional PRECISAM ser do negócio da conversa. Sem o
+        // filtro por businessId, um id de outro tenant é aceito: o agendamento
+        // nasce no negócio certo mas apontando pra um serviço alheio, herdando
+        // duração e preço dele. Os ids chegam por texto livre no caminho do
+        // agente, então a checagem tem que estar aqui, não só em quem chama.
+        const service = await tx.service.findFirstOrThrow({
+          where: { id: serviceId, businessId },
+        });
+        await tx.professional.findFirstOrThrow({
+          where: { id: professionalId, businessId },
+        });
         const business = await tx.business.findUniqueOrThrow({
           where: { id: businessId },
           select: { timezone: true },
@@ -117,6 +127,7 @@ export class BookingService {
         // Recheck: existe agendamento ativo do profissional que sobreponha?
         const conflict = await tx.appointment.findFirst({
           where: {
+            businessId,
             professionalId,
             status: { in: ['PENDING', 'CONFIRMED'] },
             startAt: { lt: endAt },
