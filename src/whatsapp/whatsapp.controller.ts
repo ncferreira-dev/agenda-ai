@@ -40,7 +40,19 @@ export class WhatsAppController {
     @Query('hub.challenge') challenge: string,
     @Res() res: Response,
   ) {
-    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+    // O token esperado precisa EXISTIR. Sem esta guarda, com a variável vazia e
+    // uma query sem hub.verify_token, a comparação vira undefined === undefined
+    // (ou "" === "") e o endpoint valida qualquer requisição — deixando um app
+    // da Meta que não é o seu apontar pra cá e ser verificado com sucesso.
+    const esperado = process.env.WHATSAPP_VERIFY_TOKEN;
+    if (!esperado) {
+      this.logger.error(
+        'WHATSAPP_VERIFY_TOKEN não configurada: recusando verificação do webhook.',
+      );
+      return res.sendStatus(HttpStatus.FORBIDDEN);
+    }
+
+    if (mode === 'subscribe' && token === esperado) {
       return res.status(HttpStatus.OK).send(challenge);
     }
     return res.sendStatus(HttpStatus.FORBIDDEN);
