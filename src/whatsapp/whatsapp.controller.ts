@@ -1,13 +1,26 @@
-import { Controller, Get, Post, Body, Query, Res, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Req,
+  Res,
+  HttpStatus,
+  Logger,
+  type RawBodyRequest,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentService } from '../agent/agent.service';
 import { ConfirmationService } from './confirmation.service';
 import { CloudApiProvider, type WhatsAppProvider } from './whatsapp.provider';
+import { verificarAssinatura } from './verify-signature';
 
 @Controller('webhook/whatsapp')
 export class WhatsAppController {
+  private readonly logger = new Logger(WhatsAppController.name);
   private provider: WhatsAppProvider;
 
   constructor(
@@ -35,7 +48,39 @@ export class WhatsAppController {
 
   /** Recebe mensagens. Responde 200 rápido e processa. */
   @Post()
-  async receive(@Body() body: unknown, @Res() res: Response) {
+  async receive(
+    @Body() body: unknown,
+    @Req() req: RawBodyRequest<Request>,
+    @Res() res: Response,
+  ) {
+    // Assinatura ANTES de qualquer processamento: sem isso o endpoint aceita
+    // POST forjado de qualquer origem e o agente age em cima dele.
+    const assinatura = verificarAssinatura(
+      req.rawBody,
+      req.header('x-hub-signature-256'),
+      process.env.WHATSAPP_APP_SECRET,
+    );
+
+    if (!assinatura.ok) {
+      // Sem segredo configurado: em produção recusa (fail-closed — um webhook
+      // aberto é pior que um webhook fora do ar). Em dev deixa passar pra não
+      // travar teste local, mas avisa alto.
+      if (assinatura.motivo === 'sem-segredo') {
+        if (process.env.NODE_ENV === 'production') {
+          this.logger.error(
+            'WHATSAPP_APP_SECRET não configurada: recusando webhook. Configure o App Secret (Meta > App > Configurações > Básico) pra liberar.',
+          );
+          return res.sendStatus(HttpStatus.FORBIDDEN);
+        }
+        this.logger.warn(
+          'WHATSAPP_APP_SECRET não configurada: aceitando sem verificar (só vale em dev).',
+        );
+      } else {
+        this.logger.warn(`Webhook rejeitado (assinatura: ${assinatura.motivo}).`);
+        return res.sendStatus(HttpStatus.FORBIDDEN);
+      }
+    }
+
     // Responde já: a Meta espera 200 em segundos, senão reenvia.
     res.sendStatus(HttpStatus.OK);
 
