@@ -199,7 +199,14 @@ export class ToolExecutor {
       }
 
       case 'cancelar_agendamento': {
-        await this.booking.cancelAppointment(ctx.businessId, input.appointmentId);
+        // ctx.customerId trava no dono do agendamento. O id vem de texto livre
+        // do cliente (ou de quem conseguir induzir o modelo), então sem esse
+        // filtro dá pra cancelar o horário de outra pessoa do mesmo negócio.
+        await this.booking.cancelAppointment(
+          ctx.businessId,
+          input.appointmentId,
+          ctx.customerId,
+        );
         return JSON.stringify({ ok: true });
       }
 

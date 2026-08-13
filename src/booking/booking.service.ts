@@ -202,9 +202,18 @@ export class BookingService {
     }
   }
 
-  async cancelAppointment(businessId: string, appointmentId: string) {
+  /**
+   * Cancela um agendamento do negócio.
+   *
+   * `customerId` restringe ao dono do agendamento e é OBRIGATÓRIO quando quem
+   * pede é o próprio cliente (agente do WhatsApp): ali o pedido nasce de texto
+   * livre de terceiro, e sem esse filtro basta ter o id pra cancelar o horário
+   * de outra pessoa do mesmo negócio. O painel chama sem ele de propósito — o
+   * dono pode cancelar qualquer agendamento da própria agenda.
+   */
+  async cancelAppointment(businessId: string, appointmentId: string, customerId?: string) {
     const appt = await this.prisma.appointment.findFirst({
-      where: { id: appointmentId, businessId },
+      where: { id: appointmentId, businessId, ...(customerId ? { customerId } : {}) },
     });
     if (!appt) throw new BadRequestException('Agendamento não encontrado.');
     if (appt.status === 'CANCELLED') return appt;
