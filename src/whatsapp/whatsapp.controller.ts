@@ -133,8 +133,24 @@ export class WhatsAppController {
 
         await this.provider.sendText(msg.from, reply);
       } catch (err) {
-        // Logue de verdade no seu observability; aqui só não derruba o loop.
-        console.error('Erro processando mensagem:', err);
+        this.logger.error(`Erro processando mensagem ${msg.providerMessageId}`, err as Error);
+
+        // Libera a reserva do dedupe: a mensagem NÃO foi processada, então não
+        // pode ficar marcada como se tivesse sido. Sem isso, uma falha passageira
+        // (agente fora do ar, hiccup de rede) descarta a mensagem pra sempre.
+        await this.releaseMessage(msg.providerMessageId);
+
+        // E avisa o cliente. Como já respondemos 200 pra Meta, ela não reenvia:
+        // sem esta linha o cliente manda mensagem e fica no silêncio absoluto,
+        // sem saber se chegou. Se nem isso sair, aí não há mais o que fazer.
+        await this.provider
+          .sendText(
+            msg.from,
+            'Ops, tive um problema aqui e não consegui responder agora. Pode mandar de novo?',
+          )
+          .catch((e) =>
+            this.logger.error('Falha ao avisar o cliente sobre o erro', e as Error),
+          );
       }
     }
   }
@@ -153,8 +169,22 @@ export class WhatsAppController {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return false;
       }
-      console.error('Falha no dedupe do webhook, processando mesmo assim:', err);
+      this.logger.error('Falha no dedupe do webhook, processando mesmo assim', err as Error);
       return true;
+    }
+  }
+
+  /**
+   * Devolve a mensagem pra fila: some o registro de "já processada" pra que uma
+   * reentrega da Meta (ou um reprocessamento manual) volte a ser aceita. Falhar
+   * aqui não é fatal — o pior caso é a mensagem seguir marcada, que é o
+   * comportamento antigo.
+   */
+  private async releaseMessage(providerMessageId: string): Promise<void> {
+    try {
+      await this.prisma.processedWebhook.deleteMany({ where: { providerMessageId } });
+    } catch (err) {
+      this.logger.error('Falha ao liberar a reserva do dedupe', err as Error);
     }
   }
 }
