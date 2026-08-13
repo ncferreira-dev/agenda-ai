@@ -70,11 +70,22 @@ No `.env` do backend, preencha:
 WHATSAPP_TOKEN="EAAG... (o token do Passo 2)"
 WHATSAPP_PHONE_NUMBER_ID="123456789 (o Phone number ID do Passo 2)"
 WHATSAPP_VERIFY_TOKEN="meu-token-secreto-123 (igual ao Passo 3)"
+WHATSAPP_APP_SECRET="a Chave Secreta do App (Meta > App > Configurações > Básico)"
 ANTHROPIC_API_KEY="sk-ant-... (pro agente responder)"
 ```
 
 Reinicie o backend (`Ctrl-C` e `npm run start:dev`). Dica: preencha o
 `WHATSAPP_VERIFY_TOKEN` **antes** do Passo 3, senão a verificação falha.
+
+**Sobre a `WHATSAPP_APP_SECRET`:** é ela que valida a assinatura HMAC que a Meta
+põe em todo webhook. Sem ela, o endpoint aceitaria POST forjado de qualquer
+origem — e aí qualquer um faria o agente criar ou cancelar agendamento no seu
+banco. Por isso **em produção a API recusa o webhook enquanto ela estiver
+vazia**; em dev ela passa, com um aviso no log.
+
+**Em produção (Render):** as cinco variáveis acima estão declaradas no
+`render.yaml` como `sync: false` — ou seja, aparecem no dashboard esperando
+valor. Preencha em *Environment*, não no git.
 
 ---
 
@@ -88,9 +99,22 @@ número de teste (só dígitos, com DDI):
 node -e "const {PrismaClient}=require('./node_modules/@prisma/client');const p=new PrismaClient();(async()=>{await p.business.update({where:{slug:'barbearia-do-ze'},data:{phone:'NUMERO_DE_TESTE_SO_DIGITOS'}});console.log('phone atualizado');await p.\$disconnect();})()"
 ```
 
-Não sabe o formato exato? Mande uma mensagem pro número e olhe o log do backend:
-se aparecer `Webhook: nenhum negócio com phone="…"`, é **exatamente** esse valor
-que você deve pôr no `phone`.
+O formato é **só dígitos, com DDI e sem `+`** — ex.: `5511999990000`. Não precisa
+mais adivinhar o formato exato que a Meta manda: o webhook normaliza o número
+que chega (tira `+`, espaço e hífen, e completa o `55` quando falta) antes de
+procurar o negócio, então basta gravar no padrão acima — o mesmo que o painel e
+a página pública já usam.
+
+Se ainda assim não casar, mande uma mensagem pro número e olhe o log: aparece
+`Webhook: nenhum negócio com phone="…"` com o valor **já normalizado** que ele
+procurou.
+
+> **Limitação de hoje, importante saber antes de vender pro segundo cliente:**
+> `WHATSAPP_PHONE_NUMBER_ID` é uma variável única do processo — existe **um**
+> número de WhatsApp pra instalação inteira. O roteamento por `business.phone`
+> funciona, mas na prática só um negócio pode estar ligado por vez. Atender
+> vários negócios em números diferentes exige guardar as credenciais por
+> negócio, o que ainda não existe no schema.
 
 ---
 
