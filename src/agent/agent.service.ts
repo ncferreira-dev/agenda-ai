@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
 import { TOOLS, ToolExecutor, type AgentContext } from './tools';
+import { recortarHistorico } from './history';
 
 const MODEL = process.env.AGENT_MODEL ?? 'claude-sonnet-4-6';
 const MAX_TOOL_TURNS = 6; // trava de segurança contra loop infinito
@@ -137,8 +138,9 @@ export class AgentService {
       finalText = 'Desculpa, tive um problema aqui. Pode repetir, por favor?';
     }
 
-    // Persiste o histórico (limita p/ não crescer infinito).
-    const trimmed = messages.slice(-40);
+    // Persiste o histórico (limita p/ não crescer infinito). O corte respeita a
+    // fronteira do ciclo de ferramentas — ver history.ts.
+    const trimmed = recortarHistorico(messages, 40);
     await this.prisma.conversation.update({
       where: { id: conversation.id },
       data: { messages: trimmed as any },

@@ -16,7 +16,8 @@
     "test:engine": "ts-node src/availability/slot-engine.spec.ts",
     "test:pricing": "ts-node src/billing/pricing.spec.ts",
     "test:pricing-service": "ts-node src/pricing/service-price.spec.ts",
-    "test:whatsapp-signature": "ts-node src/whatsapp/verify-signature.spec.ts"
+    "test:whatsapp-signature": "ts-node src/whatsapp/verify-signature.spec.ts",
+    "test:agent-history": "ts-node src/agent/history.spec.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
