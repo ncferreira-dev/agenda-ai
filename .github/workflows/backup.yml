@@ -5,8 +5,18 @@
 # ele fica em outro lugar. Se o job falhar, o GitHub avisa o dono do repo por
 # e-mail automaticamente.
 #
-# PRECISA de um segredo no repositório: BACKUP_DATABASE_URL
-# (a URL EXTERNA do Postgres do Render — a "External Database URL").
+# PRECISA de dois segredos no repositório (Settings > Secrets > Actions):
+#   BACKUP_DATABASE_URL  string de conexão do Neon, a direta (sem -pooler).
+#                        Era a URL do Render até 08/2026, quando o banco free
+#                        expirou e levou os dados junto — ver render.yaml.
+#   BACKUP_PASSPHRASE    senha que abre o backup. Guarde no gerenciador de
+#                        senhas: sem ela o arquivo não serve pra nada.
+#
+# O dump sai ENCRIPTADO porque este repositório é PÚBLICO e artifact de repo
+# público qualquer pessoa baixa — dump em claro aqui seria expor telefone e
+# e-mail dos clientes dos assinantes.
+#
+# Pra restaurar, veja o cabeçalho de scripts/backup-db.sh.
 
 name: Backup diário do banco
 
@@ -29,15 +39,17 @@ jobs:
             exit 1
           fi
           mkdir -p backup
-          NOME="agendai-$(date +%Y-%m-%d).sql.gz"
+          # Formato custom (-Fc): já vem comprimido e restaura com pg_restore,
+          # igualzinho ao scripts/backup-db.sh — um formato só pros dois.
+          NOME="agendai-$(date +%Y-%m-%d).dump"
           # pg_dump roda dentro da imagem oficial do Postgres (evita divergência
-          # de versão do cliente no runner). O gzip acontece aqui fora.
+          # de versão do cliente no runner).
           # ATENÇÃO à versão: o pg_dump só copia de servidor de versão IGUAL ou
-          # MAIS ANTIGA que ele. O banco do Render hoje é Postgres 18. Se um dia
-          # o Render atualizar, o job falha com "server version mismatch" — aí é
-          # só subir o número aqui (ex.: postgres:19).
+          # MAIS ANTIGA que ele. O Neon hoje roda Postgres 17, e a imagem 18 lê
+          # servidor mais velho sem problema. Se o Neon passar do 18, sobe o
+          # número aqui (ex.: postgres:19).
           docker run --rm -e DBURL="$DATABASE_URL" postgres:18 \
-            sh -c 'pg_dump --no-owner --no-acl "$DBURL"' | gzip > "backup/${NOME}"
+            sh -c 'pg_dump --format=custom --no-owner --no-acl "$DBURL"' > "backup/${NOME}"
           ls -lh "backup/${NOME}"
           # Trava de sanidade: dump minúsculo = algo deu errado (banco vazio,
           # conexão recusada). Melhor falhar e avisar do que guardar lixo.
@@ -48,9 +60,28 @@ jobs:
           fi
           echo "OK: backup gerado (${TAM} bytes)."
 
+      - name: Encriptar o dump
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_PASSPHRASE}" ]; then
+            echo "ERRO: segredo BACKUP_PASSPHRASE não configurado no repositório."
+            exit 1
+          fi
+          for f in backup/*.dump; do
+            gpg --symmetric --cipher-algo AES256 --batch --yes \
+                --passphrase "$BACKUP_PASSPHRASE" --output "$f.gpg" "$f"
+            # O artifact leva só o .gpg — o arquivo em claro morre aqui.
+            rm -f "$f"
+          done
+          ls -lh backup/
+
       - name: Guardar o backup
         uses: actions/upload-artifact@v4
         with:
           name: backup-banco
-          path: backup/
+          # Só o encriptado. Se algum dia sobrar um .dump em claro aqui, é bug.
+          path: backup/*.gpg
           retention-days: 90
+          if-no-files-found: error

@@ -23,3 +23,8 @@ uploads/
 /PLANO-DESIGN.md
 /ESTRUTURA.md
 docs/AUDITORIA-DEPLOY.md
+
+# Dumps do banco — NUNCA no repo (repo público, dados pessoais dos clientes)
+backups/
+*.dump
+*.dump.gpg
