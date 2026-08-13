@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { normalizarTelefone } from '../common/phone';
 
 // ---------------------------------------------------------------------------
 // Abstração de provider de WhatsApp. Implemente esta interface pra trocar
@@ -98,11 +99,20 @@ export class CloudApiProvider implements WhatsAppProvider {
     for (const entry of entries) {
       for (const change of entry?.changes ?? []) {
         const value = change?.value;
-        const businessPhone = value?.metadata?.display_phone_number ?? '';
+        // A Meta manda o número do negócio em formato de EXIBIÇÃO — pode vir com
+        // "+", espaço e hífen. O banco guarda só dígitos com DDI, então sem
+        // normalizar aqui o roteamento não acha o negócio e a mensagem some.
+        const businessPhone = normalizarTelefone(value?.metadata?.display_phone_number);
         for (const msg of value?.messages ?? []) {
           if (msg.type !== 'text') continue; // por ora só texto
+          // Mesmo motivo no remetente: o Customer é chaveado por telefone
+          // normalizado (é assim que o site grava). Sem passar por aqui, o mesmo
+          // cliente vira dois registros e a confirmação do lembrete não acha o
+          // agendamento dele.
+          const from = normalizarTelefone(msg.from);
+          if (!from || !businessPhone) continue;
           out.push({
-            from: msg.from,
+            from,
             to: businessPhone,
             text: msg.text?.body ?? '',
             providerMessageId: msg.id,
