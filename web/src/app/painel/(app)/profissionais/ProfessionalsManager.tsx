@@ -82,6 +82,7 @@ function ServiceChecks({ services, selected }: { services: Service[]; selected: 
         <label key={s.id} className={styles.check}>
           <input type="checkbox" name="serviceIds" value={s.id} defaultChecked={selected.includes(s.id)} />
           {s.name}
+          {!s.active && <span className={`${styles.chip} ${styles.chipOff}`} style={{ marginLeft: 6 }}>inativo</span>}
         </label>
       ))}
     </div>
@@ -169,6 +170,16 @@ export function ProfessionalsManager({
   const activeServices = services.filter((s) => s.active);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? '—';
 
+  // Na edição, mostra os serviços ativos + os inativos QUE JÁ ESTÃO vinculados a
+  // este profissional. Sem os inativos, o checkbox deles nem aparece; como o
+  // update substitui o conjunto inteiro de vínculos pelos serviceIds marcados,
+  // qualquer edição (até só o nome) apagava em silêncio o vínculo com serviços
+  // desativados. Incluí-los (marcados) preserva o vínculo.
+  const editServices = (pro: Professional): Service[] => [
+    ...activeServices,
+    ...services.filter((s) => !s.active && pro.serviceIds.includes(s.id)),
+  ];
+
   return (
     <>
       <CreateForm services={activeServices} />
@@ -219,7 +230,7 @@ export function ProfessionalsManager({
               </div>
 
               {editing === p.id && (
-                <EditForm pro={p} services={activeServices} onDone={() => setEditing(null)} />
+                <EditForm pro={p} services={editServices(p)} onDone={() => setEditing(null)} />
               )}
 
               {hoursFor === p.id && (
