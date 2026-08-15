@@ -18,7 +18,15 @@ export async function POST(req: Request) {
   });
 
   if (!res.ok) {
-    return NextResponse.json({ message: 'Credenciais inválidas.' }, { status: 401 });
+    // Repassa a mensagem e o status reais do backend (mesmo padrão do cadastro).
+    // Fixar 401 "Credenciais inválidas" mascarava dois casos: a conta que só tem
+    // login social (mensagem própria do backend, 400) e uma falha 5xx do
+    // servidor — ambas viravam "senha errada" e confundiam o dono.
+    const err = (await res.json().catch(() => ({}))) as { message?: string };
+    return NextResponse.json(
+      { message: err?.message ?? 'Credenciais inválidas.' },
+      { status: res.status },
+    );
   }
 
   const data = (await res.json()) as { access_token: string; business: { name: string } };
