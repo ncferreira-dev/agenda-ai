@@ -116,6 +116,11 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       })
       .catch((e) => {
         if (cancelled) return;
+        // Zera os horários: sem isto, os slots do dia/profissional carregados
+        // ANTES continuam na tela enquanto a tira de datas já marca o novo dia.
+        // Cada slot carrega o startAt absoluto do dia velho, e confirmar mandaria
+        // o cliente pro dia errado. Vazio -> a grade cai em "Sem horários".
+        setAvailability([]);
         setError(e?.message ?? 'Não consegui carregar os horários.');
         setLoading(false);
       });
