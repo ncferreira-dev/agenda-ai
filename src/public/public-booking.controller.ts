@@ -79,13 +79,23 @@ export class PublicBookingController {
     const customer = await this.prisma.customer.findUnique({
       where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(body.phone) } },
     });
+    // Só cancela o que ainda é cancelável: do próprio cliente, PENDING/CONFIRMED
+    // e no futuro. Sem o filtro de status/tempo dava pra "cancelar" um
+    // agendamento já COMPLETED (e pago) ou passado — o que só servia pra tirá-lo
+    // do faturamento do dono depois do serviço feito.
     const appt = customer
       ? await this.prisma.appointment.findFirst({
-          where: { id, businessId: business.id, customerId: customer.id },
+          where: {
+            id,
+            businessId: business.id,
+            customerId: customer.id,
+            status: { in: ['PENDING', 'CONFIRMED'] },
+            startAt: { gte: new Date() },
+          },
           select: { id: true },
         })
       : null;
-    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+    if (!appt) throw new NotFoundException('Agendamento não encontrado ou não pode mais ser cancelado.');
     await this.booking.cancelAppointment(business.id, id);
     return { id, cancelled: true };
   }
