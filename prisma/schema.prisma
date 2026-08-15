@@ -43,7 +43,7 @@ model Business {
   name      String
   slug      String   @unique // usado na URL da página de agendamento
   timezone  String   @default("America/Sao_Paulo")
-  phone     String? // número de WhatsApp do negócio (o que recebe os agendamentos)
+  phone     String?  @unique // número de WhatsApp do negócio (o que recebe os agendamentos); ÚNICO: o webhook roteia pela phone que recebeu, então dois negócios com o mesmo número iriam pro tenant errado. Unique nullable no Postgres permite vários NULL (negócios sem WhatsApp).
   address   String? // endereço do local de trabalho (mostrado pro cliente; só presencial/híbrido)
 
   // Tipo de atendimento do negócio (escolhido no cadastro). Adapta o resto:
