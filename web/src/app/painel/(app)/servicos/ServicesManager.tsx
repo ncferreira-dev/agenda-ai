@@ -87,27 +87,45 @@ function KitFields({
   candidates,
   defaultMembers,
   defaultIsKit,
+  locked,
 }: {
   candidates: Service[];
   defaultMembers?: string[];
   defaultIsKit?: boolean;
+  // Na EDIÇÃO de um kit existente o toggle é travado: desmarcá-lo não fazia
+  // nada (updateService nunca manda isKit) e ainda descartava as mudanças de
+  // composição, porque a action só reenvia os membros quando isKit é true.
+  // Travado, a composição sempre submete; deixar de ser kit = excluir e recriar.
+  locked?: boolean;
 }) {
   const [isKit, setIsKit] = useState(Boolean(defaultIsKit));
+  const effectiveIsKit = locked ? true : isKit;
   const selected = new Set(defaultMembers ?? []);
 
   return (
-    <details className={styles.followUp} open={isKit}>
+    <details className={styles.followUp} open={effectiveIsKit}>
       <summary className={styles.followUpSummary}>Kit / combo (opcional)</summary>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
-        <input
-          type="checkbox"
-          name="isKit"
-          checked={isKit}
-          onChange={(e) => setIsKit(e.target.checked)}
-        />
-        <span>Montar este serviço como um kit</span>
-      </label>
-      {isKit && (
+      {locked ? (
+        <>
+          {/* Mantém isKit=true no submit pra a composição (kitMemberIds) ir junto. */}
+          <input type="hidden" name="isKit" value="true" />
+          <p className={styles.rowMeta} style={{ margin: '8px 0' }}>
+            Este serviço é um kit. Para deixar de ser um kit, exclua e recrie como
+            serviço comum.
+          </p>
+        </>
+      ) : (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+          <input
+            type="checkbox"
+            name="isKit"
+            checked={isKit}
+            onChange={(e) => setIsKit(e.target.checked)}
+          />
+          <span>Montar este serviço como um kit</span>
+        </label>
+      )}
+      {effectiveIsKit && (
         <>
           <p className={styles.rowMeta} style={{ marginBottom: 10 }}>
             Marque os serviços inclusos (mín. 2). A duração é a soma deles; o preço é o que
@@ -258,6 +276,7 @@ function EditRow({
         <KitFields
           candidates={candidates}
           defaultIsKit
+          locked
           defaultMembers={service.kitItems.map((k) => k.memberServiceId)}
         />
       )}
