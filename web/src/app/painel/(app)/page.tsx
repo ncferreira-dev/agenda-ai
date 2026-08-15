@@ -127,7 +127,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
   const now = DateTime.now().setZone(tz);
   const startToday = now.startOf('day');
   const weekStart = now.startOf('week');
-  const horizon = now.plus({ days: me.business.maxAdvanceDays + 1 });
+  // Horizonte de EXIBIÇÃO da agenda: fixo e generoso. Antes usava maxAdvanceDays
+  // (que é só a regra de OFERTA de horários na página pública): baixar essa
+  // janela pra, digamos, 7 dias fazia agendamentos já marcados além disso
+  // SUMIREM da agenda do dono. Um ano cobre qualquer agenda real.
+  const horizon = now.plus({ years: 1 });
 
   const [appts, services, professionals] = await Promise.all([
     listAppointments({ from: weekStart.toISO()!, to: horizon.toISO()! }),
