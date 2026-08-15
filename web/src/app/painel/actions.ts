@@ -406,15 +406,19 @@ export async function savePassword(_prev: ActionState, form: FormData): Promise<
 // --- Notificações pro dono ----------------------------------------------
 
 export async function saveNotifications(_prev: ActionState, form: FormData): Promise<ActionState> {
+  // IMPORTANTE: só mande campos que ESTE formulário controla. O PATCH aplica
+  // tudo que vier != undefined, então enviar `notifyWhatsApp`/`ownerWhatsApp`
+  // (que não têm input aqui) fazia `form.get()` devolver null -> gravava
+  // notifyWhatsApp=false e ownerWhatsApp=null em TODO salvamento, desligando o
+  // canal de WhatsApp do dono em silêncio, sem jeito de religar pela tela. O
+  // controle desse canal entra junto com o go-live do WhatsApp.
   const res = await authFetch('/me/business', {
     method: 'PATCH',
     body: JSON.stringify({
-      notifyWhatsApp: form.get('notifyWhatsApp') === 'on',
       notifyEmail: form.get('notifyEmail') === 'on',
       notifyPush: form.get('notifyPush') === 'on',
       notifyOwnerAllBookings: form.get('notifyOwnerAllBookings') === 'on',
       notifyDailySummary: form.get('notifyDailySummary') === 'on',
-      ownerWhatsApp: String(form.get('ownerWhatsApp') ?? '').trim(),
       ownerEmail: String(form.get('ownerEmail') ?? '').trim(),
     }),
   });
