@@ -43,6 +43,18 @@ jobs:
       - name: Teste — preço do serviço
         run: npm run test:pricing-service
 
+      - name: Teste — assinatura do webhook (WhatsApp)
+        run: npm run test:whatsapp-signature
+
+      - name: Teste — recorte do histórico do agente
+        run: npm run test:agent-history
+
+      - name: Teste — parse do webhook (WhatsApp)
+        run: npm run test:whatsapp-parse
+
+      - name: Teste — validação do instante de agendamento
+        run: npm run test:booking-instant
+
   web:
     name: Site — tipos
     runs-on: ubuntu-latest
