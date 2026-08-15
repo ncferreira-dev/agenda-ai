@@ -108,17 +108,36 @@ export class BookingService {
     const { businessId, customerId, professionalId, serviceId, start, notes } = params;
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // Serviço e profissional PRECISAM ser do negócio da conversa. Sem o
-        // filtro por businessId, um id de outro tenant é aceito: o agendamento
-        // nasce no negócio certo mas apontando pra um serviço alheio, herdando
-        // duração e preço dele. Os ids chegam por texto livre no caminho do
-        // agente, então a checagem tem que estar aqui, não só em quem chama.
-        const service = await tx.service.findFirstOrThrow({
-          where: { id: serviceId, businessId },
+        // Serviço e profissional PRECISAM ser do negócio da conversa, estar
+        // ATIVOS e o profissional PRECISA executar esse serviço. Os ids chegam
+        // por texto livre no caminho do agente (e por corpo cru no público),
+        // então a checagem tem que estar aqui, não só em quem chama:
+        //  - sem o filtro por businessId, um id de outro tenant nasceria no
+        //    negócio certo mas apontando pra um serviço alheio (duração/preço
+        //    errados);
+        //  - sem active/vínculo, dava pra marcar um serviço desativado ou um
+        //    profissional que não faz aquilo (a tela de disponibilidade já
+        //    respeita ambos — ver availability.service).
+        // findFirst + erro limpo em vez de findFirstOrThrow: id inválido/inativo
+        // vira 400 amigável, não o 500 cru do Prisma (NotFoundError).
+        const service = await tx.service.findFirst({
+          where: { id: serviceId, businessId, active: true },
         });
-        await tx.professional.findFirstOrThrow({
-          where: { id: professionalId, businessId },
+        if (!service) {
+          throw new BadRequestException('Serviço indisponível.');
+        }
+        const professional = await tx.professional.findFirst({
+          where: {
+            id: professionalId,
+            businessId,
+            active: true,
+            services: { some: { serviceId } },
+          },
+          select: { id: true },
         });
+        if (!professional) {
+          throw new BadRequestException('Esse profissional não atende esse serviço.');
+        }
         const business = await tx.business.findUniqueOrThrow({
           where: { id: businessId },
           select: {
