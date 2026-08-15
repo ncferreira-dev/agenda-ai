@@ -8,7 +8,7 @@ import {
 import { AppointmentStatus, Prisma, ServiceMode } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { DateTime } from 'luxon';
-import { hashCpf, normalizeCpf } from '../common/cpf';
+import { hashCpf, normalizeCpf, isValidCpf } from '../common/cpf';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingService } from '../booking/booking.service';
 import { renderFollowUpMessage } from '../follow-up/render-message';
@@ -434,6 +434,13 @@ export class PanelService {
     // CPF é write-only: campo vazio = "não mexe" (não apaga o que já existe).
     // Só com valor: valida, hashea e checa unicidade contra os outros donos.
     if (input.cpf !== undefined && input.cpf.trim() !== '') {
+      // Valida os dígitos verificadores ANTES de hashear: como o CPF é
+      // blind-index (write-only), um valor inválido gravado nunca mais pode ser
+      // lido pra conferir — entra lixo permanente. isValidCpf já existe e só
+      // não era chamado.
+      if (!isValidCpf(input.cpf)) {
+        throw new BadRequestException('CPF inválido.');
+      }
       const cpfHash = hashCpf(normalizeCpf(input.cpf));
       const clash = await this.prisma.owner.findUnique({
         where: { cpfHash },
@@ -933,9 +940,12 @@ export class PanelService {
         businessId,
         ...(professionalId ? { professionalId } : {}),
         startAt: { gte: from, lt: to },
-        // Realizado = concluído ou pago; falta (NO_SHOW) não fatura.
+        // Realizado = concluído ou pago; falta (NO_SHOW) não fatura. CANCELLED
+        // também não: cancelar só troca o status e deixa o manualPaidAt intacto,
+        // então um agendamento pago e depois cancelado continuava entrando no
+        // faturamento por profissional (o relatório geral já exclui CANCELLED).
         OR: [{ status: 'COMPLETED' }, { manualPaidAt: { not: null } }],
-        NOT: { status: 'NO_SHOW' },
+        NOT: { status: { in: ['NO_SHOW', 'CANCELLED'] } },
       },
       select: {
         startAt: true,
