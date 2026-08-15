@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { effectivePriceCents } from '../pricing/service-price';
+import { checkBookableInstant } from './validate-instant';
+import { type WorkingInterval } from '../availability/slot-engine';
 
 @Injectable()
 export class BookingService {
@@ -119,10 +121,50 @@ export class BookingService {
         });
         const business = await tx.business.findUniqueOrThrow({
           where: { id: businessId },
-          select: { timezone: true },
+          select: {
+            timezone: true,
+            slotStepMinutes: true,
+            minLeadMinutes: true,
+            maxAdvanceDays: true,
+          },
         });
         const startAt = start.toUTC().toJSDate();
         const endAt = start.plus({ minutes: service.durationMinutes }).toUTC().toJSDate();
+
+        // Guarda do INSTANTE: expediente, antecedência mínima, não-no-passado,
+        // alinhamento à grade e janela máxima. Sem isto, um `startAt` cru vindo
+        // do POST público ou do agente cria agendamento de madrugada, em dia de
+        // folga ou a anos de distância — os rechecks abaixo só olham conflito.
+        // A regra vem do MESMO motor que oferta os slots (validate-instant), pra
+        // nunca discordar da tela de disponibilidade.
+        const workingHours: WorkingInterval[] = (
+          await tx.workingHour.findMany({
+            where: { professionalId },
+            select: { weekday: true, startMinute: true, endMinute: true },
+          })
+        ).map((w) => ({
+          weekday: w.weekday,
+          startMinute: w.startMinute,
+          endMinute: w.endMinute,
+        }));
+
+        const verdict = checkBookableInstant({
+          requestedStart: startAt,
+          timezone: business.timezone,
+          durationMinutes: service.durationMinutes,
+          slotStepMinutes: business.slotStepMinutes,
+          minLeadMinutes: business.minLeadMinutes,
+          maxAdvanceDays: business.maxAdvanceDays,
+          workingHours,
+        });
+        if (!verdict.ok) {
+          if (verdict.code === 'too-far') {
+            throw new BadRequestException(
+              'Esse horário está além da janela de agendamento.',
+            );
+          }
+          throw new ConflictException('Esse horário não está disponível.');
+        }
 
         // Recheck: existe agendamento ativo do profissional que sobreponha?
         const conflict = await tx.appointment.findFirst({
