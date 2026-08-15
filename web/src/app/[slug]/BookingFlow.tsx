@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { DateTime } from 'luxon';
 import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
 import styles from './booking.module.css';
@@ -33,7 +34,11 @@ function formatPrice(cents: number): string {
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
-  return digits.startsWith('55') ? digits : `55${digits}`;
+  // A guarda de comprimento é o que separa o DDI 55 do DDD 55 (RS): um número
+  // de Santa Maria como (55) 99999-9999 vira '55999999999' (11 dígitos), que
+  // começa com '55' mas NÃO tem DDI — sem o >= 12 o DDD era comido e o número
+  // gravado sem DDD. Com DDI, o menor válido (55 + fixo de 10) tem 12 dígitos.
+  return digits.startsWith('55') && digits.length >= 12 ? digits : `55${digits}`;
 }
 
 function initials(name: string): string {
@@ -70,6 +75,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   // Âncoras pra rolar suavemente até a seção que acabou de surgir (mobile).
   const scheduleRef = useRef<HTMLDivElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   const service = data.services.find((s) => s.id === serviceId) ?? null;
 
@@ -78,7 +84,10 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     [serviceId, data.professionals],
   );
 
-  const days = useMemo(() => nextDays(Math.min(data.business.maxAdvanceDays, 14)), [data]);
+  // Honra a janela configurada pelo negócio (validada 1–365 no backend, que
+  // agora TAMBÉM a aplica na criação). Antes ficava travado em 14, ignorando o
+  // ajuste do dono — quem punha "60 dias" só via 14 na página pública.
+  const days = useMemo(() => nextDays(data.business.maxAdvanceDays), [data]);
   // Dias da semana fechados (bloqueio recorrente do negócio o dia todo).
   const closedWeekdays = useMemo(
     () => new Set(data.business.closedWeekdays ?? []),
@@ -137,6 +146,12 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   useEffect(() => {
     if (slot) detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [slot]);
+  // Leva a viewport até a banner de erro: ela é o 1º filho de .flow (bem acima),
+  // e os auto-scrolls acima jogam a tela pra seção 3. Sem isto o cliente clicava
+  // em Confirmar, a chamada falhava e "nada acontecia" — o erro ficava fora de tela.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [error]);
 
   const displaySlots: DisplaySlot[] = useMemo(() => {
     const byLabel = new Map<string, DisplaySlot>();
@@ -189,7 +204,12 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   // --- Sucesso ------------------------------------------------------------
   if (result) {
     const when = new Date(result.startAt);
-    const whenLabel = `${WEEKDAYS[when.getDay()]}, ${when.getDate()} de ${MONTHS[when.getMonth()]} às ${pad(when.getHours())}:${pad(when.getMinutes())}`;
+    // Rótulo no fuso do NEGÓCIO (não no do navegador): getHours()/getDay() do
+    // Date usam o fuso local de quem abriu a página — um cliente viajando (ou
+    // num negócio de outro fuso) via a hora errada. O gcal abaixo segue em UTC
+    // (toISOString), que é o certo pra ele.
+    const localDt = DateTime.fromISO(result.startAt, { zone: data.business.timezone });
+    const whenLabel = `${WEEKDAYS[localDt.weekday % 7]}, ${localDt.day} de ${MONTHS[localDt.month - 1]} às ${pad(localDt.hour)}:${pad(localDt.minute)}`;
     const dur = service?.durationMinutes ?? 30;
     const end = new Date(when.getTime() + dur * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -227,12 +247,18 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   }
 
   if (view === 'mine') {
-    return <MyAppointmentsView slug={slug} onBack={() => setView('book')} />;
+    return (
+      <MyAppointmentsView
+        slug={slug}
+        timezone={data.business.timezone}
+        onBack={() => setView('book')}
+      />
+    );
   }
 
   return (
     <div className={styles.flow}>
-      {error && <div className={styles.error}>{error}</div>}
+      {error && <div ref={errorRef} className={styles.error}>{error}</div>}
 
       {/* 1. Serviço */}
       <section>
@@ -425,7 +451,15 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function MyAppointmentsView({ slug, onBack }: { slug: string; onBack: () => void }) {
+function MyAppointmentsView({
+  slug,
+  timezone,
+  onBack,
+}: {
+  slug: string;
+  timezone: string;
+  onBack: () => void;
+}) {
   const [phone, setPhone] = useState('');
   const [list, setList] = useState<MyAppointment[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -493,8 +527,8 @@ function MyAppointmentsView({ slug, onBack }: { slug: string; onBack: () => void
       {list && list.length > 0 && (
         <div className={styles.serviceList} style={{ marginTop: 18 }}>
           {list.map((a) => {
-            const w = new Date(a.startAt);
-            const when = `${WEEKDAYS[w.getDay()]}, ${w.getDate()} de ${MONTHS[w.getMonth()]} às ${pad(w.getHours())}:${pad(w.getMinutes())}`;
+            const w = DateTime.fromISO(a.startAt, { zone: timezone });
+            const when = `${WEEKDAYS[w.weekday % 7]}, ${w.day} de ${MONTHS[w.month - 1]} às ${pad(w.hour)}:${pad(w.minute)}`;
             return (
               <div key={a.id} className={styles.serviceRow} style={{ cursor: 'default' }}>
                 <div style={{ minWidth: 0 }}>
