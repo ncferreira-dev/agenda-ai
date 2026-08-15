@@ -137,23 +137,31 @@ export class ToolExecutor {
       }
 
       case 'consultar_disponibilidade': {
-        const avail = await this.availability.getAvailability({
-          businessId: ctx.businessId,
-          serviceId: input.serviceId,
-          date: input.date,
-          professionalId: input.professionalId,
-        });
-        // Devolve no formato enxuto: por profissional, horários com o ISO exato.
-        return JSON.stringify(
-          avail.map((a) => ({
-            profissionalId: a.professionalId,
-            profissional: a.professionalName,
-            horarios: a.slots.map((s) => ({
-              label: s.label,
-              startAt: DateTime.fromJSDate(s.startAt).setZone(ctx.timezone).toISO(),
+        // try/catch como no criar_agendamento: um serviceId inexistente/obsoleto
+        // (ou uma data malformada que o modelo montou) faz getAvailability lançar
+        // — sem o catch, a exceção derruba o turno e some com o histórico da
+        // conversa. Devolvendo {ok:false, erro} o modelo se recupera.
+        try {
+          const avail = await this.availability.getAvailability({
+            businessId: ctx.businessId,
+            serviceId: input.serviceId,
+            date: input.date,
+            professionalId: input.professionalId,
+          });
+          // Devolve no formato enxuto: por profissional, horários com o ISO exato.
+          return JSON.stringify(
+            avail.map((a) => ({
+              profissionalId: a.professionalId,
+              profissional: a.professionalName,
+              horarios: a.slots.map((s) => ({
+                label: s.label,
+                startAt: DateTime.fromJSDate(s.startAt).setZone(ctx.timezone).toISO(),
+              })),
             })),
-          })),
-        );
+          );
+        } catch (e: any) {
+          return JSON.stringify({ ok: false, erro: e?.message ?? 'não consegui consultar os horários' });
+        }
       }
 
       case 'criar_agendamento': {

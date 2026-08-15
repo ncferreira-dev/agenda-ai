@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -53,6 +53,11 @@ export class AvailabilityService {
 
     // Janela de busca do dia em UTC, p/ buscar ocupações de forma barata.
     const dayStart = DateTime.fromISO(date, { zone: business.timezone }).startOf('day');
+    // Data malformada (ex.: "abc" ou "2026-13-40") -> 400 claro, não o 500 do
+    // Prisma lá na frente (windowStart/windowEnd viravam "Invalid Date").
+    if (!dayStart.isValid) {
+      throw new BadRequestException('Data inválida.');
+    }
     const dayEnd = dayStart.plus({ days: 1 });
     const windowStart = dayStart.toJSDate();
     const windowEnd = dayEnd.toJSDate();
