@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Post,
   Req,
   Res,
@@ -12,11 +13,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService, type OAuthProfile } from './auth.service';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
-
-// Base pública do front (pra onde o backend devolve o navegador após o OAuth).
-function webBase(): string {
-  return process.env.WEB_ORIGIN ?? 'http://localhost:3001';
-}
+import { webOrigin } from '../common/env';
 
 interface LoginBody {
   email: string;
@@ -44,6 +41,8 @@ interface ResetPasswordBody {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private auth: AuthService) {}
 
   @Post('login')
@@ -113,9 +112,13 @@ export class AuthController {
       const profile = req.user as OAuthProfile;
       const ownerId = await this.auth.findOrLinkOrCreateFromOAuth(profile);
       const code = await this.auth.createExchangeCode(ownerId);
-      res.redirect(`${webBase()}/painel/oauth/callback?code=${encodeURIComponent(code)}`);
-    } catch {
-      res.redirect(`${webBase()}/painel/login?erro=google-falhou`);
+      res.redirect(`${webOrigin()}/painel/oauth/callback?code=${encodeURIComponent(code)}`);
+    } catch (e) {
+      // Sem log, erros distintos (conta já existe com outro provedor, falha de
+      // rede na troca, etc.) sumiam sem rastro — impossível diagnosticar por que
+      // o login social falhou. O usuário segue vendo o erro genérico.
+      this.logger.error('Falha no callback do OAuth do Google', e as Error);
+      res.redirect(`${webOrigin()}/painel/login?erro=google-falhou`);
     }
   }
 
