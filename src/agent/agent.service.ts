@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,6 +12,7 @@ const MAX_TOOL_TURNS = 6; // trava de segurança contra loop infinito
 
 @Injectable()
 export class AgentService {
+  private readonly logger = new Logger(AgentService.name);
   // Init preguiçoso: sem ANTHROPIC_API_KEY o app sobe normal (a página de
   // agendamento não depende de IA); só o agente do WhatsApp exige a chave.
   private anthropic: Anthropic | null = null;
@@ -132,6 +133,30 @@ export class AgentService {
         });
       }
       messages.push({ role: 'user', content: toolResults });
+    }
+
+    // Loop estourou MAX_TOOL_TURNS ainda com tool_use na última rodada: as
+    // ferramentas rodaram (o agendamento pode JÁ ter sido criado) e os
+    // tool_results estão em `messages`, mas o modelo nunca os viu — sem isto o
+    // cliente levava "tive um problema" mesmo com o horário marcado. Uma última
+    // chamada SEM ferramentas fecha a conversa com base no que já aconteceu.
+    if (!finalText) {
+      try {
+        const closing = await this.getAnthropic().messages.create({
+          model: MODEL,
+          max_tokens: 1024,
+          system: this.systemPrompt(business.name, business.timezone),
+          messages, // sem `tools`: força uma resposta em texto
+        });
+        finalText = closing.content
+          .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('\n')
+          .trim();
+        messages.push({ role: 'assistant', content: closing.content });
+      } catch (e) {
+        this.logger.warn(`Falha na chamada de fechamento do agente: ${(e as Error).message}`);
+      }
     }
 
     if (!finalText) {
