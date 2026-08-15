@@ -6,6 +6,7 @@ import {
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { isPlanId, type PlanId } from './plan-catalog';
+import { webOrigin } from '../common/env';
 
 // Nome da env de Price ID (Stripe) por plano. Os produtos no Stripe ficam com
 // o PREÇO CHEIO (fullCents do catálogo) — o desconto de lançamento é o cupom
@@ -35,11 +36,6 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Base pública do front (success/cancel url do Checkout). Mesmo fallback usado
-// em src/auth/auth.controller.ts.
-function webBase(): string {
-  return process.env.WEB_ORIGIN ?? 'http://localhost:3001';
-}
 
 @Injectable()
 export class StripeService {
@@ -196,7 +192,7 @@ export class StripeService {
       params.ownerEmail,
     );
 
-    const base = webBase();
+    const base = webOrigin();
     const session = await this.stripe().checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -238,7 +234,7 @@ export class StripeService {
     }
     const session = await this.stripe().billingPortal.sessions.create({
       customer: business.stripeCustomerId,
-      return_url: `${webBase()}/painel/planos`,
+      return_url: `${webOrigin()}/painel/planos`,
     });
     return session.url;
   }
