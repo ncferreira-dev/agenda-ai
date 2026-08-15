@@ -1,9 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { requiredInProd } from '../common/env';
+
+// Extensão derivada do TIPO real, num allowlist — nunca do nome do arquivo, que
+// o cliente controla. Sem isto, mandar "evil.html" (ou um SVG, que executa
+// script) fazia a chave herdar `.html`/`.svg` e a própria API servia o arquivo
+// como HTML/SVG => XSS hospedado no nosso domínio. Só imagem raster passa.
+const EXT_BY_MIME: Record<string, string> = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
 
 // ---------------------------------------------------------------------------
 // Storage plugável das imagens (logo/capa). Init preguiçoso, degradação graciosa
@@ -73,7 +84,13 @@ export class StorageService {
     originalname: string;
     mimetype: string;
   }): Promise<StoredFile> {
-    const key = `${randomUUID()}${extname(file.originalname)}`;
+    const ext = EXT_BY_MIME[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException(
+        'Formato de imagem não suportado. Use PNG, JPG, WEBP ou GIF.',
+      );
+    }
+    const key = `${randomUUID()}${ext}`;
 
     if (this.usesS3) {
       await this.getS3().send(
