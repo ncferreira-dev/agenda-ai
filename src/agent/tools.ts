@@ -202,12 +202,22 @@ export class ToolExecutor {
         // ctx.customerId trava no dono do agendamento. O id vem de texto livre
         // do cliente (ou de quem conseguir induzir o modelo), então sem esse
         // filtro dá pra cancelar o horário de outra pessoa do mesmo negócio.
-        await this.booking.cancelAppointment(
-          ctx.businessId,
-          input.appointmentId,
-          ctx.customerId,
-        );
-        return JSON.stringify({ ok: true });
+        //
+        // try/catch como no criar_agendamento: um id inexistente/alheio/alucinado
+        // faz cancelAppointment lançar BadRequestException. Sem o catch, a exceção
+        // sobe por handleMessage e derruba o turno inteiro — o histórico da
+        // conversa não é salvo e o cliente recebe um erro genérico. Devolvendo
+        // {ok:false, erro} o modelo entende "não achei" e responde direito.
+        try {
+          await this.booking.cancelAppointment(
+            ctx.businessId,
+            input.appointmentId,
+            ctx.customerId,
+          );
+          return JSON.stringify({ ok: true });
+        } catch (e: any) {
+          return JSON.stringify({ ok: false, erro: e?.message ?? 'não consegui cancelar' });
+        }
       }
 
       default:
