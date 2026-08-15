@@ -62,7 +62,15 @@ export class BookingService {
 
     // Confirmado: avisa o dono (canais ligados) e o cliente (e-mail). Fire-and-forget.
     void this.notifications.notifyNewBooking(created.appointment.id);
-    void this.sendCustomerEmail(created.appointment);
+    // .catch obrigatório: sendCustomerEmail não tem try/catch interno e chama
+    // findUniqueOrThrow + SMTP; uma rejeição num `void` sem catch vira
+    // unhandledRejection e pode derrubar o processo. O e-mail é best-effort —
+    // loga e segue, nunca quebra o agendamento (que já está confirmado).
+    void this.sendCustomerEmail(created.appointment).catch((err) =>
+      this.logger.warn(
+        `Falha ao enviar e-mail de confirmação ao cliente: ${(err as Error).message}`,
+      ),
+    );
     return { appointment: created.appointment };
   }
 
