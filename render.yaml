@@ -59,3 +59,12 @@ services:
       # RECUSA o webhook enquanto estiver vazia (fail-closed, de propósito).
       - key: WHATSAPP_APP_SECRET
         sync: false
+      # Templates aprovados na Meta pras mensagens iniciadas pelo negócio (lembrete
+      # e follow-up), que saem fora da janela de 24h. Sem eles, os crons não
+      # enviam pra valer (texto livre é recusado). Preencha no dashboard.
+      - key: WHATSAPP_TEMPLATE_LEMBRETE
+        sync: false
+      - key: WHATSAPP_TEMPLATE_FOLLOWUP
+        sync: false
+      - key: WHATSAPP_TEMPLATE_LANG
+        sync: false
