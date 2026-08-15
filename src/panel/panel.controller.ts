@@ -101,17 +101,25 @@ export class PanelController {
   }
 
   // --- Onboarding "qual é o seu negócio?" (Fase 3b) ----------------------
+  //
+  // Estes três ficam FORA do BillingGateGuard de propósito (como o me() acima).
+  // O layout do painel manda quem não concluiu o onboarding pra /painel/onboarding
+  // ANTES de liberar o resto. Se o trial vence com o onboarding ainda pendente e
+  // estes endpoints estivessem no gate, dava um loop: a página de onboarding busca
+  // /me/verticais -> 403 -> o front redireciona pra /painel/planos -> o layout vê
+  // onboarding pendente -> volta pro onboarding -> ... e o dono nunca chega na tela
+  // onde pagaria. Sem gate aqui, ele conclui (ou pula) o onboarding e AÍ é levado
+  // ao billing normalmente. Onboarding não dá acesso a nenhuma tela paga, então
+  // liberá-lo não fura o gate — só destrava o caminho até o pagamento.
 
   /** Catálogo de verticais + peles pro wizard de onboarding. */
   @Get('verticais')
-  @UseGuards(BillingGateGuard)
   verticais() {
     return this.panel.getVerticais();
   }
 
   /** Aplica um vertical: cor/tema sugeridos + serviços-base. */
   @Post('onboarding/apply')
-  @UseGuards(BillingGateGuard)
   applyVertical(
     @CurrentBusiness() businessId: string,
     @Body() body: { vertical?: string; skin?: string },
@@ -122,7 +130,6 @@ export class PanelController {
 
   /** Conclui (ou pula) o onboarding. */
   @Post('onboarding/finish')
-  @UseGuards(BillingGateGuard)
   finishOnboarding(@CurrentBusiness() businessId: string) {
     return this.panel.finishOnboarding(businessId);
   }
