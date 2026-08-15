@@ -84,28 +84,42 @@ export function AssinarButton({
         Assinar
       </button>
 
-      {open && quote && (
+      {open && (
         <div className={styles.modalScrim} role="dialog" aria-modal="true" onClick={() => !enviando && setOpen(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Assinar {planName}</h3>
 
-            {/* Promessa de preço POR ESCRITO — condição de lançamento explícita. */}
-            <p className={styles.disclosure}>{quote.disclosureText}</p>
+            {/* O quote (detalhamento de preço) pode não ter carregado — antes o
+                modal inteiro era condicionado a `quote`, então o botão "Assinar"
+                não abria NADA e parecia quebrado. Agora abre sempre; o
+                detalhamento aparece quando existe, e sem ele mostramos um aviso
+                e seguimos pro checkout (que não depende do quote). */}
+            {quote ? (
+              <>
+                {/* Promessa de preço POR ESCRITO — condição de lançamento explícita. */}
+                <p className={styles.disclosure}>{quote.disclosureText}</p>
 
-            <div className={styles.lineItems}>
-              {quote.lineItems.map((l, i) => (
-                <div key={i} className={styles.lineRow}>
-                  <span>{l.label}</span>
-                  <span>{l.amountCents < 0 ? `− ${brl(-l.amountCents)}` : brl(l.amountCents)}</span>
+                <div className={styles.lineItems}>
+                  {quote.lineItems.map((l, i) => (
+                    <div key={i} className={styles.lineRow}>
+                      <span>{l.label}</span>
+                      <span>{l.amountCents < 0 ? `− ${brl(-l.amountCents)}` : brl(l.amountCents)}</span>
+                    </div>
+                  ))}
+                  <div className={`${styles.lineRow} ${styles.lineTotal}`}>
+                    <span>Total no 1º mês</span>
+                    <span>{brl(quote.firstChargeCents)}</span>
+                  </div>
                 </div>
-              ))}
-              <div className={`${styles.lineRow} ${styles.lineTotal}`}>
-                <span>Total no 1º mês</span>
-                <span>{brl(quote.firstChargeCents)}</span>
-              </div>
-            </div>
 
-            {quote.firstMonthNote && <p className={styles.modalNote}>{quote.firstMonthNote}</p>}
+                {quote.firstMonthNote && <p className={styles.modalNote}>{quote.firstMonthNote}</p>}
+              </>
+            ) : (
+              <p className={styles.modalNote}>
+                Não consegui carregar o detalhamento de preço agora. Você pode
+                seguir para o pagamento e os valores aparecem no checkout.
+              </p>
+            )}
 
             {erro && <p className={styles.modalErr}>{erro}</p>}
 
