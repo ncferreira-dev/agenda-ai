@@ -1,6 +1,8 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { DateTime } from 'luxon';
+import { Prisma } from '@prisma/client';
+import type { EntradaDaFerramenta } from './tools';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
@@ -125,7 +127,14 @@ export class AgentService {
       // Executa cada ferramenta e devolve os resultados.
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
-        const result = await this.executor.run(tu.name, tu.input, ctx);
+        // tu.input é unknown no SDK: o conteúdo é o que o modelo escreveu, e
+        // ninguém validou. O cast marca essa fronteira em UM ponto; quem trata
+        // campo faltando é o executor, que devolve erro legível pro modelo.
+        const result = await this.executor.run(
+          tu.name,
+          tu.input as EntradaDaFerramenta,
+          ctx,
+        );
         toolResults.push({
           type: 'tool_result',
           tool_use_id: tu.id,
@@ -168,7 +177,9 @@ export class AgentService {
     const trimmed = recortarHistorico(messages, 40);
     await this.prisma.conversation.update({
       where: { id: conversation.id },
-      data: { messages: trimmed as any },
+      // Campo Json do Prisma: InputJsonValue é o tipo que ele aceita de fato.
+      // `as any` aqui desligava a checagem justo na escrita do histórico.
+      data: { messages: trimmed as unknown as Prisma.InputJsonValue },
     });
 
     return finalText;

@@ -7,7 +7,8 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck && next lint --max-warnings=0"
   },
   "dependencies": {
     "@types/luxon": "^3.7.2",
@@ -22,6 +23,8 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.10",
     "@types/react-dom": "^18.3.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
     "typescript": "^5.6.2"
   }
 }
