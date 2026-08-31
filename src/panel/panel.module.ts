@@ -2,7 +2,11 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { BookingModule } from '../booking/booking.module';
 import { PanelController } from './panel.controller';
-import { PanelService } from './panel.service';
+import { BusinessService } from './business/business.service';
+import { OwnerService } from './owner/owner.service';
+import { AppointmentsService } from './appointments/appointments.service';
+import { CustomersService } from './customers/customers.service';
+import { ReportsService } from './reports/reports.service';
 import { ServicesController } from './services/services.controller';
 import { ServicesService } from './services/services.service';
 import { ProfessionalsController } from './professionals/professionals.controller';
@@ -22,6 +26,15 @@ import { UploadsController } from './uploads.controller';
     RecurringBlocksController,
     UploadsController,
   ],
-  providers: [PanelService, ServicesService, ProfessionalsService, BlocksService],
+  providers: [
+    BusinessService,
+    OwnerService,
+    AppointmentsService,
+    CustomersService,
+    ReportsService,
+    ServicesService,
+    ProfessionalsService,
+    BlocksService,
+  ],
 })
 export class PanelModule {}

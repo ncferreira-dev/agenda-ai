@@ -264,6 +264,42 @@ const CHECAGENS = [
     },
   },
   {
+    // TRAVA DO DEFEITO DE 31/08/2026 (o quarto). panel.service.ts tinha 1028
+    // linhas e CINCO assuntos dentro: negócio, dono, agenda, clientes e
+    // relatório. Ninguém decidiu isso — cresceu. E cresceu porque acrescentar um
+    // método num arquivo que já existe é sempre mais fácil do que criar a pasta
+    // do assunto novo.
+    //
+    // Contar linha é medida grosseira do que importa de verdade, que é "um
+    // assunto por arquivo". É a que dá pra automatizar. O teto está acima do
+    // maior arquivo de hoje de propósito: trava que nasce vermelha fica
+    // vermelha e ensina a ignorar vermelho. Ele morde muito antes das 1028.
+    nome: 'nenhum arquivo da API passa de 550 linhas',
+    executar() {
+      const TETO = 550;
+      const arquivos = listarArquivos(join(RAIZ, 'src'), ['.ts']).filter(
+        (c) => !c.endsWith('.spec.ts'),
+      );
+
+      const medidos = arquivos
+        .map((caminho) => ({
+          nome: relative(RAIZ, caminho),
+          linhas: (ler(caminho) ?? '').split('\n').length,
+        }))
+        .sort((a, b) => b.linhas - a.linhas);
+
+      const acima = medidos.filter((m) => m.linhas > TETO);
+      const maior = medidos[0];
+
+      return {
+        ok: acima.length === 0,
+        procurou: `${arquivos.length} arquivo(s) de src/ contra o teto de ${TETO}; o maior hoje é ${maior?.nome} com ${maior?.linhas}`,
+        achou: acima.length === 0 ? 'nenhum acima do teto' : `${acima.length} acima do teto`,
+        detalhes: acima.map((m) => `${m.nome}: ${m.linhas} linhas`),
+      };
+    },
+  },
+  {
     // O repositório é PÚBLICO (está escrito no .gitignore, junto da regra de
     // nunca versionar dump do banco). Segredo aqui não é vazamento interno: é
     // publicação. Varre TODO arquivo de texto, sem lista de extensão, porque o
@@ -339,6 +375,10 @@ const CONFERENCIA_HUMANA = [
     'anônima e conferir que aparece o texto explicando, e não uma tela quebrada.',
   'Rodar `npx prisma migrate deploy` contra a produção é irreversível e nenhum ' +
     'teste cobre isso. Confira a DATABASE_URL antes, à mão, toda vez.',
+  'O teto de 550 linhas passa hoje, mas os PRÓXIMOS da fila são ' +
+    'api/src/auth/auth.service.ts (515) e web/src/app/[slug]/BookingFlow.tsx ' +
+    '(615, fora do alcance da trava, que só olha src/). Nenhum dos dois foi ' +
+    'quebrado ainda — está declarado aqui para não passar por resolvido.',
 ];
 
 // ===========================================================================
