@@ -2,12 +2,9 @@ import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/c
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BillingGateGuard } from '../../billing/billing-gate.guard';
 import { CurrentBusiness } from '../../auth/decorators/current-business.decorator';
-import {
-  BlocksService,
-  type BlockInput,
-  type RecurringBlockInput,
-} from './blocks.service';
+import { BlocksService } from './blocks.service';
 
+import { CriarBloqueioDto, CriarBloqueioRecorrenteDto } from './blocks.dto';
 @Controller('me/blocks')
 @UseGuards(JwtAuthGuard, BillingGateGuard)
 export class BlocksController {
@@ -19,7 +16,7 @@ export class BlocksController {
   }
 
   @Post()
-  create(@CurrentBusiness() businessId: string, @Body() body: BlockInput) {
+  create(@CurrentBusiness() businessId: string, @Body() body: CriarBloqueioDto) {
     return this.blocks.create(businessId, body);
   }
 
@@ -40,7 +37,7 @@ export class RecurringBlocksController {
   }
 
   @Post()
-  create(@CurrentBusiness() businessId: string, @Body() body: RecurringBlockInput) {
+  create(@CurrentBusiness() businessId: string, @Body() body: CriarBloqueioRecorrenteDto) {
     return this.blocks.createRecurring(businessId, body);
   }
 

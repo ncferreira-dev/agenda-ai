@@ -407,18 +407,33 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
           <div className={styles.summary}>
             {service.name} · {slot.label}
           </div>
+          {/* Nome e WhatsApp são os dois campos sem os quais o agendamento não
+              serve pra nada: sem nome o dono não sabe quem vai chegar, e sem
+              WhatsApp não há como confirmar nem lembrar. O asterisco fica
+              aria-hidden e quem avisa o leitor de tela é o aria-required do
+              campo — asterisco lido em voz alta vira "asterisco", que não
+              informa nada. */}
           <label className={styles.label}>
-            Nome
-            <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+            Nome <span className={styles.obrigatorio} aria-hidden>*</span>
+            <input
+              className={styles.input}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome"
+              required
+              aria-required="true"
+            />
           </label>
           <label className={styles.label}>
-            WhatsApp
+            WhatsApp <span className={styles.obrigatorio} aria-hidden>*</span>
             <input
               className={styles.input}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="(11) 99999-9999"
               inputMode="tel"
+              required
+              aria-required="true"
             />
           </label>
           <label className={styles.label}>

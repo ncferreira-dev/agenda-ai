@@ -2,11 +2,12 @@ import 'reflect-metadata';
 import 'dotenv/config'; // carrega o .env em process.env (ANTHROPIC_API_KEY, WhatsApp, JWT…)
 import { mkdirSync } from 'node:fs';
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
+import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { UPLOADS_DIR } from './storage/storage.service';
 import { corsOrigins } from './common/env';
+import { primeiraMensagemDeErro } from './common/validation';
 import { setDefaultResultOrder } from 'node:dns';
 
 // Preferir IPv4 ao resolver nomes. O Render não tem rota de saída por IPv6:
@@ -31,6 +32,34 @@ async function bootstrap(): Promise<void> {
   // (Render põe exatamente um) — number fixo, e não `true`, porque `true`
   // aceitaria um X-Forwarded-For forjado pelo próprio cliente.
   app.set('trust proxy', 1);
+
+  // Validação de entrada na porta, e não espalhada dentro de cada handler.
+  //
+  //   whitelist            corta todo campo que o DTO não declara. Sem isto um
+  //                        POST pode mandar {..., role: 'admin'} e o campo
+  //                        viaja junto até quem faz spread em `data`.
+  //   forbidNonWhitelisted em vez de cortar em silêncio, recusa com 400 dizendo
+  //                        qual campo sobrou. Corte silencioso esconde bug de
+  //                        front: o pedido "funciona" e o dado some.
+  //   transform            instancia o DTO de verdade (e converte "12" em 12
+  //                        quando o tipo declarado é number).
+  //
+  // Só age em parâmetro tipado com CLASSE. `@Body() b: AlgumaInterface` não é
+  // validado, porque interface não existe em tempo de execução — é por isso que
+  // o verificador tem uma trava exigindo que todo @Body() use um *.dto.ts.
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      // Sem isto o Nest devolve `message` como ARRAY, em inglês. Todo consumidor
+      // aqui — as rotas do Next e as telas — espera `message` string e em
+      // português, porque até agora vinha de `new BadRequestException('...')`.
+      // Ver src/common/validation.ts para o porquê de cada regra.
+      exceptionFactory: (errors) =>
+        new BadRequestException(primeiraMensagemDeErro(errors) ?? 'Dados inválidos.'),
+    }),
+  );
 
   // Libera o(s) frontend(s) Next a chamar a API do navegador. WEB_ORIGIN é
   // obrigatória em produção (falha no boot se faltar) e aceita várias origens

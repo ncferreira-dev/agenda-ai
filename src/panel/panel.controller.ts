@@ -1,5 +1,15 @@
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  AtualizarPerfilDto,
+  TrocarSenhaDto,
+  AtualizarNegocioDto,
+  AplicarVerticalDto,
+  StatusDoAtendimentoDto,
+  PagamentoDoAtendimentoDto,
+  ItensDoAtendimentoDto,
+  ObservacaoDoClienteDto,
+} from './panel.dto';
 import { BillingGateGuard } from '../billing/billing-gate.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
@@ -38,14 +48,7 @@ export class PanelController {
   @UseGuards(BillingGateGuard)
   updateProfile(
     @CurrentOwner() owner: AuthenticatedOwner,
-    @Body()
-    body: {
-      name?: string;
-      phone?: string;
-      cpf?: string;
-      cep?: string;
-      photoUrl?: string;
-    },
+    @Body() body: AtualizarPerfilDto,
   ) {
     return this.panel.updateOwner(owner.ownerId, body);
   }
@@ -55,7 +58,7 @@ export class PanelController {
   @UseGuards(BillingGateGuard)
   setPassword(
     @CurrentOwner() owner: AuthenticatedOwner,
-    @Body() body: { currentPassword?: string; newPassword?: string },
+    @Body() body: TrocarSenhaDto,
   ) {
     return this.panel.setPassword(owner.ownerId, body);
   }
@@ -65,37 +68,7 @@ export class PanelController {
   @UseGuards(BillingGateGuard)
   updateBusiness(
     @CurrentBusiness() businessId: string,
-    @Body()
-    body: {
-      name?: string;
-      slug?: string;
-      accentColor?: string;
-      about?: string;
-      instagramUrl?: string;
-      profession?: string;
-      themePreset?: string;
-      logoUrl?: string;
-      coverUrl?: string;
-      notifyWhatsApp?: boolean;
-      notifyEmail?: boolean;
-      notifyPush?: boolean;
-      notifyOwnerAllBookings?: boolean;
-      notifyDailySummary?: boolean;
-      ownerWhatsApp?: string;
-      ownerEmail?: string;
-      phone?: string;
-      address?: string;
-      serviceMode?: string;
-      meetingUrl?: string;
-      timezone?: string;
-      slotStepMinutes?: number;
-      minLeadMinutes?: number;
-      maxAdvanceDays?: number;
-      reminderHoursBefore?: number;
-      inactiveDays?: number;
-      vipMinSpentCents?: number | null;
-      recurringMinVisits?: number;
-    },
+    @Body() body: AtualizarNegocioDto,
   ) {
     return this.panel.updateBusiness(businessId, body);
   }
@@ -122,9 +95,8 @@ export class PanelController {
   @Post('onboarding/apply')
   applyVertical(
     @CurrentBusiness() businessId: string,
-    @Body() body: { vertical?: string; skin?: string },
+    @Body() body: AplicarVerticalDto,
   ) {
-    if (!body?.vertical) throw new BadRequestException('Escolha um tipo de negócio.');
     return this.panel.applyVertical(businessId, body.vertical, body.skin);
   }
 
@@ -162,15 +134,8 @@ export class PanelController {
   setStatus(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
-    @Body() body: { status?: string },
+    @Body() body: StatusDoAtendimentoDto,
   ) {
-    if (
-      body?.status !== 'COMPLETED' &&
-      body?.status !== 'NO_SHOW' &&
-      body?.status !== 'CONFIRMED'
-    ) {
-      throw new BadRequestException('status deve ser COMPLETED, NO_SHOW ou CONFIRMED.');
-    }
     return this.panel.setAppointmentStatus(businessId, id, body.status);
   }
 
@@ -180,9 +145,9 @@ export class PanelController {
   setPaid(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
-    @Body() body: { paid?: boolean },
+    @Body() body: PagamentoDoAtendimentoDto,
   ) {
-    return this.panel.setAppointmentPaid(businessId, id, Boolean(body?.paid));
+    return this.panel.setAppointmentPaid(businessId, id, body.paid);
   }
 
   /** Substitui os itens cobrados (serviço principal + extras) e recalcula o total. */
@@ -191,11 +156,8 @@ export class PanelController {
   setItems(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
-    @Body() body: { items?: Array<{ name?: string; priceCents?: number; sourceServiceId?: string | null }> },
+    @Body() body: ItensDoAtendimentoDto,
   ) {
-    if (!Array.isArray(body?.items)) {
-      throw new BadRequestException('items deve ser uma lista.');
-    }
     return this.panel.setAppointmentItems(businessId, id, body.items);
   }
 
@@ -219,9 +181,9 @@ export class PanelController {
   updateCustomer(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
-    @Body() body: { note?: string },
+    @Body() body: ObservacaoDoClienteDto,
   ) {
-    return this.panel.updateCustomerNote(businessId, id, body?.note ?? '');
+    return this.panel.updateCustomerNote(businessId, id, body.note ?? '');
   }
 
   /** Relatório de faturamento num período (ISO de/até). */

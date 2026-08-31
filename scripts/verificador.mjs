@@ -148,6 +148,67 @@ const CHECAGENS = [
     },
   },
   {
+    // TRAVA DO DEFEITO DE 31/08/2026 (o segundo do dia). A API não tinha um
+    // único arquivo .dto.ts: todo corpo de requisição era um tipo inline
+    // (`@Body() body: { nome?: string }`), e tipo inline o TypeScript apaga na
+    // compilação. O ValidationPipe do Nest só age em parâmetro cujo tipo existe
+    // em tempo de execução, ou seja: nada era conferido. A conferência real era
+    // um punhado de `if (!body?.x)` no começo de cada handler, fácil de esquecer
+    // numa rota nova — e foi esquecida em várias.
+    //
+    // Esta trava não sabe se o DTO valida BEM. Ela garante o degrau anterior,
+    // que é o que faltava: que exista um lugar onde a regra CAIBA.
+    nome: 'todo @Body() usa um DTO (classe), e não tipo inline',
+    executar() {
+      // Isentos, com motivo. Isenção sem motivo escrito vira porta.
+      const ISENTOS = {
+        'whatsapp.controller.ts':
+          'o corpo é o webhook da Meta, autenticado por assinatura e lido pelo parseWebhook, que já trata cada nível como ausente',
+      };
+
+      const controllers = listarArquivos(join(RAIZ, 'src'), ['.controller.ts']);
+      const detalhes = [];
+      let total = 0;
+
+      for (const caminho of controllers) {
+        const nomeArquivo = caminho.split('/').pop();
+        const fonte = ler(caminho);
+        if (!fonte) continue;
+        const isento = Boolean(ISENTOS[nomeArquivo]);
+
+        fonte.split('\n').forEach((linha, i) => {
+          if (!linha.includes('@Body')) return;
+          total += 1;
+          const rel = `${relative(RAIZ, caminho)}:${i + 1}`;
+
+          // `@Body('campo')` extrai a propriedade solta. O pipe não valida
+          // primitivo, então {planId:{"$ne":null}} chegava como objeto num
+          // lugar tipado como string. Não tem isenção: use um DTO.
+          if (/@Body\(\s*['"`]/.test(linha)) {
+            detalhes.push(`${rel}: @Body('campo') não passa pelo ValidationPipe`);
+            return;
+          }
+          if (isento) return;
+
+          // `@Body() nome: Tipo` — o Tipo precisa ser uma classe *Dto.
+          const m = /@Body\(\)\s*\w+\s*:\s*([A-Za-z0-9_]+)/.exec(linha);
+          if (!m) {
+            detalhes.push(`${rel}: não consegui ler o tipo do @Body()`);
+          } else if (!m[1].endsWith('Dto')) {
+            detalhes.push(`${rel}: @Body() tipado como ${m[1]}, que não é um DTO`);
+          }
+        });
+      }
+
+      return {
+        ok: detalhes.length === 0,
+        procurou: `${total} uso(s) de @Body em ${controllers.length} controller(s), ${Object.keys(ISENTOS).length} isento com motivo`,
+        achou: detalhes.length === 0 ? 'todos com DTO' : `${detalhes.length} sem DTO`,
+        detalhes,
+      };
+    },
+  },
+  {
     // O repositório é PÚBLICO (está escrito no .gitignore, junto da regra de
     // nunca versionar dump do banco). Segredo aqui não é vazamento interno: é
     // publicação. Varre TODO arquivo de texto, sem lista de extensão, porque o
