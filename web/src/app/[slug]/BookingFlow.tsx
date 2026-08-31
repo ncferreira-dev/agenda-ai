@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { DateTime } from 'luxon';
 import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
+import { salvarAcesso, lerAcesso, limparAcesso, capturarAcessoDaUrl } from '@/lib/customer-access';
 import styles from './booking.module.css';
 
 interface DisplaySlot {
@@ -193,6 +194,9 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         email: email.trim() || undefined,
         notes: notes.trim() || undefined,
       });
+      // Guarda a credencial ANTES de mostrar a confirmação: é ela que faz
+      // "Meus agendamentos" funcionar depois sem pedir telefone.
+      salvarAcesso(slug, res.accessToken);
       setResult(res);
     } catch (e: any) {
       setError(e?.message ?? 'Não consegui concluir o agendamento.');
@@ -460,36 +464,53 @@ function MyAppointmentsView({
   timezone: string;
   onBack: () => void;
 }) {
-  const [phone, setPhone] = useState('');
+  const [token, setToken] = useState<string | null>(null);
   const [list, setList] = useState<MyAppointment[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  async function buscar(e: React.FormEvent) {
-    e.preventDefault();
-    if (phone.replace(/\D/g, '').length < 10) {
-      setError('Informe um telefone válido.');
+  // Não há mais formulário de telefone aqui, e isso é o ponto: identificar o
+  // cliente pelo número que ele digita entregava a agenda de qualquer pessoa a
+  // quem soubesse o número dela. Agora quem responde por "sou eu" é o token —
+  // do link (?t=), quando a pessoa chega pelo WhatsApp, ou do navegador, quando
+  // ela já agendou aqui antes.
+  useEffect(() => {
+    const t = capturarAcessoDaUrl(slug) ?? lerAcesso(slug);
+    setToken(t);
+    if (!t) {
+      setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
-    try {
-      setList(await getMyAppointments(slug, phone));
-    } catch (err: any) {
-      setError(err?.message ?? 'Não consegui buscar.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    let vivo = true;
+    getMyAppointments(slug, t)
+      .then((l) => {
+        if (vivo) setList(l);
+      })
+      .catch((e: any) => {
+        if (!vivo) return;
+        // Token vencido, adulterado ou de outro negócio: esquece e cai no
+        // estado "sem acesso", que explica o que fazer.
+        limparAcesso(slug);
+        setToken(null);
+        setError(e?.message ?? 'Não consegui buscar seus horários.');
+      })
+      .finally(() => {
+        if (vivo) setLoading(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [slug]);
 
   async function cancelar(id: string) {
+    if (!token) return;
     if (confirmingId !== id) {
       setConfirmingId(id);
       return;
     }
     try {
-      await cancelMyAppointment(slug, id, phone);
+      await cancelMyAppointment(slug, id, token);
       setList((l) => l?.filter((a) => a.id !== id) ?? null);
       setConfirmingId(null);
     } catch (err: any) {
@@ -505,26 +526,20 @@ function MyAppointmentsView({
       <h2 className={styles.stepTitle}>Meus agendamentos</h2>
       {error && <div className={styles.error}>{error}</div>}
 
-      <form onSubmit={buscar}>
-        <label className={styles.label}>
-          Seu WhatsApp
-          <input
-            className={styles.input}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(11) 99999-9999"
-            inputMode="tel"
-          />
-        </label>
-        <button className={styles.buttonPrimary} type="submit" disabled={loading}>
-          {loading ? 'Buscando…' : 'Ver meus horários'}
-        </button>
-      </form>
+      {loading && <p className={styles.hint}>Carregando…</p>}
 
-      {list && list.length === 0 && (
-        <p className={styles.hint}>Nenhum horário ativo nesse telefone.</p>
+      {!loading && !token && (
+        <p className={styles.hint}>
+          Seus horários aparecem aqui depois que você agenda, neste mesmo
+          aparelho — ou quando você abre o link que enviamos na confirmação.
+        </p>
       )}
-      {list && list.length > 0 && (
+
+      {!loading && token && list && list.length === 0 && (
+        <p className={styles.hint}>Você não tem horários marcados por aqui.</p>
+      )}
+
+      {!loading && token && list && list.length > 0 && (
         <div className={styles.serviceList} style={{ marginTop: 18 }}>
           {list.map((a) => {
             const w = DateTime.fromISO(a.startAt, { zone: timezone });

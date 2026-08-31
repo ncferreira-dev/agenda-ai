@@ -8,6 +8,7 @@ import {
   Body,
   NotFoundException,
   BadRequestException,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -15,6 +16,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
 import { effectivePriceCents } from '../pricing/service-price';
+import { criarTokenDoCliente, lerTokenDoCliente } from './customer-token';
+import { requireJwtSecret } from '../auth/jwt-secret';
 
 // ---------------------------------------------------------------------------
 // API pública do cliente final. Tenant resolvido pelo slug na URL.
@@ -56,19 +59,22 @@ export class PublicBookingController {
     return d.startsWith('55') ? d : `55${d}`;
   }
 
-  /** Próximos agendamentos do cliente (identificado pelo telefone). */
-  // 5 consultas por 10 min: quem chega pelo próprio número consulta uma ou duas
-  // vezes, mas varrer uma faixa de telefones fica inviável.
-  @Throttle({ default: { limit: 5, ttl: 10 * 60_000 } })
+  /**
+   * Próximos agendamentos do cliente, identificado pelo token que ele recebeu ao
+   * agendar. NÃO aceita telefone: identificar por número digitado entregava a
+   * agenda de qualquer pessoa a quem soubesse o número dela.
+   */
+  @Throttle({ default: { limit: 30, ttl: 10 * 60_000 } })
   @Get('appointments')
-  async myAppointments(@Param('slug') slug: string, @Query('phone') phone?: string) {
-    if (!phone) throw new BadRequestException('Informe o telefone.');
+  async myAppointments(@Param('slug') slug: string, @Query('token') token?: string) {
     const business = await this.resolveBusiness(slug);
-    const customer = await this.prisma.customer.findUnique({
-      where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(phone) } },
-    });
-    if (!customer) return [];
-    const appts = await this.booking.getUpcomingForCustomer(business.id, customer.id);
+    const acesso = lerTokenDoCliente(token, requireJwtSecret());
+    // O token carrega o negócio de origem: um token do salão A não pode listar
+    // nada no salão B, mesmo sendo uma assinatura válida.
+    if (!acesso || acesso.businessId !== business.id) {
+      throw new UnauthorizedException('Link inválido ou expirado.');
+    }
+    const appts = await this.booking.getUpcomingForCustomer(business.id, acesso.customerId);
     return appts.map((a) => ({
       id: a.id,
       service: a.service.name,
@@ -78,35 +84,33 @@ export class PublicBookingController {
     }));
   }
 
-  /** Cancela um agendamento do próprio cliente (confere telefone + negócio). */
+  /** Cancela um agendamento do próprio cliente (confere token + negócio). */
   @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Patch('appointments/:id/cancel')
   async cancelMine(
     @Param('slug') slug: string,
     @Param('id') id: string,
-    @Body() body: { phone: string },
+    @Body() body: { token?: string },
   ) {
-    if (!body?.phone) throw new BadRequestException('Informe o telefone.');
     const business = await this.resolveBusiness(slug);
-    const customer = await this.prisma.customer.findUnique({
-      where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(body.phone) } },
-    });
+    const acesso = lerTokenDoCliente(body?.token, requireJwtSecret());
+    if (!acesso || acesso.businessId !== business.id) {
+      throw new UnauthorizedException('Link inválido ou expirado.');
+    }
     // Só cancela o que ainda é cancelável: do próprio cliente, PENDING/CONFIRMED
     // e no futuro. Sem o filtro de status/tempo dava pra "cancelar" um
     // agendamento já COMPLETED (e pago) ou passado — o que só servia pra tirá-lo
     // do faturamento do dono depois do serviço feito.
-    const appt = customer
-      ? await this.prisma.appointment.findFirst({
-          where: {
-            id,
-            businessId: business.id,
-            customerId: customer.id,
-            status: { in: ['PENDING', 'CONFIRMED'] },
-            startAt: { gte: new Date() },
-          },
-          select: { id: true },
-        })
-      : null;
+    const appt = await this.prisma.appointment.findFirst({
+      where: {
+        id,
+        businessId: business.id,
+        customerId: acesso.customerId,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        startAt: { gte: new Date() },
+      },
+      select: { id: true },
+    });
     if (!appt) throw new NotFoundException('Agendamento não encontrado ou não pode mais ser cancelado.');
     await this.booking.cancelAppointment(business.id, id);
     return { id, cancelled: true };
@@ -309,6 +313,12 @@ export class PublicBookingController {
       service: appt.service.name,
       professional: appt.professional.name,
       startAt: appt.startAt.toISOString(),
+      // Credencial de quem acabou de agendar: é com ela que a tela "Meus
+      // agendamentos" funciona depois, sem pedir telefone nenhum.
+      accessToken: criarTokenDoCliente(
+        { businessId: business.id, customerId: customer.id },
+        requireJwtSecret(),
+      ),
     };
   }
 }

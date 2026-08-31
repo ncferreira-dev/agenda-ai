@@ -19,7 +19,8 @@
     "test:whatsapp-signature": "ts-node src/whatsapp/verify-signature.spec.ts",
     "test:agent-history": "ts-node src/agent/history.spec.ts",
     "test:whatsapp-parse": "ts-node src/whatsapp/parse-webhook.spec.ts",
-    "test:booking-instant": "ts-node src/booking/validate-instant.spec.ts"
+    "test:booking-instant": "ts-node src/booking/validate-instant.spec.ts",
+    "test:customer-token": "ts-node src/public/customer-token.spec.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

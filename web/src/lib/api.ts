@@ -79,17 +79,17 @@ export async function createBooking(params: {
   return handle<BookingResult>(res);
 }
 
-export async function getMyAppointments(slug: string, phone: string): Promise<MyAppointment[]> {
-  const qs = new URLSearchParams({ phone });
+export async function getMyAppointments(slug: string, token: string): Promise<MyAppointment[]> {
+  const qs = new URLSearchParams({ token });
   const res = await apiFetch(`${API_BASE}/b/${slug}/appointments?${qs}`, { cache: 'no-store' });
   return handle<MyAppointment[]>(res);
 }
 
-export async function cancelMyAppointment(slug: string, id: string, phone: string): Promise<void> {
+export async function cancelMyAppointment(slug: string, id: string, token: string): Promise<void> {
   const res = await apiFetch(`${API_BASE}/b/${slug}/appointments/${id}/cancel`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone }),
+    body: JSON.stringify({ token }),
   });
   await handle(res);
 }
