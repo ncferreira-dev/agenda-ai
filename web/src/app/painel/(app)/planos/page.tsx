@@ -1,61 +1,12 @@
 import { getMe, getQuote, type Quote } from '@/lib/panel-api';
 import { PLANS, planName, savingsLabel, type PlanId } from './plans';
+import { statusBanner } from './planos.utils';
 import { AssinarButton } from './AssinarButton';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
 import panel from '../../painel.module.css';
 import styles from './planos.module.css';
 
 export const dynamic = 'force-dynamic';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-// Monta o banner de status do topo a partir do estado de assinatura do negócio.
-// Só leitura — nenhuma cobrança acontece aqui.
-function statusBanner(business: {
-  subscriptionStatus: string;
-  plan: PlanId | null;
-  trialEndsAt: string | null;
-}) {
-  const { subscriptionStatus, plan, trialEndsAt } = business;
-
-  if (subscriptionStatus === 'ACTIVE' && plan) {
-    return { tone: 'ok' as const, title: `Plano atual: ${planName(plan)}`, hint: 'Assinatura ativa.' };
-  }
-  if (subscriptionStatus === 'PAST_DUE') {
-    return {
-      tone: 'warn' as const,
-      title: 'Pagamento pendente',
-      hint: 'Regularize pra manter sua agenda no ar.',
-    };
-  }
-  if (subscriptionStatus === 'CANCELED') {
-    return {
-      tone: 'warn' as const,
-      title: 'Assinatura cancelada',
-      hint: 'Escolha um plano pra reativar quando quiser.',
-    };
-  }
-
-  // TRIALING (ou estado inicial sem plano).
-  if (trialEndsAt) {
-    const daysLeft = Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / DAY_MS);
-    if (daysLeft <= 0) {
-      return {
-        tone: 'warn' as const,
-        title: 'Seu teste grátis terminou',
-        hint: 'Escolha um plano pra continuar usando.',
-      };
-    }
-    const dias = daysLeft === 1 ? '1 dia' : `${daysLeft} dias`;
-    return {
-      tone: 'ok' as const,
-      title: `Teste grátis (faltam ${dias})`,
-      hint: 'Você está usando tudo, sem custo. Escolha um plano antes de acabar.',
-    };
-  }
-
-  return { tone: 'ok' as const, title: 'Teste grátis', hint: 'Escolha um plano quando quiser.' };
-}
 
 export default async function PlanosPage({
   searchParams,

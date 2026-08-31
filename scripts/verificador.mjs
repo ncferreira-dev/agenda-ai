@@ -363,11 +363,12 @@ const CHECAGENS = [
 // não olha nada é o pior estado possível.
 
 const CONFERENCIA_HUMANA = [
-  'web/ JÁ TEM TESTE (Vitest), mas a cobertura é PARCIAL: pega as regras puras ' +
-    '(máscaras, CPF, telefone com DDD 55, guarda do token) e dois comportamentos ' +
-    'de tela do BookingFlow. NÃO pega: o painel do dono inteiro, o wizard de ' +
-    'onboarding, o editor de serviços/kits e o rótulo de horário no fuso do ' +
-    'negócio. Esses continuam por conferência humana.',
+  'web/ tem 78 testes (Vitest), e a cobertura AGORA inclui o dinheiro do painel: ' +
+    'preços dos planos, banner de assinatura, conversão de reais em centavos e a ' +
+    'trava de itens de atendimento pago. NÃO pega ainda: o wizard de onboarding, ' +
+    'o editor de serviços/kits (ServicesManager, 366 linhas), o formulário de ' +
+    'profissionais e o rótulo de horário no fuso do negócio. Esses continuam por ' +
+    'conferência humana.',
   'Abrir /[slug] em 390px com o dado mais longo que o sistema aceita: serviço de ' +
     '45 letras, nome de profissional de 40. No console: ' +
     '[...document.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > innerWidth + 1) ' +

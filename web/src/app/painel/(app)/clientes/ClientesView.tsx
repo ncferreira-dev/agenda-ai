@@ -9,6 +9,7 @@ import { maskFormat } from '../../MaskedInput';
 import { SegmentTag } from './SegmentTag';
 import { WhatsAppCallButton } from './WhatsAppCallButton';
 import styles from '../../painel.module.css';
+import { brl } from '@/lib/format';
 
 const INIT: ActionState = { ok: false };
 
@@ -16,10 +17,6 @@ function lastLabel(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
-
-function brl(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function SaveNote() {

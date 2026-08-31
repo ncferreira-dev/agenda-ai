@@ -9,6 +9,7 @@ import {
   type ProfessionalRevenueReport,
 } from '@/lib/panel-api';
 import styles from '../../painel.module.css';
+import { brl } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +19,6 @@ const LABELS: Record<Periodo, string> = {
   semana: 'Esta semana',
   mes: 'Este mês',
 };
-
-function brl(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 function range(p: Periodo, tz: string): { from: string; to: string } {
   const now = DateTime.now().setZone(tz);

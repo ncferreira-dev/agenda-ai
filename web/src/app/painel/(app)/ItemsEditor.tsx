@@ -5,12 +5,10 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { saveAppointmentItems, type ActionState } from '../actions';
 import type { Appointment } from '@/lib/panel-api';
 import styles from '../painel.module.css';
+import { brl } from '@/lib/format';
+import { totalEmCentavos, itensParaSalvar, type LinhaDeItem } from './itens.utils';
 
 const INIT: ActionState = { ok: false };
-
-function brl(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 function Save() {
   const { pending } = useFormStatus();
@@ -21,7 +19,7 @@ function Save() {
   );
 }
 
-type Linha = { name: string; preco: string }; // preco em reais (string do input)
+type Linha = LinhaDeItem;
 
 export function ItemsEditor({ appointment: a }: { appointment: Appointment }) {
   const [state, action] = useFormState(saveAppointmentItems, INIT);
@@ -63,12 +61,9 @@ export function ItemsEditor({ appointment: a }: { appointment: Appointment }) {
     );
   }
 
-  const totalCents = linhas.reduce((s, l) => s + Math.round((Number(l.preco.replace(',', '.')) || 0) * 100), 0);
-  const itemsJson = JSON.stringify(
-    linhas
-      .map((l) => ({ name: l.name.trim(), priceCents: Math.round((Number(l.preco.replace(',', '.')) || 0) * 100) }))
-      .filter((it) => it.name),
-  );
+  // Uma fonte só pro total da tela e pro que vai ao servidor — ver itens.utils.
+  const totalCents = totalEmCentavos(linhas);
+  const itemsJson = JSON.stringify(itensParaSalvar(linhas));
 
   const set = (i: number, patch: Partial<Linha>) =>
     setLinhas((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));

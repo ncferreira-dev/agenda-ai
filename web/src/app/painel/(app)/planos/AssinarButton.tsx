@@ -4,10 +4,7 @@ import { useState } from 'react';
 import type { PlanId } from './plans';
 import type { Quote } from '@/lib/panel-api';
 import styles from './planos.module.css';
-
-function brl(cents: number): string {
-  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
-}
+import { brl } from '@/lib/format';
 
 // Botão "Assinar" -> abre a confirmação com a PROMESSA DE PREÇO por escrito
 // (requisito do preço de lançamento) antes de confirmar. O clique final abre

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maskFormat, isValidCpf } from './format';
+import { maskFormat, isValidCpf, brl } from './format';
 
 // ---------------------------------------------------------------------------
 // Máscaras e validação de CPF do front. Puro, sem DOM.
@@ -83,5 +83,28 @@ describe('isValidCpf', () => {
     expect(isValidCpf('')).toBe(false);
     expect(isValidCpf('5299822472')).toBe(false);
     expect(isValidCpf('529982247250')).toBe(false);
+  });
+});
+
+describe('brl', () => {
+  // O espaço depois de "R$" é NON-BREAKING (U+00A0) — é o que o Intl produz.
+  // Comparar com um espaço comum falha, e é a pegadinha destes testes.
+  const ESP = '\u00A0';
+
+  it('formata centavos em reais', () => {
+    expect(brl(2500)).toBe(`R$${ESP}25,00`);
+    expect(brl(0)).toBe(`R$${ESP}0,00`);
+    expect(brl(99)).toBe(`R$${ESP}0,99`);
+  });
+
+  it('põe separador de milhar', () => {
+    // Era ISTO que faltava nas duas cópias que montavam a string à mão: elas
+    // mostravam "R$ 1234567,89" nas telas de plano.
+    expect(brl(123456789)).toBe(`R$${ESP}1.234.567,89`);
+    expect(brl(100000)).toBe(`R$${ESP}1.000,00`);
+  });
+
+  it('valor negativo não vira lixo', () => {
+    expect(brl(-2500)).toContain('25,00');
   });
 });

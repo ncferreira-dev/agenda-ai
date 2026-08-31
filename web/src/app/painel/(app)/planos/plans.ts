@@ -75,7 +75,9 @@ export function planName(id: PlanId): string {
 }
 
 // "59,90" -> 5990 (centavos). Tolera "R$" e espaços.
-function centsFromLabel(label: string): number {
+// Exportada para ter teste próprio: é a conta que decide o desconto anunciado
+// ao dono, e um erro aqui vira número errado na tela de preço.
+export function centsFromLabel(label: string): number {
   const [reais, cents = ''] = label.split(',');
   const r = parseInt(reais.replace(/\D/g, ''), 10) || 0;
   const c = parseInt((cents + '00').slice(0, 2), 10) || 0;
