@@ -5,6 +5,7 @@ import { DateTime } from 'luxon';
 import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
 import { salvarAcesso, lerAcesso, limparAcesso, capturarAcessoDaUrl } from '@/lib/customer-access';
+import { mensagemDoErro } from '@/lib/format';
 import {
   WEEKDAYS,
   MONTHS,
@@ -174,8 +175,8 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       // "Meus agendamentos" funcionar depois sem pedir telefone.
       salvarAcesso(slug, res.accessToken);
       setResult(res);
-    } catch (e: any) {
-      setError(e?.message ?? 'Não consegui concluir o agendamento.');
+    } catch (e) {
+      setError(mensagemDoErro(e, 'Não consegui concluir o agendamento.'));
     } finally {
       setLoading(false);
     }
@@ -474,13 +475,13 @@ function MyAppointmentsView({
       .then((l) => {
         if (vivo) setList(l);
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (!vivo) return;
         // Token vencido, adulterado ou de outro negócio: esquece e cai no
         // estado "sem acesso", que explica o que fazer.
         limparAcesso(slug);
         setToken(null);
-        setError(e?.message ?? 'Não consegui buscar seus horários.');
+        setError(mensagemDoErro(e, 'Não consegui buscar seus horários.'));
       })
       .finally(() => {
         if (vivo) setLoading(false);
@@ -500,8 +501,8 @@ function MyAppointmentsView({
       await cancelMyAppointment(slug, id, token);
       setList((l) => l?.filter((a) => a.id !== id) ?? null);
       setConfirmingId(null);
-    } catch (err: any) {
-      setError(err?.message ?? 'Não consegui cancelar.');
+    } catch (err) {
+      setError(mensagemDoErro(err, 'Não consegui cancelar.'));
     }
   }
 

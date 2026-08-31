@@ -14,11 +14,6 @@ import styles from './onboarding.module.css';
 const INIT: ActionState = { ok: false };
 const COLOR_PRESETS = ['#1C1C1E', '#A6432B', '#1F4D3A', '#1D4ED8', '#7C3AED', '#DB2777', '#0F766E', '#C2410C'];
 
-function money(cents: number): string {
-  if (cents === 0) return 'a combinar';
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 function FinishButton() {
   const { pending } = useFormStatus();
   return (

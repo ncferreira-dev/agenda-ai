@@ -1,5 +1,5 @@
 import { getMe, getQuote, type Quote } from '@/lib/panel-api';
-import { PLANS, planName, savingsLabel, type PlanId } from './plans';
+import { PLANS, savingsLabel, type PlanId } from './plans';
 import { statusBanner } from './planos.utils';
 import { AssinarButton } from './AssinarButton';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';

@@ -55,3 +55,15 @@ export function isValidCpf(raw: string): boolean {
 export function brl(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+
+/**
+ * Mensagem legível de um erro capturado.
+ *
+ * `catch (e)` entrega `unknown`, que é o certo: o que é lançado pode não ser
+ * Error (uma string, um objeto do fetch). O padrão antigo — `catch (e: any)`
+ * com `e?.message` — devolvia `undefined` em silêncio quando o lançado não
+ * tinha `message`, e a tela mostrava um erro vazio.
+ */
+export function mensagemDoErro(e: unknown, padrao: string): string {
+  return e instanceof Error && e.message ? e.message : padrao;
+}
