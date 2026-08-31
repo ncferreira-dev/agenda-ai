@@ -6,12 +6,9 @@ import { maskFormat } from '@/lib/format';
 import { SegmentTag } from '../SegmentTag';
 import { WhatsAppButton } from './WhatsAppButton';
 import styles from '../../../painel.module.css';
+import { brl } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-
-function brl(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 function dateLabel(iso: string | null, tz: string): string {
   if (!iso) return '—';

@@ -2,14 +2,11 @@ import Link from 'next/link';
 import { getMyPlan } from '@/lib/panel-api';
 import panel from '../../painel.module.css';
 import styles from './meu-plano.module.css';
+import { brl } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function brl(cents: number): string {
-  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
-}
 
 function dataBR(iso: string): string {
   return new Intl.DateTimeFormat('pt-BR', {

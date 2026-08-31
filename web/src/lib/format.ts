@@ -39,3 +39,19 @@ export function isValidCpf(raw: string): boolean {
   };
   return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10]);
 }
+
+/**
+ * Centavos -> moeda brasileira. "R$ 25,00", "R$ 1.234.567,89".
+ *
+ * Estava DUPLICADA em seis telas do painel, e não em seis cópias iguais: quatro
+ * usavam toLocaleString e duas montavam a string à mão com toFixed. As duas
+ * últimas não punham separador de milhar — um faturamento de R$ 1.234.567,89
+ * aparecia como "R$ 1234567,89" nessas telas e certo nas outras. Uma cópia só,
+ * aqui, com teste.
+ *
+ * Atenção ao comparar em teste: o espaço depois de "R$" é NON-BREAKING (U+00A0),
+ * que é o que o Intl produz — comparar com um espaço comum falha.
+ */
+export function brl(cents: number): string {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
