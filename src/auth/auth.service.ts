@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { RESERVED_SLUGS, SLUG_MAX, SLUG_MIN, slugify } from '../common/slug';
+import { webOrigin } from '../common/env';
 
 // Duração do teste grátis do dono (só o status; o bloqueio é da Fase 5).
 const TRIAL_DAYS = 14;
@@ -235,8 +236,7 @@ export class AuthService {
       data: { ownerId: owner.id, tokenHash: this.hashResetToken(token), expiresAt },
     });
 
-    const base = process.env.WEB_ORIGIN ?? 'http://localhost:3001';
-    const link = `${base}/painel/redefinir-senha?token=${token}`;
+    const link = `${webOrigin()}/painel/redefinir-senha?token=${token}`;
 
     if (this.mail.enabled) {
       await this.mail.sendPasswordReset(normalized, {

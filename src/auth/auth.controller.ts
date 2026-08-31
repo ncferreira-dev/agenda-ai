@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
+  Logger,
   Post,
   Req,
   Res,
@@ -12,52 +12,43 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService, type OAuthProfile } from './auth.service';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
+import { webOrigin } from '../common/env';
+import {
+  LoginDto,
+  RegisterDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  OAuthExchangeDto,
+} from './auth.dto';
 
-// Base pública do front (pra onde o backend devolve o navegador após o OAuth).
-function webBase(): string {
-  return process.env.WEB_ORIGIN ?? 'http://localhost:3001';
-}
-
-interface LoginBody {
-  email: string;
-  password: string;
-}
-
-interface RegisterBody {
-  name: string;
-  email: string;
-  password: string;
-  businessName: string;
-  serviceMode?: string; // PRESENCIAL | REMOTO | HIBRIDO
-  address?: string; // presencial/híbrido
-  meetingUrl?: string; // remoto/híbrido
-}
-
-interface ForgotPasswordBody {
-  email: string;
-}
-
-interface ResetPasswordBody {
-  token: string;
-  password: string;
-}
-
+// O guard de rate limit vale para o controller inteiro porque aqui não existe
+// rota "inofensiva": todas são anônimas e todas aceitam palpite. Deixar o guard
+// rota a rota foi o que deixou login e reset-password sem limite nenhum
+// enquanto só o forgot-password estava protegido.
+@UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private auth: AuthService) {}
 
+  // Senha por tentativa: sem teto, um dicionário roda contra a conta do dono a
+  // noite inteira. 10 por 15 min por IP não incomoda quem só errou o teclado.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @Post('login')
-  async login(@Body() body: LoginBody) {
-    if (!body?.email || !body?.password) {
-      throw new BadRequestException('Informe email e senha.');
-    }
+  async login(@Body() body: LoginDto) {
+    // O `if (!body?.email || !body?.password)` que existia aqui saiu porque o
+    // LoginDto agora garante os dois na porta. A regra não sumiu: mudou de um
+    // if no começo do handler para uma declaração que vale pra rota inteira.
     return this.auth.login(body.email, body.password);
   }
 
   /** Cadastro público do dono: cria o negócio e já devolve a sessão. */
+  // Cadastro cria negócio + dono no banco. 5 por hora por IP evita que alguém
+  // encha a base de tenants fantasma com um laço de terminal.
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @Post('register')
-  async register(@Body() body: RegisterBody) {
-    if (!body) throw new BadRequestException('Dados do cadastro ausentes.');
+  async register(@Body() body: RegisterDto) {
     return this.auth.register({
       name: body.name,
       email: body.email,
@@ -72,21 +63,19 @@ export class AuthController {
   // Resposta sempre genérica (não revela se o email existe).
   // Rate limit por IP: no máx. 5 pedidos a cada 15 min (anti-abuso de envio).
   // Defesa adicional por email (cooldown) fica no AuthService.
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
   @Post('forgot-password')
-  async forgotPassword(@Body() body: ForgotPasswordBody) {
-    await this.auth.requestPasswordReset(body?.email ?? '');
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    await this.auth.requestPasswordReset(body.email);
     return {
       message: 'Se existir uma conta com esse email, enviamos o link de redefinição.',
     };
   }
 
+  // O token de reset é adivinhável por força bruta se puder ser testado sem fim.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @Post('reset-password')
-  async resetPassword(@Body() body: ResetPasswordBody) {
-    if (!body?.token || !body?.password) {
-      throw new BadRequestException('Informe o token e a nova senha.');
-    }
+  async resetPassword(@Body() body: ResetPasswordDto) {
     await this.auth.resetPassword(body.token, body.password);
     return { message: 'Senha redefinida. Faça login com a nova senha.' };
   }
@@ -113,16 +102,21 @@ export class AuthController {
       const profile = req.user as OAuthProfile;
       const ownerId = await this.auth.findOrLinkOrCreateFromOAuth(profile);
       const code = await this.auth.createExchangeCode(ownerId);
-      res.redirect(`${webBase()}/painel/oauth/callback?code=${encodeURIComponent(code)}`);
-    } catch {
-      res.redirect(`${webBase()}/painel/login?erro=google-falhou`);
+      res.redirect(`${webOrigin()}/painel/oauth/callback?code=${encodeURIComponent(code)}`);
+    } catch (e) {
+      // Sem log, erros distintos (conta já existe com outro provedor, falha de
+      // rede na troca, etc.) sumiam sem rastro — impossível diagnosticar por que
+      // o login social falhou. O usuário segue vendo o erro genérico.
+      this.logger.error('Falha no callback do OAuth do Google', e as Error);
+      res.redirect(`${webOrigin()}/painel/login?erro=google-falhou`);
     }
   }
 
   /** Troca o code de uso único pela sessão (mesmo shape do login). */
+  // Mesmo motivo do reset: é um code de uso único que vale uma sessão inteira.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @Post('oauth/exchange')
-  async oauthExchange(@Body() body: { code?: string }) {
-    if (!body?.code) throw new BadRequestException('Code ausente.');
+  async oauthExchange(@Body() body: OAuthExchangeDto) {
     return this.auth.consumeExchangeCode(body.code);
   }
 }

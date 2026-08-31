@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { effectivePriceCents } from '../pricing/service-price';
+import { checkBookableInstant } from './validate-instant';
+import { type WorkingInterval } from '../availability/slot-engine';
 
 @Injectable()
 export class BookingService {
@@ -60,7 +62,15 @@ export class BookingService {
 
     // Confirmado: avisa o dono (canais ligados) e o cliente (e-mail). Fire-and-forget.
     void this.notifications.notifyNewBooking(created.appointment.id);
-    void this.sendCustomerEmail(created.appointment);
+    // .catch obrigatório: sendCustomerEmail não tem try/catch interno e chama
+    // findUniqueOrThrow + SMTP; uma rejeição num `void` sem catch vira
+    // unhandledRejection e pode derrubar o processo. O e-mail é best-effort —
+    // loga e segue, nunca quebra o agendamento (que já está confirmado).
+    void this.sendCustomerEmail(created.appointment).catch((err) =>
+      this.logger.warn(
+        `Falha ao enviar e-mail de confirmação ao cliente: ${(err as Error).message}`,
+      ),
+    );
     return { appointment: created.appointment };
   }
 
@@ -106,23 +116,82 @@ export class BookingService {
     const { businessId, customerId, professionalId, serviceId, start, notes } = params;
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // Serviço e profissional PRECISAM ser do negócio da conversa. Sem o
-        // filtro por businessId, um id de outro tenant é aceito: o agendamento
-        // nasce no negócio certo mas apontando pra um serviço alheio, herdando
-        // duração e preço dele. Os ids chegam por texto livre no caminho do
-        // agente, então a checagem tem que estar aqui, não só em quem chama.
-        const service = await tx.service.findFirstOrThrow({
-          where: { id: serviceId, businessId },
+        // Serviço e profissional PRECISAM ser do negócio da conversa, estar
+        // ATIVOS e o profissional PRECISA executar esse serviço. Os ids chegam
+        // por texto livre no caminho do agente (e por corpo cru no público),
+        // então a checagem tem que estar aqui, não só em quem chama:
+        //  - sem o filtro por businessId, um id de outro tenant nasceria no
+        //    negócio certo mas apontando pra um serviço alheio (duração/preço
+        //    errados);
+        //  - sem active/vínculo, dava pra marcar um serviço desativado ou um
+        //    profissional que não faz aquilo (a tela de disponibilidade já
+        //    respeita ambos — ver availability.service).
+        // findFirst + erro limpo em vez de findFirstOrThrow: id inválido/inativo
+        // vira 400 amigável, não o 500 cru do Prisma (NotFoundError).
+        const service = await tx.service.findFirst({
+          where: { id: serviceId, businessId, active: true },
         });
-        await tx.professional.findFirstOrThrow({
-          where: { id: professionalId, businessId },
+        if (!service) {
+          throw new BadRequestException('Serviço indisponível.');
+        }
+        const professional = await tx.professional.findFirst({
+          where: {
+            id: professionalId,
+            businessId,
+            active: true,
+            services: { some: { serviceId } },
+          },
+          select: { id: true },
         });
+        if (!professional) {
+          throw new BadRequestException('Esse profissional não atende esse serviço.');
+        }
         const business = await tx.business.findUniqueOrThrow({
           where: { id: businessId },
-          select: { timezone: true },
+          select: {
+            timezone: true,
+            slotStepMinutes: true,
+            minLeadMinutes: true,
+            maxAdvanceDays: true,
+          },
         });
         const startAt = start.toUTC().toJSDate();
         const endAt = start.plus({ minutes: service.durationMinutes }).toUTC().toJSDate();
+
+        // Guarda do INSTANTE: expediente, antecedência mínima, não-no-passado,
+        // alinhamento à grade e janela máxima. Sem isto, um `startAt` cru vindo
+        // do POST público ou do agente cria agendamento de madrugada, em dia de
+        // folga ou a anos de distância — os rechecks abaixo só olham conflito.
+        // A regra vem do MESMO motor que oferta os slots (validate-instant), pra
+        // nunca discordar da tela de disponibilidade.
+        const workingHours: WorkingInterval[] = (
+          await tx.workingHour.findMany({
+            where: { professionalId },
+            select: { weekday: true, startMinute: true, endMinute: true },
+          })
+        ).map((w) => ({
+          weekday: w.weekday,
+          startMinute: w.startMinute,
+          endMinute: w.endMinute,
+        }));
+
+        const verdict = checkBookableInstant({
+          requestedStart: startAt,
+          timezone: business.timezone,
+          durationMinutes: service.durationMinutes,
+          slotStepMinutes: business.slotStepMinutes,
+          minLeadMinutes: business.minLeadMinutes,
+          maxAdvanceDays: business.maxAdvanceDays,
+          workingHours,
+        });
+        if (!verdict.ok) {
+          if (verdict.code === 'too-far') {
+            throw new BadRequestException(
+              'Esse horário está além da janela de agendamento.',
+            );
+          }
+          throw new ConflictException('Esse horário não está disponível.');
+        }
 
         // Recheck: existe agendamento ativo do profissional que sobreponha?
         const conflict = await tx.appointment.findFirst({

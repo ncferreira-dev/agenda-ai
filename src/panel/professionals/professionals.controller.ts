@@ -2,12 +2,9 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } fro
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BillingGateGuard } from '../../billing/billing-gate.guard';
 import { CurrentBusiness } from '../../auth/decorators/current-business.decorator';
-import {
-  ProfessionalsService,
-  type ProfessionalInput,
-  type WorkingHourInput,
-} from './professionals.service';
+import { ProfessionalsService } from './professionals.service';
 
+import { CriarProfissionalDto, AtualizarProfissionalDto, DefinirFaixasDto } from './professionals.dto';
 @Controller('me/professionals')
 @UseGuards(JwtAuthGuard, BillingGateGuard)
 export class ProfessionalsController {
@@ -19,7 +16,7 @@ export class ProfessionalsController {
   }
 
   @Post()
-  create(@CurrentBusiness() businessId: string, @Body() body: ProfessionalInput) {
+  create(@CurrentBusiness() businessId: string, @Body() body: CriarProfissionalDto) {
     return this.professionals.create(businessId, body);
   }
 
@@ -27,7 +24,7 @@ export class ProfessionalsController {
   update(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
-    @Body() body: Partial<ProfessionalInput> & { active?: boolean },
+    @Body() body: AtualizarProfissionalDto,
   ) {
     return this.professionals.update(businessId, id, body);
   }
@@ -46,7 +43,7 @@ export class ProfessionalsController {
   setWorkingHours(
     @CurrentBusiness() businessId: string,
     @Param('id') id: string,
-    @Body() body: { faixas: WorkingHourInput[] },
+    @Body() body: DefinirFaixasDto,
   ) {
     return this.professionals.setWorkingHours(businessId, id, body?.faixas);
   }

@@ -6,6 +6,7 @@ import {
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { isPlanId, type PlanId } from './plan-catalog';
+import { webOrigin } from '../common/env';
 
 // Nome da env de Price ID (Stripe) por plano. Os produtos no Stripe ficam com
 // o PREÇO CHEIO (fullCents do catálogo) — o desconto de lançamento é o cupom
@@ -35,11 +36,6 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Base pública do front (success/cancel url do Checkout). Mesmo fallback usado
-// em src/auth/auth.controller.ts.
-function webBase(): string {
-  return process.env.WEB_ORIGIN ?? 'http://localhost:3001';
-}
 
 @Injectable()
 export class StripeService {
@@ -91,6 +87,13 @@ export class StripeService {
    * customer (bug real: assinar Pro com o Start ainda ativo deixava as duas
    * ligadas). Só abre Checkout novo pra quem ainda não tem assinatura viva
    * (1º checkout) ou já está CANCELED (nada pra trocar).
+   *
+   * PAST_DUE é assinatura VIVA (o Stripe ainda tenta cobrar a fatura em aberto):
+   * abrir Checkout aqui criava a MESMA duplicata que o guard existe pra impedir,
+   * e trocar o price seria um no-op que não quita a fatura. Então PAST_DUE (e
+   * qualquer status vivo não-ACTIVE) vai pro Portal de Cobrança, onde o dono
+   * atualiza o cartão e regulariza — depois disso o "Assinar"/trocar volta a
+   * funcionar normalmente.
    */
   async subscribe(params: {
     businessId: string;
@@ -105,13 +108,19 @@ export class StripeService {
       select: { stripeSubscriptionId: true, subscriptionStatus: true },
     });
 
-    if (business.stripeSubscriptionId && business.subscriptionStatus === 'ACTIVE') {
-      await this.switchSubscriptionPlan({
-        businessId: params.businessId,
-        planId: params.planId,
-        stripeSubscriptionId: business.stripeSubscriptionId,
-      });
-      return { switched: true };
+    if (business.stripeSubscriptionId && business.subscriptionStatus !== 'CANCELED') {
+      if (business.subscriptionStatus === 'ACTIVE') {
+        await this.switchSubscriptionPlan({
+          businessId: params.businessId,
+          planId: params.planId,
+          stripeSubscriptionId: business.stripeSubscriptionId,
+        });
+        return { switched: true };
+      }
+      // Assinatura viva mas não-ACTIVE (PAST_DUE): Portal em vez de Checkout novo,
+      // pra não criar uma segunda subscription no mesmo customer.
+      const url = await this.createPortalSessionUrl(params.businessId);
+      return { url };
     }
 
     const url = await this.createCheckoutSessionUrl(params);
@@ -183,7 +192,7 @@ export class StripeService {
       params.ownerEmail,
     );
 
-    const base = webBase();
+    const base = webOrigin();
     const session = await this.stripe().checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -225,7 +234,7 @@ export class StripeService {
     }
     const session = await this.stripe().billingPortal.sessions.create({
       customer: business.stripeCustomerId,
-      return_url: `${webBase()}/painel/planos`,
+      return_url: `${webOrigin()}/painel/planos`,
     });
     return session.url;
   }

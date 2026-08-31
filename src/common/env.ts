@@ -34,3 +34,14 @@ export function corsOrigins(): string[] {
     .map((o) => o.trim())
     .filter(Boolean);
 }
+
+/**
+ * Origem pública CANÔNICA do front — a primeira da lista do WEB_ORIGIN. Use
+ * SEMPRE isto pra montar URL que o usuário vai abrir (link de reset de senha,
+ * redirect pós-OAuth, return_url do Stripe). Ler `process.env.WEB_ORIGIN` cru
+ * quebra quando há mais de uma origem: "https://app.x,https://x" viraria o host
+ * "https://app.x,https://x/painel/...". requiredInProd garante que existe em prod.
+ */
+export function webOrigin(): string {
+  return corsOrigins()[0];
+}

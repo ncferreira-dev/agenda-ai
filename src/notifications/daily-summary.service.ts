@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from './notifications.service';
+import { PushService } from '../push/push.service';
 
 // ---------------------------------------------------------------------------
 // Resumo diário (opcional): toda manhã manda ao dono a lista de agendamentos do
@@ -25,6 +26,7 @@ export class DailySummaryService {
     private whatsapp: CloudApiProvider,
     private mail: MailService,
     private notifications: NotificationsService,
+    private push: PushService,
   ) {}
 
   @Cron('0 0 * * * *')
@@ -39,6 +41,7 @@ export class DailySummaryService {
         timezone: true,
         notifyWhatsApp: true,
         notifyEmail: true,
+        notifyPush: true,
         ownerWhatsApp: true,
         ownerEmail: true,
         lastDailySummaryAt: true,
@@ -98,6 +101,21 @@ export class DailySummaryService {
 
         if (b.notifyEmail && emailTo && this.mail.enabled) {
           await this.mail.sendOwnerDailySummary(emailTo, { businessName: b.name, dateLabel, items });
+        }
+
+        // Push é um dos "Meus canais (dono)" que a tela de notificações anuncia,
+        // mas o resumo diário só olhava WhatsApp e e-mail. Manda também pelos
+        // aparelhos ativados (best-effort, não derruba o resto).
+        if (b.notifyPush && this.push.enabled) {
+          await this.push
+            .notify(b.id, {
+              title: `☀️ Sua agenda de hoje — ${b.name}`,
+              body: `${appts.length} agendamento(s) para ${dateLabel}. Toque para ver.`,
+              url: '/painel',
+            })
+            .catch((e) =>
+              this.logger.warn(`Resumo push falhou (${b.id}): ${(e as Error).message}`),
+            );
         }
 
         await this.prisma.business.update({

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { DateTime } from 'luxon';
 import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
+import { salvarAcesso, lerAcesso, limparAcesso, capturarAcessoDaUrl } from '@/lib/customer-access';
 import styles from './booking.module.css';
 
 interface DisplaySlot {
@@ -33,7 +35,11 @@ function formatPrice(cents: number): string {
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
-  return digits.startsWith('55') ? digits : `55${digits}`;
+  // A guarda de comprimento é o que separa o DDI 55 do DDD 55 (RS): um número
+  // de Santa Maria como (55) 99999-9999 vira '55999999999' (11 dígitos), que
+  // começa com '55' mas NÃO tem DDI — sem o >= 12 o DDD era comido e o número
+  // gravado sem DDD. Com DDI, o menor válido (55 + fixo de 10) tem 12 dígitos.
+  return digits.startsWith('55') && digits.length >= 12 ? digits : `55${digits}`;
 }
 
 function initials(name: string): string {
@@ -70,6 +76,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   // Âncoras pra rolar suavemente até a seção que acabou de surgir (mobile).
   const scheduleRef = useRef<HTMLDivElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   const service = data.services.find((s) => s.id === serviceId) ?? null;
 
@@ -78,7 +85,10 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     [serviceId, data.professionals],
   );
 
-  const days = useMemo(() => nextDays(Math.min(data.business.maxAdvanceDays, 14)), [data]);
+  // Honra a janela configurada pelo negócio (validada 1–365 no backend, que
+  // agora TAMBÉM a aplica na criação). Antes ficava travado em 14, ignorando o
+  // ajuste do dono — quem punha "60 dias" só via 14 na página pública.
+  const days = useMemo(() => nextDays(data.business.maxAdvanceDays), [data]);
   // Dias da semana fechados (bloqueio recorrente do negócio o dia todo).
   const closedWeekdays = useMemo(
     () => new Set(data.business.closedWeekdays ?? []),
@@ -116,6 +126,11 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       })
       .catch((e) => {
         if (cancelled) return;
+        // Zera os horários: sem isto, os slots do dia/profissional carregados
+        // ANTES continuam na tela enquanto a tira de datas já marca o novo dia.
+        // Cada slot carrega o startAt absoluto do dia velho, e confirmar mandaria
+        // o cliente pro dia errado. Vazio -> a grade cai em "Sem horários".
+        setAvailability([]);
         setError(e?.message ?? 'Não consegui carregar os horários.');
         setLoading(false);
       });
@@ -132,6 +147,12 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   useEffect(() => {
     if (slot) detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [slot]);
+  // Leva a viewport até a banner de erro: ela é o 1º filho de .flow (bem acima),
+  // e os auto-scrolls acima jogam a tela pra seção 3. Sem isto o cliente clicava
+  // em Confirmar, a chamada falhava e "nada acontecia" — o erro ficava fora de tela.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [error]);
 
   const displaySlots: DisplaySlot[] = useMemo(() => {
     const byLabel = new Map<string, DisplaySlot>();
@@ -173,6 +194,9 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
         email: email.trim() || undefined,
         notes: notes.trim() || undefined,
       });
+      // Guarda a credencial ANTES de mostrar a confirmação: é ela que faz
+      // "Meus agendamentos" funcionar depois sem pedir telefone.
+      salvarAcesso(slug, res.accessToken);
       setResult(res);
     } catch (e: any) {
       setError(e?.message ?? 'Não consegui concluir o agendamento.');
@@ -184,7 +208,12 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   // --- Sucesso ------------------------------------------------------------
   if (result) {
     const when = new Date(result.startAt);
-    const whenLabel = `${WEEKDAYS[when.getDay()]}, ${when.getDate()} de ${MONTHS[when.getMonth()]} às ${pad(when.getHours())}:${pad(when.getMinutes())}`;
+    // Rótulo no fuso do NEGÓCIO (não no do navegador): getHours()/getDay() do
+    // Date usam o fuso local de quem abriu a página — um cliente viajando (ou
+    // num negócio de outro fuso) via a hora errada. O gcal abaixo segue em UTC
+    // (toISOString), que é o certo pra ele.
+    const localDt = DateTime.fromISO(result.startAt, { zone: data.business.timezone });
+    const whenLabel = `${WEEKDAYS[localDt.weekday % 7]}, ${localDt.day} de ${MONTHS[localDt.month - 1]} às ${pad(localDt.hour)}:${pad(localDt.minute)}`;
     const dur = service?.durationMinutes ?? 30;
     const end = new Date(when.getTime() + dur * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -222,12 +251,18 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
   }
 
   if (view === 'mine') {
-    return <MyAppointmentsView slug={slug} onBack={() => setView('book')} />;
+    return (
+      <MyAppointmentsView
+        slug={slug}
+        timezone={data.business.timezone}
+        onBack={() => setView('book')}
+      />
+    );
   }
 
   return (
     <div className={styles.flow}>
-      {error && <div className={styles.error}>{error}</div>}
+      {error && <div ref={errorRef} className={styles.error}>{error}</div>}
 
       {/* 1. Serviço */}
       <section>
@@ -372,18 +407,33 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
           <div className={styles.summary}>
             {service.name} · {slot.label}
           </div>
+          {/* Nome e WhatsApp são os dois campos sem os quais o agendamento não
+              serve pra nada: sem nome o dono não sabe quem vai chegar, e sem
+              WhatsApp não há como confirmar nem lembrar. O asterisco fica
+              aria-hidden e quem avisa o leitor de tela é o aria-required do
+              campo — asterisco lido em voz alta vira "asterisco", que não
+              informa nada. */}
           <label className={styles.label}>
-            Nome
-            <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+            Nome <span className={styles.obrigatorio} aria-hidden>*</span>
+            <input
+              className={styles.input}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome"
+              required
+              aria-required="true"
+            />
           </label>
           <label className={styles.label}>
-            WhatsApp
+            WhatsApp <span className={styles.obrigatorio} aria-hidden>*</span>
             <input
               className={styles.input}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="(11) 99999-9999"
               inputMode="tel"
+              required
+              aria-required="true"
             />
           </label>
           <label className={styles.label}>
@@ -420,37 +470,62 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function MyAppointmentsView({ slug, onBack }: { slug: string; onBack: () => void }) {
-  const [phone, setPhone] = useState('');
+function MyAppointmentsView({
+  slug,
+  timezone,
+  onBack,
+}: {
+  slug: string;
+  timezone: string;
+  onBack: () => void;
+}) {
+  const [token, setToken] = useState<string | null>(null);
   const [list, setList] = useState<MyAppointment[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  async function buscar(e: React.FormEvent) {
-    e.preventDefault();
-    if (phone.replace(/\D/g, '').length < 10) {
-      setError('Informe um telefone válido.');
+  // Não há mais formulário de telefone aqui, e isso é o ponto: identificar o
+  // cliente pelo número que ele digita entregava a agenda de qualquer pessoa a
+  // quem soubesse o número dela. Agora quem responde por "sou eu" é o token —
+  // do link (?t=), quando a pessoa chega pelo WhatsApp, ou do navegador, quando
+  // ela já agendou aqui antes.
+  useEffect(() => {
+    const t = capturarAcessoDaUrl(slug) ?? lerAcesso(slug);
+    setToken(t);
+    if (!t) {
+      setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
-    try {
-      setList(await getMyAppointments(slug, phone));
-    } catch (err: any) {
-      setError(err?.message ?? 'Não consegui buscar.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    let vivo = true;
+    getMyAppointments(slug, t)
+      .then((l) => {
+        if (vivo) setList(l);
+      })
+      .catch((e: any) => {
+        if (!vivo) return;
+        // Token vencido, adulterado ou de outro negócio: esquece e cai no
+        // estado "sem acesso", que explica o que fazer.
+        limparAcesso(slug);
+        setToken(null);
+        setError(e?.message ?? 'Não consegui buscar seus horários.');
+      })
+      .finally(() => {
+        if (vivo) setLoading(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [slug]);
 
   async function cancelar(id: string) {
+    if (!token) return;
     if (confirmingId !== id) {
       setConfirmingId(id);
       return;
     }
     try {
-      await cancelMyAppointment(slug, id, phone);
+      await cancelMyAppointment(slug, id, token);
       setList((l) => l?.filter((a) => a.id !== id) ?? null);
       setConfirmingId(null);
     } catch (err: any) {
@@ -466,30 +541,24 @@ function MyAppointmentsView({ slug, onBack }: { slug: string; onBack: () => void
       <h2 className={styles.stepTitle}>Meus agendamentos</h2>
       {error && <div className={styles.error}>{error}</div>}
 
-      <form onSubmit={buscar}>
-        <label className={styles.label}>
-          Seu WhatsApp
-          <input
-            className={styles.input}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(11) 99999-9999"
-            inputMode="tel"
-          />
-        </label>
-        <button className={styles.buttonPrimary} type="submit" disabled={loading}>
-          {loading ? 'Buscando…' : 'Ver meus horários'}
-        </button>
-      </form>
+      {loading && <p className={styles.hint}>Carregando…</p>}
 
-      {list && list.length === 0 && (
-        <p className={styles.hint}>Nenhum horário ativo nesse telefone.</p>
+      {!loading && !token && (
+        <p className={styles.hint}>
+          Seus horários aparecem aqui depois que você agenda, neste mesmo
+          aparelho — ou quando você abre o link que enviamos na confirmação.
+        </p>
       )}
-      {list && list.length > 0 && (
+
+      {!loading && token && list && list.length === 0 && (
+        <p className={styles.hint}>Você não tem horários marcados por aqui.</p>
+      )}
+
+      {!loading && token && list && list.length > 0 && (
         <div className={styles.serviceList} style={{ marginTop: 18 }}>
           {list.map((a) => {
-            const w = new Date(a.startAt);
-            const when = `${WEEKDAYS[w.getDay()]}, ${w.getDate()} de ${MONTHS[w.getMonth()]} às ${pad(w.getHours())}:${pad(w.getMinutes())}`;
+            const w = DateTime.fromISO(a.startAt, { zone: timezone });
+            const when = `${WEEKDAYS[w.weekday % 7]}, ${w.day} de ${MONTHS[w.month - 1]} às ${pad(w.hour)}:${pad(w.minute)}`;
             return (
               <div key={a.id} className={styles.serviceRow} style={{ cursor: 'default' }}>
                 <div style={{ minWidth: 0 }}>

@@ -87,7 +87,7 @@ export class ToolExecutor {
     private booking: BookingService,
   ) {}
 
-  async run(name: string, input: any, ctx: AgentContext): Promise<string> {
+  async run(name: string, input: EntradaDaFerramenta, ctx: AgentContext): Promise<string> {
     switch (name) {
       case 'listar_servicos': {
         const services = await this.prisma.service.findMany({
@@ -137,26 +137,50 @@ export class ToolExecutor {
       }
 
       case 'consultar_disponibilidade': {
-        const avail = await this.availability.getAvailability({
-          businessId: ctx.businessId,
-          serviceId: input.serviceId,
-          date: input.date,
-          professionalId: input.professionalId,
-        });
-        // Devolve no formato enxuto: por profissional, horários com o ISO exato.
-        return JSON.stringify(
-          avail.map((a) => ({
-            profissionalId: a.professionalId,
-            profissional: a.professionalName,
-            horarios: a.slots.map((s) => ({
-              label: s.label,
-              startAt: DateTime.fromJSDate(s.startAt).setZone(ctx.timezone).toISO(),
+        // try/catch como no criar_agendamento: um serviceId inexistente/obsoleto
+        // (ou uma data malformada que o modelo montou) faz getAvailability lançar
+        // — sem o catch, a exceção derruba o turno e some com o histórico da
+        // conversa. Devolvendo {ok:false, erro} o modelo se recupera.
+        if (!input.serviceId || !input.date) {
+          return JSON.stringify({
+            ok: false,
+            erro: 'faltou o serviço ou a data — pergunte ao cliente e chame de novo',
+          });
+        }
+        try {
+          const avail = await this.availability.getAvailability({
+            businessId: ctx.businessId,
+            serviceId: input.serviceId,
+            date: input.date,
+            professionalId: input.professionalId,
+          });
+          // Devolve no formato enxuto: por profissional, horários com o ISO exato.
+          return JSON.stringify(
+            avail.map((a) => ({
+              profissionalId: a.professionalId,
+              profissional: a.professionalName,
+              horarios: a.slots.map((s) => ({
+                label: s.label,
+                startAt: DateTime.fromJSDate(s.startAt).setZone(ctx.timezone).toISO(),
+              })),
             })),
-          })),
-        );
+          );
+        } catch (e) {
+          return JSON.stringify({ ok: false, erro: mensagemDoErro(e, 'não consegui consultar os horários') });
+        }
       }
 
       case 'criar_agendamento': {
+        // Quem preenche estes campos é o modelo, e modelo esquece campo. Com
+        // `input: any` o undefined descia até o Prisma e voltava como erro de
+        // banco, que o modelo não sabe corrigir. Dizendo o que faltou, ele
+        // pergunta ao cliente e tenta de novo.
+        if (!input.professionalId || !input.serviceId || !input.startAt) {
+          return JSON.stringify({
+            ok: false,
+            erro: 'faltou profissional, serviço ou horário — pergunte ao cliente e chame de novo',
+          });
+        }
         if (input.customerName) {
           await this.booking.findOrCreateCustomer(ctx.businessId, ctx.phone, input.customerName);
         }
@@ -178,8 +202,8 @@ export class ToolExecutor {
             id: appt.id,
             confirmacao: `${appt.service.name} com ${appt.professional.name} — ${when}`,
           });
-        } catch (e: any) {
-          return JSON.stringify({ ok: false, erro: e?.message ?? 'falha ao agendar' });
+        } catch (e) {
+          return JSON.stringify({ ok: false, erro: mensagemDoErro(e, 'falha ao agendar') });
         }
       }
 
@@ -202,16 +226,54 @@ export class ToolExecutor {
         // ctx.customerId trava no dono do agendamento. O id vem de texto livre
         // do cliente (ou de quem conseguir induzir o modelo), então sem esse
         // filtro dá pra cancelar o horário de outra pessoa do mesmo negócio.
-        await this.booking.cancelAppointment(
-          ctx.businessId,
-          input.appointmentId,
-          ctx.customerId,
-        );
-        return JSON.stringify({ ok: true });
+        //
+        // try/catch como no criar_agendamento: um id inexistente/alheio/alucinado
+        // faz cancelAppointment lançar BadRequestException. Sem o catch, a exceção
+        // sobe por handleMessage e derruba o turno inteiro — o histórico da
+        // conversa não é salvo e o cliente recebe um erro genérico. Devolvendo
+        // {ok:false, erro} o modelo entende "não achei" e responde direito.
+        if (!input.appointmentId) {
+          return JSON.stringify({
+            ok: false,
+            erro: 'faltou o id do agendamento — liste os agendamentos antes de cancelar',
+          });
+        }
+        try {
+          await this.booking.cancelAppointment(
+            ctx.businessId,
+            input.appointmentId,
+            ctx.customerId,
+          );
+          return JSON.stringify({ ok: true });
+        } catch (e) {
+          return JSON.stringify({ ok: false, erro: mensagemDoErro(e, 'não consegui cancelar') });
+        }
       }
 
       default:
         return JSON.stringify({ erro: `ferramenta desconhecida: ${name}` });
     }
   }
+}// Argumentos que o modelo pode mandar numa chamada de ferramenta. Tudo opcional
+// porque quem preenche é o LLM: ele erra, inventa campo e omite obrigatório, e o
+// código já trata isso caso a caso. Antes era `any`, o que desligava a checagem
+// no arquivo inteiro; escrito assim, acrescentar ferramenta que espera um campo
+// novo obriga a declará-lo aqui.
+export interface EntradaDaFerramenta {
+  serviceId?: string;
+  professionalId?: string;
+  date?: string;
+  startAt?: string;
+  customerName?: string;
+  notes?: string;
+  appointmentId?: string;
 }
+
+// `catch (e)` entrega unknown, que é o certo: o que é lançado pode não ser Error
+// (uma string, um objeto do driver). Antes era `catch (e: any)` com `e?.message`,
+// que devolvia undefined em silêncio quando o lançado não tinha message.
+function mensagemDoErro(e: unknown, padrao: string): string {
+  return e instanceof Error && e.message ? e.message : padrao;
+}
+
+

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { notFound } from 'next/navigation';
-import { getBusinessPage } from '@/lib/api';
+import { getBusinessPage, ApiError } from '@/lib/api';
 import { BookingFlow } from './BookingFlow';
 import { CoverImage, LogoAvatar } from './BrandImage';
 import styles from './booking.module.css';
@@ -25,8 +25,13 @@ export default async function Page({
   let data;
   try {
     data = await getBusinessPage(slug);
-  } catch {
-    notFound();
+  } catch (e) {
+    // Só 404 significa "negócio não existe". 500/502/rede caíam aqui também e
+    // viravam a MESMA tela de "não encontrado" — o cliente achava que o link
+    // estava errado quando na verdade a API estava fora. Rethrow deixa o Next
+    // mostrar a página de erro (que não afirma que o negócio não existe).
+    if (e instanceof ApiError && e.status === 404) notFound();
+    throw e;
   }
 
   const { business } = data;

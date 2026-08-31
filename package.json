@@ -5,6 +5,13 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "typecheck": "tsc --noEmit",
+    "comentario:lint": "lint roda o typecheck ANTES do eslint, e sem --fix. Sem --fix porque medicao nao conserta o que mede: com ele o verde seria o estado DEPOIS do conserto automatico, e nao o do codigo commitado. Typecheck junto porque nest build exclui os *.spec.ts, entao dava pra ter build verde com spec quebrada. Quem quer o conserto automatico chama lint:fix de proposito.",
+    "lint": "npm run typecheck && eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "comentario:test": "test PROCURA os *.spec.ts em vez de ter a lista escrita. Os test:<nome> abaixo continuam pra rodar uma suite sozinha durante o desenvolvimento, mas quem responde \"os testes passam?\" e este.",
+    "test": "node scripts/testes.mjs",
+    "verificar": "node scripts/verificador.mjs",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/src/main.js",
@@ -18,7 +25,9 @@
     "test:pricing-service": "ts-node src/pricing/service-price.spec.ts",
     "test:whatsapp-signature": "ts-node src/whatsapp/verify-signature.spec.ts",
     "test:agent-history": "ts-node src/agent/history.spec.ts",
-    "test:whatsapp-parse": "ts-node src/whatsapp/parse-webhook.spec.ts"
+    "test:whatsapp-parse": "ts-node src/whatsapp/parse-webhook.spec.ts",
+    "test:booking-instant": "ts-node src/booking/validate-instant.spec.ts",
+    "test:customer-token": "ts-node src/public/customer-token.spec.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -36,6 +45,8 @@
     "@prisma/client": "^5.20.0",
     "@types/web-push": "^3.6.4",
     "argon2": "^0.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
     "luxon": "^3.5.0",
     "nodemailer": "^9.0.1",
@@ -57,6 +68,9 @@
     "@types/nodemailer": "^8.0.1",
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/passport-jwt": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.6.2"

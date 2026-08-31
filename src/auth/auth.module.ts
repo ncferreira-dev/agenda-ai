@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -13,9 +12,6 @@ import { MailModule } from '../mail/mail.module';
   imports: [
     PassportModule,
     MailModule,
-    // Rate limit por IP. Não registra guard global — é aplicado só onde
-    // declarado (@UseGuards no forgot-password). ttl em ms.
-    ThrottlerModule.forRoot([{ ttl: 15 * 60_000, limit: 5 }]),
     JwtModule.register({
       secret: requireJwtSecret(),
       signOptions: {

@@ -64,4 +64,6 @@ export interface BookingResult {
   service: string;
   professional: string;
   startAt: string;
+  /** Credencial pra ver/cancelar os próprios agendamentos depois. */
+  accessToken: string;
 }

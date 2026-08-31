@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CloudApiProvider } from '../whatsapp/whatsapp.provider';
 import { MailService } from '../mail/mail.service';
 import { PushService } from '../push/push.service';
+import { webOrigin } from '../common/env';
 
 // ---------------------------------------------------------------------------
 // Notificações PRO DONO. Avisa quando entra um agendamento, pelos canais que o
@@ -104,7 +105,7 @@ export class NotificationsService {
       if (!business) return;
 
       const { waTo, emailTo } = this.resolveContacts(business);
-      const planosUrl = `${process.env.WEB_ORIGIN ?? 'http://localhost:3001'}/painel/planos`;
+      const planosUrl = `${webOrigin()}/painel/planos`;
 
       if (waTo && process.env.WHATSAPP_TOKEN) {
         const text =

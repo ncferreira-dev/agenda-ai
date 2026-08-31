@@ -19,6 +19,7 @@ import { StripeService } from './stripe.service';
 // Assinatura do painel. Tudo protegido por JWT e escopado pelo businessId do
 // token (multi-tenant). NENHUMA cobrança acontece aqui — as leituras
 // alimentam as telas e o confirm é o gancho do checkout (ver abaixo).
+import { EscolherPlanoDto } from './billing.dto';
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class BillingController {
@@ -53,11 +54,11 @@ export class BillingController {
   async createCheckoutSession(
     @CurrentBusiness() businessId: string,
     @CurrentOwner() owner: AuthenticatedOwner,
-    @Body('planId') planId: string,
+    @Body() body: EscolherPlanoDto,
   ) {
     return this.stripe.subscribe({
       businessId,
-      planId,
+      planId: body.planId,
       ownerEmail: owner.email,
     });
   }
@@ -83,7 +84,7 @@ export class BillingController {
   @Post('plan/confirm')
   confirm(
     @CurrentBusiness() businessId: string,
-    @Body('planId') planId: string,
+    @Body() body: EscolherPlanoDto,
   ) {
     if (
       process.env.ENABLE_DEV_BILLING !== '1' ||
@@ -93,6 +94,6 @@ export class BillingController {
         'Assinatura ainda não disponível por este atalho: use o checkout (Stripe).',
       );
     }
-    return this.billing.confirmSubscription(businessId, planId);
+    return this.billing.confirmSubscription(businessId, body.planId);
   }
 }

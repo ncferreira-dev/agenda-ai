@@ -230,6 +230,13 @@
   padding: 8px 20px 0;
 }
 
+/* Asterisco de campo obrigatório. Mesmo vermelho do .error abaixo, de propósito:
+   é a cor que esta tela já usa para "algo precisa da sua atenção". */
+.obrigatorio {
+  color: #b3261e;
+  font-weight: 700;
+}
+
 .error {
   background: #fdeaea;
   color: #b3261e;

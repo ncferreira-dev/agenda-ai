@@ -1,8 +1,13 @@
 # Checagem automática a cada push. Objetivo: não deixar código quebrado chegar
-# em produção — hoje o deploy é automático (Vercel/Render), então um push com
-# erro vai direto pro ar e quebra na cara do cliente.
+# em produção — o deploy é automático, então um push com erro vai direto pro ar.
 #
-# Roda: tipos do backend, tipos do site, e os testes puros (não precisam banco).
+# UM passo só, de propósito: `npm run verificar`, o MESMO comando que se roda na
+# máquina antes de entregar. A versão anterior deste arquivo listava os testes um
+# a um, sete passos escritos à mão, e foi assim que a suíte do token de acesso do
+# cliente entrou no repositório sem entrar no CI: lista escrita é lista que
+# apodrece. O verificador PROCURA o que rodar, então suíte nova entra sozinha.
+#
+# Se este arquivo e o verificador discordarem um dia, o errado é este arquivo.
 
 name: CI
 
@@ -13,8 +18,8 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  backend:
-    name: Backend — tipos e testes
+  verificar:
+    name: Verificador de entrega
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,43 +28,21 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
 
-      - name: Instalar dependências
+      - name: Instalar dependências (api)
         run: npm ci
+
+      - name: Instalar dependências (web)
+        # O verificador roda typecheck e lint dentro de web/, então as
+        # dependências de lá precisam existir antes dele começar.
+        run: npm ci --prefix web
 
       - name: Gerar o Prisma Client
         # Os tipos do banco vêm daqui; sem isso a checagem de tipos falha.
         run: npx prisma generate
 
-      - name: Checar tipos (backend)
-        run: npx tsc --noEmit
-
-      - name: Teste — motor de horários
-        run: npm run test:engine
-
-      - name: Teste — preços do plano
-        run: npm run test:pricing
-
-      - name: Teste — preço do serviço
-        run: npm run test:pricing-service
-
-  web:
-    name: Site — tipos
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Instalar dependências
-        run: npm ci
-
-      - name: Checar tipos (site)
-        run: npx tsc --noEmit
+      - name: Verificar
+        run: npm run verificar

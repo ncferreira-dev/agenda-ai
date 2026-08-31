@@ -36,6 +36,27 @@ export interface WhatsAppProvider {
 
 // --- Implementação: WhatsApp Cloud API (Meta) -----------------------------
 
+// Só os campos que este parser lê, todos opcionais de propósito: o corpo vem da
+// Meta e qualquer nível pode faltar. É o que os testes com {}, null e
+// { entry: [{}] } provam — por isso a leitura continua com `?.` em vez de
+// confiar na forma. Tipar aqui só troca `any` (que desliga a checagem no
+// arquivo inteiro) por um contrato escrito do que se espera receber.
+interface CorpoDoWebhook {
+  entry?: Array<{
+    changes?: Array<{
+      value?: {
+        metadata?: { display_phone_number?: string };
+        messages?: Array<{
+          type?: string;
+          from?: string;
+          id?: string;
+          text?: { body?: string };
+        }>;
+      };
+    }>;
+  }>;
+}
+
 @Injectable()
 export class CloudApiProvider implements WhatsAppProvider {
   private readonly token = process.env.WHATSAPP_TOKEN ?? '';
@@ -93,9 +114,9 @@ export class CloudApiProvider implements WhatsAppProvider {
     }
   }
 
-  parseWebhook(body: any): InboundMessage[] {
+  parseWebhook(body: unknown): InboundMessage[] {
     const out: InboundMessage[] = [];
-    const entries = body?.entry ?? [];
+    const entries = (body as CorpoDoWebhook | null | undefined)?.entry ?? [];
     for (const entry of entries) {
       for (const change of entry?.changes ?? []) {
         const value = change?.value;
@@ -115,7 +136,10 @@ export class CloudApiProvider implements WhatsAppProvider {
             from,
             to: businessPhone,
             text: msg.text?.body ?? '',
-            providerMessageId: msg.id,
+            // A Meta sempre manda id, mas o tipo diz "pode faltar" porque o
+            // corpo vem de fora: sem o ?? '' um payload torto viraria undefined
+            // gravado como id da mensagem.
+            providerMessageId: msg.id ?? '',
           });
         }
       }

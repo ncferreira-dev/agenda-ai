@@ -7,28 +7,34 @@ import {
   Query,
   Body,
   NotFoundException,
-  BadRequestException,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
 import { effectivePriceCents } from '../pricing/service-price';
+import { criarTokenDoCliente, lerTokenDoCliente } from './customer-token';
+import {
+  CriarAgendamentoDto,
+  CancelarAgendamentoDto,
+  ConsultarAgendamentosDto,
+  ConsultarDisponibilidadeDto,
+} from './public-booking.dto';
+import { requireJwtSecret } from '../auth/jwt-secret';
 
 // ---------------------------------------------------------------------------
 // API pública do cliente final. Tenant resolvido pelo slug na URL.
 // Sem autenticação: o cliente é identificado por telefone, não por login.
 // ---------------------------------------------------------------------------
 
-interface CreateBookingBody {
-  serviceId: string;
-  professionalId: string;
-  startAt: string; // ISO com offset, exatamente como veio de /availability
-  name: string;
-  phone: string; // E.164, ex.: 5511999998888
-  email?: string;
-  notes?: string;
-}
-
+// Toda rota daqui é anônima e alcançável por qualquer um na internet, então o
+// guard de rate limit vale para o controller inteiro: rota nova nasce protegida
+// pelo piso do AppModule (60/min por IP) mesmo que quem escreveu esqueça de
+// declarar um limite. Quem precisa de mais folga ou de mais aperto declara o
+// próprio @Throttle abaixo.
+@UseGuards(ThrottlerGuard)
 @Controller('b/:slug')
 export class PublicBookingController {
   constructor(
@@ -48,16 +54,22 @@ export class PublicBookingController {
     return d.startsWith('55') ? d : `55${d}`;
   }
 
-  /** Próximos agendamentos do cliente (identificado pelo telefone). */
+  /**
+   * Próximos agendamentos do cliente, identificado pelo token que ele recebeu ao
+   * agendar. NÃO aceita telefone: identificar por número digitado entregava a
+   * agenda de qualquer pessoa a quem soubesse o número dela.
+   */
+  @Throttle({ default: { limit: 30, ttl: 10 * 60_000 } })
   @Get('appointments')
-  async myAppointments(@Param('slug') slug: string, @Query('phone') phone?: string) {
-    if (!phone) throw new BadRequestException('Informe o telefone.');
+  async myAppointments(@Param('slug') slug: string, @Query() query: ConsultarAgendamentosDto) {
     const business = await this.resolveBusiness(slug);
-    const customer = await this.prisma.customer.findUnique({
-      where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(phone) } },
-    });
-    if (!customer) return [];
-    const appts = await this.booking.getUpcomingForCustomer(business.id, customer.id);
+    const acesso = lerTokenDoCliente(query.token, requireJwtSecret());
+    // O token carrega o negócio de origem: um token do salão A não pode listar
+    // nada no salão B, mesmo sendo uma assinatura válida.
+    if (!acesso || acesso.businessId !== business.id) {
+      throw new UnauthorizedException('Link inválido ou expirado.');
+    }
+    const appts = await this.booking.getUpcomingForCustomer(business.id, acesso.customerId);
     return appts.map((a) => ({
       id: a.id,
       service: a.service.name,
@@ -67,25 +79,34 @@ export class PublicBookingController {
     }));
   }
 
-  /** Cancela um agendamento do próprio cliente (confere telefone + negócio). */
+  /** Cancela um agendamento do próprio cliente (confere token + negócio). */
+  @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Patch('appointments/:id/cancel')
   async cancelMine(
     @Param('slug') slug: string,
     @Param('id') id: string,
-    @Body() body: { phone: string },
+    @Body() body: CancelarAgendamentoDto,
   ) {
-    if (!body?.phone) throw new BadRequestException('Informe o telefone.');
     const business = await this.resolveBusiness(slug);
-    const customer = await this.prisma.customer.findUnique({
-      where: { businessId_phone: { businessId: business.id, phone: this.normalizePhone(body.phone) } },
+    const acesso = lerTokenDoCliente(body.token, requireJwtSecret());
+    if (!acesso || acesso.businessId !== business.id) {
+      throw new UnauthorizedException('Link inválido ou expirado.');
+    }
+    // Só cancela o que ainda é cancelável: do próprio cliente, PENDING/CONFIRMED
+    // e no futuro. Sem o filtro de status/tempo dava pra "cancelar" um
+    // agendamento já COMPLETED (e pago) ou passado — o que só servia pra tirá-lo
+    // do faturamento do dono depois do serviço feito.
+    const appt = await this.prisma.appointment.findFirst({
+      where: {
+        id,
+        businessId: business.id,
+        customerId: acesso.customerId,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        startAt: { gte: new Date() },
+      },
+      select: { id: true },
     });
-    const appt = customer
-      ? await this.prisma.appointment.findFirst({
-          where: { id, businessId: business.id, customerId: customer.id },
-          select: { id: true },
-        })
-      : null;
-    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+    if (!appt) throw new NotFoundException('Agendamento não encontrado ou não pode mais ser cancelado.');
     await this.booking.cancelAppointment(business.id, id);
     return { id, cancelled: true };
   }
@@ -227,16 +248,15 @@ export class PublicBookingController {
   }
 
   /** Horários livres de um serviço numa data. */
+  // Folga maior: é a rota que a tela chama a cada troca de dia, serviço ou
+  // profissional, então o piso de 60/min pecaria contra o cliente legítimo.
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   @Get('availability')
   async getAvailability(
     @Param('slug') slug: string,
-    @Query('serviceId') serviceId: string,
-    @Query('date') date: string,
-    @Query('professionalId') professionalId?: string,
+    @Query() query: ConsultarDisponibilidadeDto,
   ) {
-    if (!serviceId || !date) {
-      throw new BadRequestException('serviceId e date são obrigatórios.');
-    }
+    const { serviceId, date, professionalId } = query;
     const business = await this.resolveBusiness(slug);
     const avail = await this.availability.getAvailability({
       businessId: business.id,
@@ -252,12 +272,12 @@ export class PublicBookingController {
   }
 
   /** Cria o agendamento. */
+  // Escrita: 15 por hora por IP. Uma família agendando do mesmo Wi-Fi cabe;
+  // encher a agenda do dono com horários falsos, não.
+  @Throttle({ default: { limit: 15, ttl: 60 * 60_000 } })
   @Post('bookings')
-  async createBooking(@Param('slug') slug: string, @Body() body: CreateBookingBody) {
+  async createBooking(@Param('slug') slug: string, @Body() body: CriarAgendamentoDto) {
     const { serviceId, professionalId, startAt, name, phone, email, notes } = body;
-    if (!serviceId || !professionalId || !startAt || !phone) {
-      throw new BadRequestException('Faltam dados pra agendar.');
-    }
     const business = await this.resolveBusiness(slug);
 
     // Normaliza no servidor (não confia no formato do cliente) — telefone em E.164.
@@ -281,6 +301,12 @@ export class PublicBookingController {
       service: appt.service.name,
       professional: appt.professional.name,
       startAt: appt.startAt.toISOString(),
+      // Credencial de quem acabou de agendar: é com ela que a tela "Meus
+      // agendamentos" funciona depois, sem pedir telefone nenhum.
+      accessToken: criarTokenDoCliente(
+        { businessId: business.id, customerId: customer.id },
+        requireJwtSecret(),
+      ),
     };
   }
 }

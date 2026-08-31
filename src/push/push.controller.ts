@@ -3,10 +3,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BillingGateGuard } from '../billing/billing-gate.guard';
 import { CurrentBusiness, CurrentOwner } from '../auth/decorators/current-business.decorator';
 import type { AuthenticatedOwner } from '../auth/auth.service';
-import { PushService, type BrowserSubscription } from './push.service';
+import { PushService } from './push.service';
 
 // Endpoints de Web Push do painel. Protegidos por JWT; o dono só mexe nas
 // inscrições do próprio negócio (businessId vem do token, nunca do body).
+import { RegistrarPushDto, RemoverPushDto } from './push.dto';
 @Controller('me/push')
 @UseGuards(JwtAuthGuard, BillingGateGuard)
 export class PushController {
@@ -23,11 +24,11 @@ export class PushController {
   subscribe(
     @CurrentBusiness() businessId: string,
     @CurrentOwner() owner: AuthenticatedOwner,
-    @Body() body: { subscription?: BrowserSubscription },
+    @Body() body: RegistrarPushDto,
     @Headers('user-agent') userAgent?: string,
   ) {
     return this.push
-      .saveSubscription(businessId, owner.ownerId, body?.subscription as BrowserSubscription, userAgent)
+      .saveSubscription(businessId, owner.ownerId, body.subscription, userAgent)
       .then(() => ({ ok: true }));
   }
 
@@ -35,8 +36,8 @@ export class PushController {
   @Delete('subscriptions')
   unsubscribe(
     @CurrentBusiness() businessId: string,
-    @Body() body: { endpoint?: string },
+    @Body() body: RemoverPushDto,
   ) {
-    return this.push.deleteSubscription(businessId, body?.endpoint ?? '').then(() => ({ ok: true }));
+    return this.push.deleteSubscription(businessId, body.endpoint).then(() => ({ ok: true }));
   }
 }
