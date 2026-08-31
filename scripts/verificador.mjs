@@ -363,10 +363,9 @@ const CHECAGENS = [
 // não olha nada é o pior estado possível.
 
 const CONFERENCIA_HUMANA = [
-  'web/ tem 78 testes (Vitest), e a cobertura AGORA inclui o dinheiro do painel: ' +
-    'preços dos planos, banner de assinatura, conversão de reais em centavos e a ' +
-    'trava de itens de atendimento pago. NÃO pega ainda: o wizard de onboarding, ' +
-    'o editor de serviços/kits (ServicesManager, 366 linhas), o formulário de ' +
+  'web/ tem 91 testes (Vitest): dinheiro do painel (preços, assinatura, centavos, ' +
+    'trava de pago), o wizard de onboarding e a página pública. NÃO pega ainda: o ' +
+    'editor de serviços/kits (ServicesManager, 366 linhas), o formulário de ' +
     'profissionais e o rótulo de horário no fuso do negócio. Esses continuam por ' +
     'conferência humana.',
   'Abrir /[slug] em 390px com o dado mais longo que o sistema aceita: serviço de ' +

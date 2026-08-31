@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maskFormat, isValidCpf, brl } from './format';
+import { maskFormat, isValidCpf, brl, mensagemDoErro } from './format';
 
 // ---------------------------------------------------------------------------
 // Máscaras e validação de CPF do front. Puro, sem DOM.
@@ -106,5 +106,24 @@ describe('brl', () => {
 
   it('valor negativo não vira lixo', () => {
     expect(brl(-2500)).toContain('25,00');
+  });
+});
+
+describe('mensagemDoErro', () => {
+  it('usa a mensagem do Error quando existe', () => {
+    expect(mensagemDoErro(new Error('Horário já ocupado.'), 'padrão')).toBe('Horário já ocupado.');
+  });
+
+  it('cai no padrão quando o lançado NÃO é Error', () => {
+    // `catch` pega qualquer coisa: string, objeto do fetch, undefined. O padrão
+    // antigo (`e?.message`) devolvia undefined nesses casos e a tela mostrava
+    // um erro vazio, que é pior do que uma mensagem genérica.
+    for (const jogado of ['texto solto', { message: 'não é Error' }, undefined, null, 42]) {
+      expect(mensagemDoErro(jogado, 'padrão')).toBe('padrão');
+    }
+  });
+
+  it('Error com mensagem vazia também cai no padrão', () => {
+    expect(mensagemDoErro(new Error(''), 'padrão')).toBe('padrão');
   });
 });
