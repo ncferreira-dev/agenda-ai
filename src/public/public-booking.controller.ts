@@ -8,7 +8,9 @@ import {
   Body,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingService } from '../booking/booking.service';
@@ -29,6 +31,12 @@ interface CreateBookingBody {
   notes?: string;
 }
 
+// Toda rota daqui é anônima e alcançável por qualquer um na internet, então o
+// guard de rate limit vale para o controller inteiro: rota nova nasce protegida
+// pelo piso do AppModule (60/min por IP) mesmo que quem escreveu esqueça de
+// declarar um limite. Quem precisa de mais folga ou de mais aperto declara o
+// próprio @Throttle abaixo.
+@UseGuards(ThrottlerGuard)
 @Controller('b/:slug')
 export class PublicBookingController {
   constructor(
@@ -49,6 +57,9 @@ export class PublicBookingController {
   }
 
   /** Próximos agendamentos do cliente (identificado pelo telefone). */
+  // 5 consultas por 10 min: quem chega pelo próprio número consulta uma ou duas
+  // vezes, mas varrer uma faixa de telefones fica inviável.
+  @Throttle({ default: { limit: 5, ttl: 10 * 60_000 } })
   @Get('appointments')
   async myAppointments(@Param('slug') slug: string, @Query('phone') phone?: string) {
     if (!phone) throw new BadRequestException('Informe o telefone.');
@@ -68,6 +79,7 @@ export class PublicBookingController {
   }
 
   /** Cancela um agendamento do próprio cliente (confere telefone + negócio). */
+  @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Patch('appointments/:id/cancel')
   async cancelMine(
     @Param('slug') slug: string,
@@ -237,6 +249,9 @@ export class PublicBookingController {
   }
 
   /** Horários livres de um serviço numa data. */
+  // Folga maior: é a rota que a tela chama a cada troca de dia, serviço ou
+  // profissional, então o piso de 60/min pecaria contra o cliente legítimo.
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   @Get('availability')
   async getAvailability(
     @Param('slug') slug: string,
@@ -262,6 +277,9 @@ export class PublicBookingController {
   }
 
   /** Cria o agendamento. */
+  // Escrita: 15 por hora por IP. Uma família agendando do mesmo Wi-Fi cabe;
+  // encher a agenda do dono com horários falsos, não.
+  @Throttle({ default: { limit: 15, ttl: 60 * 60_000 } })
   @Post('bookings')
   async createBooking(@Param('slug') slug: string, @Body() body: CreateBookingBody) {
     const { serviceId, professionalId, startAt, name, phone, email, notes } = body;

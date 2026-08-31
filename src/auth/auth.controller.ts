@@ -39,12 +39,20 @@ interface ResetPasswordBody {
   password: string;
 }
 
+// O guard de rate limit vale para o controller inteiro porque aqui não existe
+// rota "inofensiva": todas são anônimas e todas aceitam palpite. Deixar o guard
+// rota a rota foi o que deixou login e reset-password sem limite nenhum
+// enquanto só o forgot-password estava protegido.
+@UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private auth: AuthService) {}
 
+  // Senha por tentativa: sem teto, um dicionário roda contra a conta do dono a
+  // noite inteira. 10 por 15 min por IP não incomoda quem só errou o teclado.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @Post('login')
   async login(@Body() body: LoginBody) {
     if (!body?.email || !body?.password) {
@@ -54,6 +62,9 @@ export class AuthController {
   }
 
   /** Cadastro público do dono: cria o negócio e já devolve a sessão. */
+  // Cadastro cria negócio + dono no banco. 5 por hora por IP evita que alguém
+  // encha a base de tenants fantasma com um laço de terminal.
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @Post('register')
   async register(@Body() body: RegisterBody) {
     if (!body) throw new BadRequestException('Dados do cadastro ausentes.');
@@ -71,7 +82,6 @@ export class AuthController {
   // Resposta sempre genérica (não revela se o email existe).
   // Rate limit por IP: no máx. 5 pedidos a cada 15 min (anti-abuso de envio).
   // Defesa adicional por email (cooldown) fica no AuthService.
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
   @Post('forgot-password')
   async forgotPassword(@Body() body: ForgotPasswordBody) {
@@ -81,6 +91,8 @@ export class AuthController {
     };
   }
 
+  // O token de reset é adivinhável por força bruta se puder ser testado sem fim.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @Post('reset-password')
   async resetPassword(@Body() body: ResetPasswordBody) {
     if (!body?.token || !body?.password) {
@@ -123,6 +135,8 @@ export class AuthController {
   }
 
   /** Troca o code de uso único pela sessão (mesmo shape do login). */
+  // Mesmo motivo do reset: é um code de uso único que vale uma sessão inteira.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @Post('oauth/exchange')
   async oauthExchange(@Body() body: { code?: string }) {
     if (!body?.code) throw new BadRequestException('Code ausente.');

@@ -23,6 +23,15 @@ async function bootstrap(): Promise<void> {
     rawBody: true,
   });
 
+  // Atrás do proxy do Render, TODA request chega com o IP do proxy. Sem isto o
+  // rate limit por IP contaria o mundo inteiro como um visitante só: o primeiro
+  // a estourar a cota trancaria a porta para todos os outros. Com trust proxy o
+  // Express lê o X-Forwarded-For e req.ips passa a ter o IP real do cliente,
+  // que é o que o ThrottlerGuard usa. O 1 é a quantidade de proxies à frente
+  // (Render põe exatamente um) — number fixo, e não `true`, porque `true`
+  // aceitaria um X-Forwarded-For forjado pelo próprio cliente.
+  app.set('trust proxy', 1);
+
   // Libera o(s) frontend(s) Next a chamar a API do navegador. WEB_ORIGIN é
   // obrigatória em produção (falha no boot se faltar) e aceita várias origens
   // separadas por vírgula.
