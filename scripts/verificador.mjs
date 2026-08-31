@@ -36,6 +36,7 @@ const COMANDOS = [
   { nome: 'api: typecheck e lint', cwd: '.', comando: 'npm', args: ['run', 'lint'] },
   { nome: 'api: testes', cwd: '.', comando: 'npm', args: ['test'] },
   { nome: 'web: typecheck e lint', cwd: 'web', comando: 'npm', args: ['run', 'lint'] },
+  { nome: 'web: testes', cwd: 'web', comando: 'npm', args: ['test'] },
 ];
 
 // ===========================================================================
@@ -362,10 +363,11 @@ const CHECAGENS = [
 // não olha nada é o pior estado possível.
 
 const CONFERENCIA_HUMANA = [
-  'web/ NÃO TEM TESTE AUTOMATIZADO NENHUM. O verificador roda typecheck e lint ' +
-    'lá, e só. Toda regra de tela — fuso do negócio no rótulo do horário, kit que ' +
-    'recalcula duração, token que some do localStorage em aba anônima — está ' +
-    'coberta por conferência humana e nada mais.',
+  'web/ JÁ TEM TESTE (Vitest), mas a cobertura é PARCIAL: pega as regras puras ' +
+    '(máscaras, CPF, telefone com DDD 55, guarda do token) e dois comportamentos ' +
+    'de tela do BookingFlow. NÃO pega: o painel do dono inteiro, o wizard de ' +
+    'onboarding, o editor de serviços/kits e o rótulo de horário no fuso do ' +
+    'negócio. Esses continuam por conferência humana.',
   'Abrir /[slug] em 390px com o dado mais longo que o sistema aceita: serviço de ' +
     '45 letras, nome de profissional de 40. No console: ' +
     '[...document.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > innerWidth + 1) ' +
