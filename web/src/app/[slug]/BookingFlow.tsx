@@ -5,6 +5,15 @@ import { DateTime } from 'luxon';
 import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
 import { salvarAcesso, lerAcesso, limparAcesso, capturarAcessoDaUrl } from '@/lib/customer-access';
+import {
+  WEEKDAYS,
+  MONTHS,
+  pad,
+  nextDays,
+  formatPrice,
+  normalizePhone,
+  initials,
+} from './booking.utils';
 import styles from './booking.module.css';
 
 interface DisplaySlot {
@@ -13,39 +22,6 @@ interface DisplaySlot {
   professionalId: string;
 }
 
-const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-
-function nextDays(count: number): { iso: string; weekday: string; day: number; wd: number }[] {
-  const out = [];
-  const base = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    out.push({ iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate(), wd: d.getDay() });
-  }
-  return out;
-}
-
-function formatPrice(cents: number): string {
-  if (!cents) return '';
-  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
-}
-
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  // A guarda de comprimento é o que separa o DDI 55 do DDD 55 (RS): um número
-  // de Santa Maria como (55) 99999-9999 vira '55999999999' (11 dígitos), que
-  // começa com '55' mas NÃO tem DDI — sem o >= 12 o DDD era comido e o número
-  // gravado sem DDD. Com DDI, o menor válido (55 + fixo de 10) tem 12 dígitos.
-  return digits.startsWith('55') && digits.length >= 12 ? digits : `55${digits}`;
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
-}
 
 function PeopleIcon() {
   return (
@@ -464,10 +440,6 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
       )}
     </div>
   );
-}
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
 }
 
 function MyAppointmentsView({
