@@ -209,6 +209,61 @@ const CHECAGENS = [
     },
   },
   {
+    // TRAVA DO DEFEITO DE 31/08/2026 (o terceiro). A extensão de auditoria tinha
+    // um `default: return query(args)` no fim do switch, então TODA operação de
+    // escrita que ela não conhecesse passava direto e gravava sem rastro. Foi o
+    // que aconteceu com `upsert`: o agendamento público criava o Customer por
+    // upsert, e o cliente nascia no banco sem uma linha sequer na trilha.
+    //
+    // A extensão agora estoura em runtime numa escrita desconhecida. Esta trava
+    // é o aviso ANTES do runtime: compara as operações de escrita realmente
+    // usadas no código com as que a extensão trata.
+    nome: 'toda escrita do Prisma usada no código é tratada pela auditoria',
+    executar() {
+      const OPERACOES = [
+        'create', 'createMany', 'createManyAndReturn',
+        'update', 'updateMany', 'updateManyAndReturn',
+        'upsert', 'delete', 'deleteMany',
+      ];
+
+      const extensao = ler(join(RAIZ, 'src/prisma/prisma-audit.extension.ts'));
+      const tratadas = new Set(
+        [...extensao.matchAll(/case '([a-zA-Z]+)':/g)].map((m) => m[1]),
+      );
+
+      const arquivos = listarArquivos(join(RAIZ, 'src'), ['.ts']).filter(
+        (c) => !c.endsWith('.spec.ts') && !c.endsWith('prisma-audit.extension.ts'),
+      );
+
+      const usadas = new Map();
+      for (const caminho of arquivos) {
+        const fonte = ler(caminho);
+        if (!fonte) continue;
+        for (const op of OPERACOES) {
+          // `.upsert(` precedido de algo que pareça um delegate do Prisma.
+          const padrao = new RegExp(`\\b(prisma|tx|db)?\\.?[a-zA-Z]+\\.${op}\\(`);
+          if (padrao.test(fonte) && !usadas.has(op)) {
+            usadas.set(op, relative(RAIZ, caminho));
+          }
+        }
+      }
+
+      const detalhes = [];
+      for (const [op, ondeApareceu] of usadas) {
+        if (!tratadas.has(op)) {
+          detalhes.push(`${op}: usada em ${ondeApareceu} e sem case na extensão — grava sem rastro`);
+        }
+      }
+
+      return {
+        ok: detalhes.length === 0,
+        procurou: `${OPERACOES.length} operações de escrita em ${arquivos.length} arquivo(s); ${usadas.size} em uso, ${tratadas.size} tratadas na extensão`,
+        achou: detalhes.length === 0 ? 'todas as escritas em uso estão tratadas' : `${detalhes.length} sem tratamento`,
+        detalhes,
+      };
+    },
+  },
+  {
     // O repositório é PÚBLICO (está escrito no .gitignore, junto da regra de
     // nunca versionar dump do banco). Segredo aqui não é vazamento interno: é
     // publicação. Varre TODO arquivo de texto, sem lista de extensão, porque o

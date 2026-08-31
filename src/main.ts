@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import { UPLOADS_DIR } from './storage/storage.service';
 import { corsOrigins } from './common/env';
 import { primeiraMensagemDeErro } from './common/validation';
+import { RequestContextInterceptor } from './common/request-context.interceptor';
 import { setDefaultResultOrder } from 'node:dns';
 
 // Preferir IPv4 ao resolver nomes. O Render não tem rota de saída por IPv6:
@@ -74,6 +75,11 @@ async function bootstrap(): Promise<void> {
     mkdirSync(UPLOADS_DIR, { recursive: true });
     app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
   }
+
+  // Abre o contexto de autoria da requisição, que é como a trilha de auditoria
+  // descobre quem escreveu. Global: rota nova nasce com autor, sem ninguém
+  // precisar lembrar de nada. Ver src/common/request-context.ts.
+  app.useGlobalInterceptors(new RequestContextInterceptor());
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
