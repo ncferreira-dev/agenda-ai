@@ -9,17 +9,6 @@ vi.mock('../actions', () => ({
   skipOnboarding: vi.fn(),
 }));
 
-// Mesmo motivo do ItemsEditor.spec: useFormState/useFormStatus vêm do react-dom
-// que o NEXT empacota, e não existem fora dele. Duplicado de propósito — é o
-// segundo caso, e a regra do projeto é só subir para um lugar comum no terceiro.
-vi.mock('react-dom', async (original) => {
-  const real = await original<typeof import('react-dom')>();
-  return {
-    ...real,
-    useFormState: (_acao: unknown, inicial: unknown) => [inicial, vi.fn()],
-    useFormStatus: () => ({ pending: false }),
-  };
-});
 
 import { applyVertical } from '../actions';
 import { OnboardingWizard } from './OnboardingWizard';
