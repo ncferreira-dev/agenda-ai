@@ -90,3 +90,86 @@ describe('editando a grade', () => {
     expect(id.value).toBe('p-99');
   });
 });
+
+// ---------------------------------------------------------------------------
+// FAIXA INVERTIDA.
+//
+// O servidor SEMPRE foi o guarda: 18:00 até 09:00 nunca entrou no banco. O que
+// faltava era a tela dizer onde está o erro — o dono preenchia a semana toda e
+// levava "Faixa inválida: exige 0 <= início < fim <= 1440", que é verdade e não
+// ajuda em nada a achar o dia.
+// ---------------------------------------------------------------------------
+describe('faixa com o fim antes do início', () => {
+  it('avisa qual DIA está errado, e não só que existe um erro', async () => {
+    const user = userEvent.setup();
+    render(<HoursEditor professionalId="p1" initial={[faixa(3, 540, 720)]} onClose={() => {}} />);
+
+    await user.clear(screen.getByLabelText('Quarta: fim da faixa 1'));
+    await user.type(screen.getByLabelText('Quarta: fim da faixa 1'), '08:00');
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Quarta/);
+  });
+
+  it('marca a linha errada e explica ali mesmo', async () => {
+    const user = userEvent.setup();
+    render(<HoursEditor professionalId="p1" initial={[faixa(3, 540, 720)]} onClose={() => {}} />);
+    const fim = screen.getByLabelText('Quarta: fim da faixa 1');
+
+    await user.clear(fim);
+    await user.type(fim, '08:00');
+
+    expect(fim).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Quarta: início da faixa 1')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('O fim precisa ser depois do início.')).toBeInTheDocument();
+  });
+
+  it('não deixa salvar enquanto a faixa estiver invertida', async () => {
+    const user = userEvent.setup();
+    render(<HoursEditor professionalId="p1" initial={[faixa(1, 540, 1080)]} onClose={() => {}} />);
+    const salvar = screen.getByRole('button', { name: 'Salvar grade' });
+    expect(salvar).toBeEnabled();
+
+    const fim = screen.getByLabelText('Segunda: fim da faixa 1');
+    await user.clear(fim);
+    await user.type(fim, '08:00');
+    expect(salvar).toBeDisabled();
+
+    // E volta a liberar assim que fica coerente — travar sem saída seria pior
+    // que o erro genérico do servidor.
+    await user.clear(fim);
+    await user.type(fim, '19:00');
+    expect(salvar).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('faixa recém-criada e ainda vazia não trava o salvamento', async () => {
+    const user = userEvent.setup();
+    render(<HoursEditor professionalId="p1" initial={[faixa(1, 540, 1080)]} onClose={() => {}} />);
+
+    await user.clear(screen.getByLabelText('Segunda: fim da faixa 1'));
+
+    // Sem fim preenchido, a faixa é descartada antes de enviar — não é erro.
+    expect(screen.getByRole('button', { name: 'Salvar grade' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('só o dia com problema é apontado; os outros continuam normais', async () => {
+    const user = userEvent.setup();
+    render(
+      <HoursEditor
+        professionalId="p1"
+        initial={[faixa(1, 540, 1080), faixa(5, 540, 1080)]}
+        onClose={() => {}}
+      />,
+    );
+
+    const fim = screen.getByLabelText('Sexta: fim da faixa 1');
+    await user.clear(fim);
+    await user.type(fim, '08:00');
+
+    const aviso = screen.getByRole('alert');
+    expect(aviso).toHaveTextContent(/Sexta/);
+    expect(aviso).not.toHaveTextContent(/Segunda/);
+    expect(screen.getByLabelText('Segunda: início da faixa 1')).not.toHaveAttribute('aria-invalid');
+  });
+});

@@ -61,6 +61,43 @@ export function faixasParaSalvar(
   return out;
 }
 
+/** Uma faixa que o servidor vai recusar, e por quê. */
+export interface ProblemaDaFaixa {
+  weekday: number;
+  indice: number;
+  mensagem: string;
+}
+
+/**
+ * As faixas que o backend vai recusar, encontradas ANTES de enviar.
+ *
+ * A regra é a mesma de validateWorkingHours: 0 <= início < fim. Antes disto o
+ * editor deixava salvar "18:00 até 09:00" e o servidor devolvia
+ * "Faixa inválida: exige 0 <= início < fim <= 1440" — correto, e inútil: a
+ * pessoa acabou de preencher a semana inteira e não sabe QUAL dia recusar.
+ * Dado errado nunca entrou; o que faltava era dizer onde está o erro.
+ *
+ * Faixa pela metade não é problema: ela é DESCARTADA por faixasParaSalvar, então
+ * travar o salvamento por causa dela seria barrar uma linha que a pessoa nem
+ * terminou de preencher (e que não vai ser enviada).
+ */
+export function problemasDaGrade(byDay: GradePorDia): ProblemaDaFaixa[] {
+  const problemas: ProblemaDaFaixa[] = [];
+  for (const wd of Object.keys(byDay).map(Number)) {
+    byDay[wd].forEach((r, indice) => {
+      if (!r.start || !r.end) return;
+      if (paraMinutos(r.end) <= paraMinutos(r.start)) {
+        problemas.push({
+          weekday: wd,
+          indice,
+          mensagem: 'O fim precisa ser depois do início.',
+        });
+      }
+    });
+  }
+  return problemas;
+}
+
 /** Iniciais do profissional para o avatar, em maiúsculas. */
 export function iniciaisDoProfissional(name: string): string {
   const p = (name ?? '').trim().split(/\s+/);

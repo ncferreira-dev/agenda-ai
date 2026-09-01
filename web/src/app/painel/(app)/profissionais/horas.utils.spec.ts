@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { WorkingHour } from '@/lib/panel-api';
 import {
   paraHHmm, paraMinutos, agrupaPorDia, faixasParaSalvar, iniciaisDoProfissional,
+  problemasDaGrade,
 } from './horas.utils';
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,59 @@ describe('faixasParaSalvar', () => {
 
   it('grade vazia manda lista vazia (é como se fecha a semana toda)', () => {
     expect(faixasParaSalvar(agrupaPorDia([]))).toEqual([]);
+  });
+});
+
+describe('problemasDaGrade', () => {
+  const grade = (faixas: Record<number, Array<{ start: string; end: string }>>) => ({
+    0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [],
+    ...faixas,
+  });
+
+  it('faixa normal não é problema', () => {
+    expect(problemasDaGrade(grade({ 1: [{ start: '09:00', end: '18:00' }] }))).toEqual([]);
+  });
+
+  it('fim antes do início é apontado, com o dia e a posição', () => {
+    const p = problemasDaGrade(grade({ 3: [{ start: '18:00', end: '09:00' }] }));
+    expect(p).toHaveLength(1);
+    expect(p[0].weekday).toBe(3);
+    expect(p[0].indice).toBe(0);
+    expect(p[0].mensagem).toMatch(/depois do início/i);
+  });
+
+  it('fim IGUAL ao início também é problema (faixa de zero minuto não oferece horário)', () => {
+    // O backend recusa com início < fim, não <=. Uma faixa de duração zero
+    // passaria na tela e voltaria como erro genérico.
+    expect(problemasDaGrade(grade({ 5: [{ start: '14:00', end: '14:00' }] }))).toHaveLength(1);
+  });
+
+  it('faixa pela metade NÃO é problema — ela nem vai ser enviada', () => {
+    // faixasParaSalvar descarta faixa incompleta. Travar o salvamento por causa
+    // dela seria barrar uma linha que a pessoa acabou de criar e não preencheu.
+    const meia = grade({ 2: [{ start: '09:00', end: '' }, { start: '', end: '18:00' }] });
+    expect(problemasDaGrade(meia)).toEqual([]);
+  });
+
+  it('acha o problema mesmo com faixas boas antes e depois, no mesmo dia', () => {
+    const p = problemasDaGrade(
+      grade({
+        4: [
+          { start: '09:00', end: '12:00' },
+          { start: '18:00', end: '13:00' },
+          { start: '19:00', end: '20:00' },
+        ],
+      }),
+    );
+    expect(p).toHaveLength(1);
+    expect(p[0].indice).toBe(1);
+  });
+
+  it('aponta todos os dias com problema, não só o primeiro', () => {
+    const p = problemasDaGrade(
+      grade({ 1: [{ start: '18:00', end: '09:00' }], 6: [{ start: '20:00', end: '08:00' }] }),
+    );
+    expect(p.map((x) => x.weekday).sort()).toEqual([1, 6]);
   });
 });
 
