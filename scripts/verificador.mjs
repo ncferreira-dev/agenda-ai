@@ -384,12 +384,12 @@ const CONFERENCIA_HUMANA = [
   'Rodar `npx prisma migrate deploy` contra a produção é irreversível e nenhum ' +
     'teste cobre isso. Confira a DATABASE_URL antes, à mão, toda vez.',
   'Services da API cobertos por integração: booking (anti-overbooking) e o ' +
-    'reset de senha do auth. Do auth.service continuam SEM teste o registro e o ' +
-    'login social (OAuth, que decide quando VINCULAR conta existente — errar ali ' +
-    'é sequestro de conta). E seguem descobertos business.service, ' +
-    'stripe.service e o public-booking.controller.',
+    'auth inteiro — reset de senha, cadastro e login social (inclusive os dois ' +
+    'guards de email verificado, que são o que separa "vincular" de "sequestrar ' +
+    'conta"). Seguem SEM teste business.service, stripe.service e o ' +
+    'public-booking.controller.',
   'O teto de 550 linhas passa hoje, mas os PRÓXIMOS da fila são ' +
-    'api/src/auth/auth.service.ts (515) e web/src/app/[slug]/BookingFlow.tsx ' +
+    'api/src/auth/auth.service.ts (516) e web/src/app/[slug]/BookingFlow.tsx ' +
     '(615, fora do alcance da trava, que só olha src/). Nenhum dos dois foi ' +
     'quebrado ainda — está declarado aqui para não passar por resolvido.',
 ];
