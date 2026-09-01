@@ -6,6 +6,7 @@ import { CopyLink } from './CopyLink';
 import { EditSlug } from './EditSlug';
 import { ItemsEditor } from './ItemsEditor';
 import styles from '../painel.module.css';
+import { diaNoFuso, horaNoFuso } from '@/lib/fuso';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,7 +149,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
 
   const grupos = new Map<string, Appointment[]>();
   for (const a of lista) {
-    const key = DateTime.fromISO(a.startAt).setZone(tz).toFormat('yyyy-MM-dd');
+    const key = diaNoFuso(a.startAt, tz);
     (grupos.get(key) ?? grupos.set(key, []).get(key)!).push(a);
   }
 
@@ -211,7 +212,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
             const day = weekStart.plus({ days: i });
             const key = day.toFormat('yyyy-MM-dd');
             const doDia = appts
-              .filter((a) => DateTime.fromISO(a.startAt).setZone(tz).toFormat('yyyy-MM-dd') === key)
+              .filter((a) => diaNoFuso(a.startAt, tz) === key)
               .sort((x, y) => x.startAt.localeCompare(y.startAt));
             const isToday = key === hojeKey;
             return (
@@ -224,7 +225,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: { v?:
                   {doDia.length === 0 && <span className={styles.weekEmpty}>—</span>}
                   {doDia.map((a) => (
                     <div key={a.id} className={styles.weekBlock}>
-                      <span className={styles.weekTime}>{DateTime.fromISO(a.startAt).setZone(tz).toFormat('HH:mm')}</span>
+                      <span className={styles.weekTime}>{horaNoFuso(a.startAt, tz)}</span>
                       <span className={styles.weekSvc}>{a.service}</span>
                       <span className={styles.weekPro}>{a.professional}</span>
                     </div>

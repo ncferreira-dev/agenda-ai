@@ -4,11 +4,11 @@
 // renderizando a tela inteira. Aqui dá pra chamar de um arquivo de teste.
 // ---------------------------------------------------------------------------
 
-export const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-export const MONTHS = [
-  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-  'jul', 'ago', 'set', 'out', 'nov', 'dez',
-];
+// Reexportados de lib/fuso, que é a fonte única: os mesmos nomes são usados no
+// painel, e duas listas separadas divergem no dia em que alguém corrige um
+// acento em só uma delas.
+export { DIAS_DA_SEMANA as WEEKDAYS, MESES as MONTHS } from '@/lib/fuso';
+import { DIAS_DA_SEMANA } from '@/lib/fuso';
 
 export function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -29,7 +29,7 @@ export function nextDays(
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    out.push({ iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate(), wd: d.getDay() });
+    out.push({ iso, weekday: DIAS_DA_SEMANA[d.getDay()], day: d.getDate(), wd: d.getDay() });
   }
   return out;
 }
