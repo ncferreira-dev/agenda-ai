@@ -363,11 +363,11 @@ const CHECAGENS = [
 // não olha nada é o pior estado possível.
 
 const CONFERENCIA_HUMANA = [
-  'web/ tem 91 testes (Vitest): dinheiro do painel (preços, assinatura, centavos, ' +
-    'trava de pago), o wizard de onboarding e a página pública. NÃO pega ainda: o ' +
-    'editor de serviços/kits (ServicesManager, 366 linhas), o formulário de ' +
-    'profissionais e o rótulo de horário no fuso do negócio. Esses continuam por ' +
-    'conferência humana.',
+  'web/ tem 111 testes (Vitest): dinheiro do painel, wizard de onboarding, editor ' +
+    'de serviços/kits e a página pública. NÃO pega ainda: o formulário de ' +
+    'profissionais (com as faixas de horário), a tela de aparência e o rótulo de ' +
+    'horário no fuso do negócio — este último é regra de fuso, que é onde erro ' +
+    'passa despercebido por mais tempo. Continuam por conferência humana.',
   'Abrir /[slug] em 390px com o dado mais longo que o sistema aceita: serviço de ' +
     '45 letras, nome de profissional de 40. No console: ' +
     '[...document.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > innerWidth + 1) ' +

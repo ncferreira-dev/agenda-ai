@@ -1,7 +1,7 @@
 // Matchers de DOM (toBeInTheDocument, toBeRequired, ...) e limpeza entre testes.
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Node 26 traz um `localStorage` EXPERIMENTAL próprio, e ele sombreia o do
@@ -39,3 +39,24 @@ if (!Element.prototype.scrollIntoView) {
 // asserções passam a enxergar dois elementos iguais — falha confusa e que
 // aparece só quando a suíte cresce.
 afterEach(() => cleanup());
+
+// ---------------------------------------------------------------------------
+// useFormState/useFormStatus vêm do react-dom que o NEXT empacota, e não do
+// react-dom instalado: fora do Next eles simplesmente não existem
+// ("useFormState is not a function"). Todo componente do painel que tem
+// formulário depende deles.
+//
+// Estava duplicado em dois arquivos de teste; este é o TERCEIRO, e a regra do
+// projeto é subir para um lugar comum no terceiro caso. O resto do react-dom é
+// preservado com importActual — substituir o módulo inteiro quebraria o render.
+// ---------------------------------------------------------------------------
+vi.mock('react-dom', async (original) => {
+  const real = await original<typeof import('react-dom')>();
+  return {
+    ...real,
+    // Assinatura real: [estado, dispatch]. O estado inicial basta, porque
+    // nenhum teste de componente aqui chega a submeter de verdade.
+    useFormState: (_acao: unknown, inicial: unknown) => [inicial, vi.fn()],
+    useFormStatus: () => ({ pending: false }),
+  };
+});

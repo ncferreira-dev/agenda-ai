@@ -9,20 +9,6 @@ vi.mock('../actions', () => ({
   saveAppointmentItems: vi.fn(),
 }));
 
-// useFormState/useFormStatus vêm do react-dom que o NEXT empacota, e não do
-// react-dom instalado — fora do Next eles simplesmente não existem
-// ("useFormState is not a function"). O resto do react-dom é preservado com
-// importActual: substituir o módulo inteiro quebraria o render.
-vi.mock('react-dom', async (original) => {
-  const real = await original<typeof import('react-dom')>();
-  return {
-    ...real,
-    // Assinatura real: [estado, dispatch]. O estado inicial basta, porque
-    // nenhum teste aqui chega a submeter.
-    useFormState: (_acao: unknown, inicial: unknown) => [inicial, vi.fn()],
-    useFormStatus: () => ({ pending: false }),
-  };
-});
 
 import { ItemsEditor } from './ItemsEditor';
 

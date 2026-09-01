@@ -9,13 +9,10 @@ import {
   type ActionState,
 } from '../../actions';
 import type { Service } from '@/lib/panel-api';
+import { reais, candidatosDeKit, rotuloDeDesconto } from './servicos.utils';
 import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
-
-function reais(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-}
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -303,7 +300,7 @@ export function ServicesManager({
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   // Candidatos a membro de kit: serviços comuns e ativos (kits não aninham).
-  const kitCandidates = services.filter((s) => !s.isKit && s.active);
+  const kitCandidates = candidatosDeKit(services);
 
   return (
     <>
@@ -318,7 +315,7 @@ export function ServicesManager({
               <EditRow
                 key={s.id}
                 service={s}
-                candidates={kitCandidates.filter((c) => c.id !== s.id)}
+                candidates={candidatosDeKit(services, s.id)}
                 onDone={() => setEditing(null)}
               />
             ) : (
@@ -330,7 +327,7 @@ export function ServicesManager({
                     {!s.active && <span className={`${styles.chip} ${styles.chipOff}`}>inativo</span>}
                     {s.discountKind && (
                       <span className={styles.tag}>
-                        {s.discountKind === 'PERCENT' ? `-${s.discountValue}%` : `-R$ ${reais(s.discountValue)}`}
+                        {rotuloDeDesconto(s)}
                       </span>
                     )}
                     {s.followUpDays && (
