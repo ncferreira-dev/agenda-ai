@@ -3,9 +3,9 @@
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { DateTime } from 'luxon';
 import { authFetch } from '@/lib/panel-api';
 import { API_BASE, PANEL_COOKIE } from '@/lib/panel-session';
+import { intervaloDoBloqueio } from '@/lib/fuso';
 
 export interface ActionState {
   ok: boolean;
@@ -179,21 +179,15 @@ export async function createBlock(_prev: ActionState, form: FormData): Promise<A
   const start = String(form.get('start'));
   const end = String(form.get('end'));
 
-  const startAt = DateTime.fromISO(`${date}T${start}`, { zone: tz });
-  const endAt = DateTime.fromISO(`${date}T${end}`, { zone: tz });
-  if (!startAt.isValid || !endAt.isValid) {
-    return { ok: false, error: 'Data/horário inválidos.' };
-  }
-  if (endAt <= startAt) {
-    return { ok: false, error: 'O fim precisa ser depois do início.' };
-  }
+  const intervalo = intervaloDoBloqueio(date, start, end, tz);
+  if (!intervalo.ok) return { ok: false, error: intervalo.erro };
 
   const professionalId = String(form.get('professionalId') ?? '');
   const res = await authFetch('/me/blocks', {
     method: 'POST',
     body: JSON.stringify({
-      startAt: startAt.toISO(),
-      endAt: endAt.toISO(),
+      startAt: intervalo.startAt,
+      endAt: intervalo.endAt,
       reason: String(form.get('reason') ?? '').trim() || undefined,
       professionalId: professionalId || undefined,
     }),

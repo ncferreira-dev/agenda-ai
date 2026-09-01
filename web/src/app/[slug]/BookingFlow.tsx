@@ -1,20 +1,12 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { DateTime } from 'luxon';
 import { getAvailability, createBooking, getMyAppointments, cancelMyAppointment } from '@/lib/api';
 import type { BusinessPage, ProfessionalAvailability, BookingResult, MyAppointment } from '@/lib/types';
 import { salvarAcesso, lerAcesso, limparAcesso, capturarAcessoDaUrl } from '@/lib/customer-access';
 import { mensagemDoErro } from '@/lib/format';
-import {
-  WEEKDAYS,
-  MONTHS,
-  pad,
-  nextDays,
-  formatPrice,
-  normalizePhone,
-  initials,
-} from './booking.utils';
+import { rotuloDeDataHora } from '@/lib/fuso';
+import { nextDays, formatPrice, normalizePhone, initials } from './booking.utils';
 import styles from './booking.module.css';
 
 interface DisplaySlot {
@@ -189,8 +181,7 @@ export function BookingFlow({ slug, data }: { slug: string; data: BusinessPage }
     // Date usam o fuso local de quem abriu a página — um cliente viajando (ou
     // num negócio de outro fuso) via a hora errada. O gcal abaixo segue em UTC
     // (toISOString), que é o certo pra ele.
-    const localDt = DateTime.fromISO(result.startAt, { zone: data.business.timezone });
-    const whenLabel = `${WEEKDAYS[localDt.weekday % 7]}, ${localDt.day} de ${MONTHS[localDt.month - 1]} às ${pad(localDt.hour)}:${pad(localDt.minute)}`;
+    const whenLabel = rotuloDeDataHora(result.startAt, data.business.timezone);
     const dur = service?.durationMinutes ?? 30;
     const end = new Date(when.getTime() + dur * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -530,8 +521,7 @@ function MyAppointmentsView({
       {!loading && token && list && list.length > 0 && (
         <div className={styles.serviceList} style={{ marginTop: 18 }}>
           {list.map((a) => {
-            const w = DateTime.fromISO(a.startAt, { zone: timezone });
-            const when = `${WEEKDAYS[w.weekday % 7]}, ${w.day} de ${MONTHS[w.month - 1]} às ${pad(w.hour)}:${pad(w.minute)}`;
+            const when = rotuloDeDataHora(a.startAt, timezone);
             return (
               <div key={a.id} className={styles.serviceRow} style={{ cursor: 'default' }}>
                 <div style={{ minWidth: 0 }}>
