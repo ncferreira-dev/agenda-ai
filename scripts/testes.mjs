@@ -21,6 +21,11 @@ function procurarSpecs(dir) {
     if (IGNORAR.includes(nome)) continue;
     const caminho = join(dir, nome);
     if (statSync(caminho).isDirectory()) achados.push(...procurarSpecs(caminho));
+    // `.int.spec.ts` fica de fora: aquilo precisa de Postgres e roda pelo
+    // scripts/testes-integracao.mjs. Misturar os dois faria `npm test` falhar
+    // na máquina de quem não subiu banco, e a reação natural seria desligar o
+    // teste em vez de subir o banco.
+    else if (nome.endsWith('.int.spec.ts')) continue;
     else if (nome.endsWith('.spec.ts')) achados.push(caminho);
   }
   return achados;
