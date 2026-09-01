@@ -383,11 +383,20 @@ const CONFERENCIA_HUMANA = [
     'anônima e conferir que aparece o texto explicando, e não uma tela quebrada.',
   'Rodar `npx prisma migrate deploy` contra a produção é irreversível e nenhum ' +
     'teste cobre isso. Confira a DATABASE_URL antes, à mão, toda vez.',
-  'Services da API cobertos por integração: booking (anti-overbooking) e o ' +
-    'auth inteiro — reset de senha, cadastro e login social (inclusive os dois ' +
-    'guards de email verificado, que são o que separa "vincular" de "sequestrar ' +
-    'conta"). Seguem SEM teste business.service, stripe.service e o ' +
-    'public-booking.controller.',
+  'Coberto por integração (contra Postgres): booking (anti-overbooking), auth ' +
+    'inteiro (reset, cadastro, login social), dados do negócio, a API pública ' +
+    'do cliente e o webhook do Stripe — este com assinatura DE VERDADE, gerada ' +
+    'pelo SDK, sem stub de constructEvent. Segue SEM teste o StripeService em ' +
+    'si (subscribe: decidir entre Checkout novo, troca de plano e Portal), que ' +
+    'exige dublê do cliente Stripe. O EFEITO dessa decisão no banco está ' +
+    'coberto pelo webhook; a decisão em si, não.',
+  'business.service normaliza o telefone DO NEGÓCIO à mão (só dígitos + 55) ' +
+    'enquanto o do dono passa por normalizePhone, que também valida o tamanho. ' +
+    'Ou seja: "5" vira o telefone "555" e entra no banco, num campo que é ' +
+    '@unique e roteia o webhook do WhatsApp. É a mesma duplicação de regra que ' +
+    'já tinha divergido na lista de slugs reservados. NÃO foi unificado de ' +
+    'propósito: mudar isso pode passar a recusar um número já salvo por algum ' +
+    'negócio, e isso é decisão de produto.',
   'O teto de 550 linhas passa hoje, mas os PRÓXIMOS da fila são ' +
     'api/src/auth/auth.service.ts (516) e web/src/app/[slug]/BookingFlow.tsx ' +
     '(615, fora do alcance da trava, que só olha src/). Nenhum dos dois foi ' +
