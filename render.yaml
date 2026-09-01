@@ -68,3 +68,36 @@ services:
         sync: false
       - key: WHATSAPP_TEMPLATE_LANG
         sync: false
+
+      # Storage das imagens (logo, capa, foto de profissional). SEM estas vars a
+      # API grava no DISCO LOCAL do container — e o disco do Render free ZERA a
+      # cada redeploy, entao as imagens do dono somem. Defina um bucket
+      # S3-compativel pra persistir. Recomendado: Cloudflare R2 (free: 10GB, sem
+      # taxa de egresso). O codigo ja fala S3 (src/storage/storage.service.ts);
+      # isto e so configuracao.
+      #
+      # Setup do R2 (uma vez), em dash.cloudflare.com > R2:
+      #   1. Create bucket (ex.: agendai-uploads).
+      #   2. Bucket > Settings > Public access: habilite o dominio r2.dev (ou
+      #      ligue um dominio proprio). Copie essa URL publica -> S3_PUBLIC_URL.
+      #      SEM isso a imagem sobe mas nao aparece: a URL do endpoint S3 exige
+      #      assinatura e nao abre no navegador.
+      #   3. Manage R2 API Tokens > Create > "Object Read & Write". Guarde o
+      #      Access Key ID -> S3_ACCESS_KEY_ID e o Secret -> S3_SECRET_ACCESS_KEY.
+      #   4. S3_ENDPOINT = https://<account_id>.r2.cloudflarestorage.com
+      #      (aparece na pagina do bucket).
+      # Todas sync:false = coladas no dashboard do Render, nunca no git.
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_PUBLIC_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # R2 usa "auto". Se um dia trocar pra AWS S3 de verdade, ponha a regiao do
+      # bucket (ex.: us-east-1) no dashboard.
+      - key: S3_REGION
+        value: auto
