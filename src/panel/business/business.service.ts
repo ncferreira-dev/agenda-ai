@@ -135,9 +135,13 @@ export class BusinessService {
       if (address.length > 200) throw new BadRequestException('Endereço muito longo (máx. 200).');
       data.address = address || null;
     }
+    // Este é o número que RECEBE os agendamentos no WhatsApp, e ele é @unique:
+    // o webhook roteia pela phone que recebeu a mensagem. Ficava normalizado à
+    // mão aqui, sem validar tamanho — então "5" virava o telefone "555" e
+    // entrava no banco. Agora usa a mesma função do telefone do dono; era a
+    // mesma duplicação de regra que já tinha divergido na lista de slugs.
     if (input.phone !== undefined) {
-      const digits = input.phone.replace(/\D/g, '');
-      data.phone = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : null;
+      data.phone = normalizePhone(input.phone, 'WhatsApp do negócio');
     }
     if (input.timezone !== undefined) {
       if (!BusinessService.TIMEZONES.includes(input.timezone)) {
@@ -160,7 +164,8 @@ export class BusinessService {
     if (input.notifyPush !== undefined) data.notifyPush = Boolean(input.notifyPush);
     if (input.notifyOwnerAllBookings !== undefined) data.notifyOwnerAllBookings = Boolean(input.notifyOwnerAllBookings);
     if (input.notifyDailySummary !== undefined) data.notifyDailySummary = Boolean(input.notifyDailySummary);
-    if (input.ownerWhatsApp !== undefined) data.ownerWhatsApp = normalizePhone(input.ownerWhatsApp);
+    if (input.ownerWhatsApp !== undefined)
+      data.ownerWhatsApp = normalizePhone(input.ownerWhatsApp, 'WhatsApp para avisos');
     if (input.ownerEmail !== undefined) data.ownerEmail = normalizeEmail(input.ownerEmail);
 
     if (input.name !== undefined) {

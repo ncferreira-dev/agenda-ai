@@ -388,13 +388,17 @@ const CONFERENCIA_HUMANA = [
     'si (subscribe: decidir entre Checkout novo, troca de plano e Portal), que ' +
     'exige dublê do cliente Stripe. O EFEITO dessa decisão no banco está ' +
     'coberto pelo webhook; a decisão em si, não.',
-  'business.service normaliza o telefone DO NEGÓCIO à mão (só dígitos + 55) ' +
-    'enquanto o do dono passa por normalizePhone, que também valida o tamanho. ' +
-    'Ou seja: "5" vira o telefone "555" e entra no banco, num campo que é ' +
-    '@unique e roteia o webhook do WhatsApp. É a mesma duplicação de regra que ' +
-    'já tinha divergido na lista de slugs reservados. NÃO foi unificado de ' +
-    'propósito: mudar isso pode passar a recusar um número já salvo por algum ' +
-    'negócio, e isso é decisão de produto.',
+  'O telefone do negócio já usa o normalizePhone comum, mas ainda existe uma ' +
+    'TERCEIRA cópia da mesma regra: o normalizePhone privado do ' +
+    'professionals.service. Hoje ela é idêntica à comum — o risco não é ela ' +
+    'estar errada, é ela deixar de ser igual sem ninguém ver, que foi o que ' +
+    'aconteceu com a lista de slugs e com o telefone do negócio. Máquina não ' +
+    'checa "duas funções iguais em arquivos diferentes".',
+  'A regra nova do telefone do negócio (10 a 13 dígitos) passa a RECUSAR um ' +
+    'número fora dessa faixa que já esteja salvo. No banco de dev não havia ' +
+    'nenhum; em produção, conferir antes de deploy com: ' +
+    'SELECT id, slug, phone FROM "Business" WHERE phone IS NOT NULL AND ' +
+    '(length(phone) < 10 OR length(phone) > 13);',
   'O teto de 550 linhas passa hoje, mas os PRÓXIMOS da fila são ' +
     'api/src/auth/auth.service.ts (516) e web/src/app/[slug]/BookingFlow.tsx ' +
     '(615, fora do alcance da trava, que só olha src/). Nenhum dos dois foi ' +

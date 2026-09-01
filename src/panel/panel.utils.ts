@@ -48,12 +48,19 @@ export function normalizeUrl(value: string): string | null {
   return v;
 }
 
-/** Só dígitos, sempre com DDI 55 na frente. Vazio limpa (null). */
-export function normalizePhone(value: string): string | null {
+/**
+ * Só dígitos, sempre com DDI 55 na frente. Vazio limpa (null).
+ *
+ * O `label` entra na mensagem porque a MESMA regra vale para três campos
+ * diferentes (telefone do dono, WhatsApp de avisos e WhatsApp do negócio):
+ * "Telefone inválido." sozinho não diz qual deles a pessoa precisa arrumar.
+ * Mesmo motivo do `label` de requireRange, logo acima.
+ */
+export function normalizePhone(value: string, label = 'Telefone'): string | null {
   const digits = value.replace(/\D/g, '');
   if (!digits) return null;
   if (digits.length < 10 || digits.length > 13) {
-    throw new BadRequestException('Telefone inválido.');
+    throw new BadRequestException(`${label} inválido. Use DDD + número (ex.: 11 91234-5678).`);
   }
   return digits.startsWith('55') ? digits : `55${digits}`;
 }
