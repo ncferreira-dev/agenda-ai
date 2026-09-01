@@ -366,10 +366,10 @@ const CHECAGENS = [
 // não olha nada é o pior estado possível.
 
 const CONFERENCIA_HUMANA = [
-  'web/ tem 146 testes (Vitest): dinheiro do painel, onboarding, serviços/kits, ' +
-    'página pública, fuso do negócio e a grade de horário do profissional. NÃO ' +
-    'pega ainda: a tela de aparência (cor, logo, capa, tema) e o upload de ' +
-    'imagem. Continuam por conferência humana.',
+  'web/ tem 162 testes (Vitest): dinheiro do painel, onboarding, serviços/kits, ' +
+    'página pública, fuso do negócio, grade de horário e a leitura dos ' +
+    'formulários (actions.utils). NÃO pega ainda: a tela de aparência (cor, logo, ' +
+    'capa, tema) e o upload de imagem. Continuam por conferência humana.',
   'O editor de grade DEIXA salvar faixa invertida (fim antes do início). O ' +
     'backend recusa com 400 "Faixa inválida", então dado errado não entra — mas ' +
     'o dono preenche a semana toda e leva um erro genérico, sem saber QUAL dia ' +
