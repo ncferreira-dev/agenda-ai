@@ -11,6 +11,7 @@ import {
 import type { Professional, Service, WorkingHour } from '@/lib/panel-api';
 import { MaskedInput } from '../../MaskedInput';
 import { HoursEditor } from './HoursEditor';
+import { iniciaisDoProfissional } from './horas.utils';
 import styles from '../../painel.module.css';
 
 const INIT: ActionState = { ok: false };
@@ -22,11 +23,6 @@ function Submit({ label }: { label: string }) {
       {pending ? 'Salvando…' : label}
     </button>
   );
-}
-
-function proInitials(name: string): string {
-  const p = name.trim().split(/\s+/);
-  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
 }
 
 // Foto (aparece pro cliente) + telefone + CPF. Usado no criar e no editar.
@@ -41,7 +37,7 @@ function IdentityFields({ pro }: { pro?: Professional }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img className={styles.thumbLogo} src={preview} alt="" style={{ margin: 0 }} />
           ) : (
-            <span className={styles.proAvatarBig}>{pro ? proInitials(pro.name) : '+'}</span>
+            <span className={styles.proAvatarBig}>{pro ? iniciaisDoProfissional(pro.name) : '+'}</span>
           )}
           <input
             className={styles.file}
@@ -198,7 +194,7 @@ export function ProfessionalsManager({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img className={styles.proAvatar} src={p.photoUrl} alt="" />
                   ) : (
-                    <span className={`${styles.proAvatar} ${styles.proAvatarText}`}>{proInitials(p.name)}</span>
+                    <span className={`${styles.proAvatar} ${styles.proAvatarText}`}>{iniciaisDoProfissional(p.name)}</span>
                   )}
                   <div className={styles.rowMain}>
                     <div className={styles.rowName}>

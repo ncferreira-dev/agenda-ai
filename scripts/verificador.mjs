@@ -363,11 +363,14 @@ const CHECAGENS = [
 // não olha nada é o pior estado possível.
 
 const CONFERENCIA_HUMANA = [
-  'web/ tem 124 testes (Vitest): dinheiro do painel, wizard de onboarding, editor ' +
-    'de serviços/kits, a página pública e o FUSO do negócio (rótulo, agrupamento ' +
-    'por dia e a escrita de bloqueio). NÃO pega ainda: o formulário de ' +
-    'profissionais com as faixas de horário, e a tela de aparência. Continuam por ' +
-    'conferência humana.',
+  'web/ tem 146 testes (Vitest): dinheiro do painel, onboarding, serviços/kits, ' +
+    'página pública, fuso do negócio e a grade de horário do profissional. NÃO ' +
+    'pega ainda: a tela de aparência (cor, logo, capa, tema) e o upload de ' +
+    'imagem. Continuam por conferência humana.',
+  'O editor de grade DEIXA salvar faixa invertida (fim antes do início). O ' +
+    'backend recusa com 400 "Faixa inválida", então dado errado não entra — mas ' +
+    'o dono preenche a semana toda e leva um erro genérico, sem saber QUAL dia ' +
+    'está errado. É gap de UX conhecido, não defeito de dado.',
   'Abrir /[slug] em 390px com o dado mais longo que o sistema aceita: serviço de ' +
     '45 letras, nome de profissional de 40. No console: ' +
     '[...document.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > innerWidth + 1) ' +
