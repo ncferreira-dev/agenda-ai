@@ -219,6 +219,58 @@ const tests: Array<[string, () => Promise<void>]> = [
     },
   ],
   [
+    'o WhatsApp do negócio segue a mesma regra do telefone do dono',
+    async () => {
+      await semear();
+      // Este número é @unique e é por ele que o webhook do WhatsApp descobre
+      // de qual negócio é a mensagem. Antes ele era normalizado à mão, sem
+      // validar tamanho: "5" virava "555" e entrava no banco.
+      for (const curtoDemais of ['5', '11', '119999']) {
+        await assert.rejects(
+          () => service.updateBusiness(EU, { phone: curtoDemais }),
+          /WhatsApp do negócio inválido/i,
+          `"${curtoDemais}" não podia entrar como WhatsApp do negócio`,
+        );
+      }
+      await assert.rejects(() => service.updateBusiness(EU, { phone: '1'.repeat(14) }), /inválido/i);
+      assert.strictEqual((await meu()).phone, null, 'nenhum desses podia ter sido gravado');
+    },
+  ],
+  [
+    'WhatsApp do negócio válido é gravado em E.164, com máscara ou sem',
+    async () => {
+      await semear();
+      const comMascara = await service.updateBusiness(EU, { phone: '(11) 91234-5678' });
+      assert.strictEqual(comMascara.phone, '5511912345678');
+
+      const jaComDdi = await service.updateBusiness(EU, { phone: '5511912345678' });
+      assert.strictEqual(jaComDdi.phone, '5511912345678', 'não pode ganhar um segundo 55');
+
+      // 10 dígitos é o piso da regra: fixo com DDD, sem o 9.
+      const fixo = await service.updateBusiness(EU, { phone: '1133334444' });
+      assert.strictEqual(fixo.phone, '551133334444');
+
+      const limpo = await service.updateBusiness(EU, { phone: '' });
+      assert.strictEqual(limpo.phone, null, 'vazio limpa o número, não vira "55"');
+    },
+  ],
+  [
+    'a mensagem diz QUAL dos dois WhatsApp está errado',
+    async () => {
+      await semear();
+      // Os dois campos usam a mesma função. Sem o rótulo, os dois devolviam
+      // "Telefone inválido." e o dono não sabia qual arrumar.
+      await assert.rejects(
+        () => service.updateBusiness(EU, { phone: '5' }),
+        /WhatsApp do negócio/i,
+      );
+      await assert.rejects(
+        () => service.updateBusiness(EU, { ownerWhatsApp: '5' }),
+        /WhatsApp para avisos/i,
+      );
+    },
+  ],
+  [
     'gasto mínimo de VIP: null limpa a regra, negativo é recusado',
     async () => {
       await semear();
