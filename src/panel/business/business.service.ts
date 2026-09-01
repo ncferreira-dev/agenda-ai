@@ -3,6 +3,7 @@ import { Prisma, ServiceMode } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VERTICAL_PRESETS, getVertical, isSkinId, SKINS } from '../../presets/verticais';
 import { normalizeColor, requireRange, normalizeEmail, normalizeUrl, normalizePhone } from '../panel.utils';
+import { RESERVED_SLUGS, SLUG_MAX, SLUG_MIN, SLUG_RE } from '../../common/slug';
 
 // Dados, branding e onboarding do negócio.
 // Todo método recebe businessId como 1º argumento e filtra por ele — o
@@ -28,13 +29,6 @@ export class BusinessService {
     'America/Rio_Branco',
     'America/Noronha',
   ];
-
-  // Slugs reservados: colidiriam com rotas do app/site (Next + API pública).
-  private static readonly RESERVED_SLUGS = new Set([
-    'painel', 'login', 'logout', 'cadastro', 'api', 'b', 'admin', 'app',
-    'www', 'sobre', 'precos', 'termos', 'privacidade', 'contato', 'ajuda',
-    'negocio', 'agendamento', 'agendar', 'static', '_next', 'assets',
-  ]);
 
   private static readonly BUSINESS_SELECT = {
     id: true,
@@ -281,19 +275,22 @@ export class BusinessService {
     return { onboarded: true };
   }
 
-  // Slug da página pública: minúsculas, [a-z0-9-], sem hífen nas pontas/duplo,
-  // 3–40 chars. Checa unicidade contra TODOS os negócios (exceto o próprio).
+  // Slug da página pública. As regras (formato, tamanho, reservados) vêm de
+  // common/slug.ts, a MESMA fonte que o cadastro usa pra gerar o slug inicial.
+  // Existia uma segunda cópia da lista de reservados aqui dentro, e as duas já
+  // tinham divergido: 'registro' era barrado no cadastro e liberado no painel.
+  // Duas cópias da mesma regra não ficam iguais sozinhas.
   private async normalizeSlug(value: string, businessId: string): Promise<string> {
     const slug = value.trim().toLowerCase();
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    if (!SLUG_RE.test(slug)) {
       throw new BadRequestException(
         'O link só pode ter letras minúsculas, números e hífen (sem espaços nem acentos).',
       );
     }
-    if (slug.length < 3 || slug.length > 40) {
-      throw new BadRequestException('O link deve ter entre 3 e 40 caracteres.');
+    if (slug.length < SLUG_MIN || slug.length > SLUG_MAX) {
+      throw new BadRequestException(`O link deve ter entre ${SLUG_MIN} e ${SLUG_MAX} caracteres.`);
     }
-    if (BusinessService.RESERVED_SLUGS.has(slug)) {
+    if (RESERVED_SLUGS.has(slug)) {
       throw new BadRequestException('Esse link é reservado. Escolha outro.');
     }
     const clash = await this.prisma.business.findUnique({
