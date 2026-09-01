@@ -388,12 +388,15 @@ const CONFERENCIA_HUMANA = [
     'si (subscribe: decidir entre Checkout novo, troca de plano e Portal), que ' +
     'exige dublê do cliente Stripe. O EFEITO dessa decisão no banco está ' +
     'coberto pelo webhook; a decisão em si, não.',
-  'O telefone do negócio já usa o normalizePhone comum, mas ainda existe uma ' +
-    'TERCEIRA cópia da mesma regra: o normalizePhone privado do ' +
-    'professionals.service. Hoje ela é idêntica à comum — o risco não é ela ' +
-    'estar errada, é ela deixar de ser igual sem ninguém ver, que foi o que ' +
-    'aconteceu com a lista de slugs e com o telefone do negócio. Máquina não ' +
-    'checa "duas funções iguais em arquivos diferentes".',
+  'Telefone, e-mail e CPF têm UMA fonte cada (panel.utils e common/cpf), e ' +
+    'quem duplicava agora chama elas. Sobra uma diferença de propósito: o ' +
+    'normalizeUrl do professionals.service diz "URL de foto inválida" em vez ' +
+    'da mensagem genérica do comum. Máquina não checa "duas funções iguais em ' +
+    'arquivos diferentes" — se aparecer uma cópia nova, é aqui que se percebe.',
+  'O CPF do PROFISSIONAL é gravado CRU no banco (Professional.cpf), enquanto o ' +
+    'do dono só vira hash HMAC por LGPD (ver common/cpf.ts). A validação agora ' +
+    'é a mesma para os dois, mas o armazenamento não. Igualar exige migration ' +
+    'de schema e de dado — é decisão de produto, não faxina de código.',
   'A regra nova do telefone do negócio (10 a 13 dígitos) passa a RECUSAR um ' +
     'número fora dessa faixa que já esteja salvo. No banco de dev não havia ' +
     'nenhum; em produção, conferir antes de deploy com: ' +
