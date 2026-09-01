@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { authFetch } from '@/lib/panel-api';
 import { API_BASE, PANEL_COOKIE } from '@/lib/panel-session';
 import { intervaloDoBloqueio } from '@/lib/fuso';
+import { reais, followUpDays, discount, kit } from './actions.utils';
 
 export interface ActionState {
   ok: boolean;
@@ -20,42 +21,7 @@ async function readError(res: Response, fallback: string): Promise<string> {
   return (body?.message as string) ?? fallback;
 }
 
-function reais(value: FormDataEntryValue | null): number {
-  const n = Number(String(value ?? '').replace(',', '.'));
-  return Math.round((Number.isFinite(n) ? n : 0) * 100);
-}
-
 // --- Serviços ------------------------------------------------------------
-
-// Dias de follow-up do form: vazio -> null (sem follow-up).
-function followUpDays(value: FormDataEntryValue | null): number | null {
-  const raw = String(value ?? '').trim();
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.round(n) : null;
-}
-
-// Desconto do form -> unidade do backend: PERCENT em % inteiro, FIXED em centavos.
-// kind vazio (ou valor em branco) = sem desconto.
-function discount(form: FormData): { discountKind: 'PERCENT' | 'FIXED' | null; discountValue: number } {
-  const kind = String(form.get('discountKind') ?? '').trim();
-  const raw = String(form.get('discountValue') ?? '').trim();
-  if ((kind !== 'PERCENT' && kind !== 'FIXED') || !raw) {
-    return { discountKind: null, discountValue: 0 };
-  }
-  if (kind === 'PERCENT') {
-    const n = Math.round(Number(raw.replace(',', '.')));
-    return { discountKind: 'PERCENT', discountValue: Number.isFinite(n) ? n : 0 };
-  }
-  return { discountKind: 'FIXED', discountValue: reais(raw) };
-}
-
-// Campos de kit do form. isKit vem do checkbox; kitMemberIds são os serviços marcados.
-function kit(form: FormData): { isKit: boolean; kitMemberIds: string[] } {
-  const isKit = form.get('isKit') === 'on' || form.get('isKit') === 'true';
-  const kitMemberIds = form.getAll('kitMemberIds').map((v) => String(v)).filter(Boolean);
-  return { isKit, kitMemberIds };
-}
 
 export async function createService(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { isKit, kitMemberIds } = kit(form);
