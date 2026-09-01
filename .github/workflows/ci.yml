@@ -21,6 +21,34 @@ jobs:
   verificar:
     name: Verificador de entrega
     runs-on: ubuntu-latest
+
+    # Postgres de verdade: os testes de integração provam o anti-overbooking, e
+    # a garantia mora numa exclusion constraint gist do banco. Sem Postgres no
+    # CI, a única prova de que dois clientes não caem no mesmo horário some — e
+    # o verde passaria a significar menos do que parece.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agenda
+          POSTGRES_PASSWORD: agenda
+          POSTGRES_DB: agenda
+        ports:
+          - 5432:5432
+        # Sem o health check o job começa antes de o banco aceitar conexão.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # O script do banco de teste deriva daqui trocando o nome por agenda_teste.
+      DATABASE_URL: postgresql://agenda:agenda@localhost:5432/agenda
+      # A app recusa subir sem estes; o teste de integração instancia o service.
+      JWT_SECRET: ci-nao-e-segredo-de-producao
+      CPF_HASH_SECRET: ci-nao-e-segredo-de-producao
+
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +67,9 @@ jobs:
         # O verificador roda typecheck e lint dentro de web/, então as
         # dependências de lá precisam existir antes dele começar.
         run: npm ci --prefix web
+
+      - name: Cliente psql (o preparo do banco de teste usa)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
 
       - name: Gerar o Prisma Client
         # Os tipos do banco vêm daqui; sem isso a checagem de tipos falha.

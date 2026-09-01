@@ -35,6 +35,9 @@ const SO_VARREDURA = process.argv.includes('--so-varredura');
 const COMANDOS = [
   { nome: 'api: typecheck e lint', cwd: '.', comando: 'npm', args: ['run', 'lint'] },
   { nome: 'api: testes', cwd: '.', comando: 'npm', args: ['test'] },
+  // Precisa de Postgres. Falha alto se não houver — verde sem o banco seria
+  // mentira, porque é justamente aqui que mora a prova do anti-overbooking.
+  { nome: 'api: testes de integração', cwd: '.', comando: 'npm', args: ['run', 'test:integracao'] },
   { nome: 'web: typecheck e lint', cwd: 'web', comando: 'npm', args: ['run', 'lint'] },
   { nome: 'web: testes', cwd: 'web', comando: 'npm', args: ['test'] },
 ];
@@ -380,6 +383,11 @@ const CONFERENCIA_HUMANA = [
     'anônima e conferir que aparece o texto explicando, e não uma tela quebrada.',
   'Rodar `npx prisma migrate deploy` contra a produção é irreversível e nenhum ' +
     'teste cobre isso. Confira a DATABASE_URL antes, à mão, toda vez.',
+  'Os services da API seguem SEM teste, com uma exceção: booking (anti-' +
+    'overbooking, coberto por integração). Continuam descobertos auth.service ' +
+    '(515 linhas: login, registro, reset de senha, OAuth), business.service, ' +
+    'stripe.service e o public-booking.controller. É onde está o risco maior ' +
+    'hoje — maior do que o que restou no front.',
   'O teto de 550 linhas passa hoje, mas os PRÓXIMOS da fila são ' +
     'api/src/auth/auth.service.ts (515) e web/src/app/[slug]/BookingFlow.tsx ' +
     '(615, fora do alcance da trava, que só olha src/). Nenhum dos dois foi ' +
