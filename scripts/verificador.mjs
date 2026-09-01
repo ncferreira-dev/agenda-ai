@@ -384,10 +384,12 @@ const CONFERENCIA_HUMANA = [
   'Coberto por integração (contra Postgres): booking (anti-overbooking), auth ' +
     'inteiro (reset, cadastro, login social), dados do negócio, a API pública ' +
     'do cliente e o webhook do Stripe — este com assinatura DE VERDADE, gerada ' +
-    'pelo SDK, sem stub de constructEvent. Segue SEM teste o StripeService em ' +
-    'si (subscribe: decidir entre Checkout novo, troca de plano e Portal), que ' +
-    'exige dublê do cliente Stripe. O EFEITO dessa decisão no banco está ' +
-    'coberto pelo webhook; a decisão em si, não.',
+    'pelo SDK, sem stub de constructEvent. A DECISÃO do botão "Assinar" ' +
+    '(Checkout novo x trocar plano x Portal) tem suíte própria, com dublê do ' +
+    'cliente Stripe. O que NENHUM teste alcança é o Stripe de verdade: se o ' +
+    'price, o cupom e o Portal existem mesmo na conta, e se o endpoint do ' +
+    'webhook está apontado pra API. Isso é conferência no dashboard, com o ' +
+    'modo de teste, antes de cobrar alguém.',
   'Telefone, e-mail e CPF têm UMA fonte cada (panel.utils e common/cpf), e ' +
     'quem duplicava agora chama elas. Sobra uma diferença de propósito: o ' +
     'normalizeUrl do professionals.service diz "URL de foto inválida" em vez ' +
