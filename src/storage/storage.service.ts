@@ -65,6 +65,12 @@ export class StorageService {
         region: this.region,
         endpoint: this.endpoint,
         forcePathStyle: this.forcePathStyle,
+        // O @aws-sdk/client-s3 recente manda um checksum (CRC32) por padrao que
+        // o Cloudflare R2 rejeitava, quebrando o PutObject com erro criptico.
+        // WHEN_REQUIRED so calcula checksum quando a operacao exige — evita o
+        // problema no R2 e e inofensivo pra AWS S3 de verdade.
+        requestChecksumCalculation: 'WHEN_REQUIRED',
+        responseChecksumValidation: 'WHEN_REQUIRED',
         // Credenciais explícitas quando fornecidas; senão cai na cadeia padrão
         // do SDK (IAM role, ~/.aws, etc.).
         ...(accessKeyId && secretAccessKey
