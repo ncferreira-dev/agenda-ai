@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { normalizeEmail, normalizePhone } from '../panel.utils';
+import { isValidCpf, normalizeCpf as normalizarCpf } from '../../common/cpf';
 
 export interface ProfessionalInput {
   name: string;
@@ -57,8 +59,8 @@ export class ProfessionalsService {
       data: {
         businessId,
         name,
-        phone: this.normalizePhone(input.phone),
-        email: this.normalizeEmail(input.email),
+        phone: normalizePhone(input.phone ?? '', 'Telefone do profissional'),
+        email: normalizeEmail(input.email ?? ''),
         cpf: this.normalizeCpf(input.cpf),
         photoUrl: this.normalizeUrl(input.photoUrl),
         services: serviceIds.length
@@ -80,8 +82,9 @@ export class ProfessionalsService {
     const data: Record<string, unknown> = {};
     if (input.name !== undefined) data.name = this.requireName(input.name);
     if (input.active !== undefined) data.active = Boolean(input.active);
-    if (input.phone !== undefined) data.phone = this.normalizePhone(input.phone);
-    if (input.email !== undefined) data.email = this.normalizeEmail(input.email);
+    if (input.phone !== undefined)
+      data.phone = normalizePhone(input.phone, 'Telefone do profissional');
+    if (input.email !== undefined) data.email = normalizeEmail(input.email);
     if (input.cpf !== undefined) data.cpf = this.normalizeCpf(input.cpf);
     if (input.photoUrl !== undefined) data.photoUrl = this.normalizeUrl(input.photoUrl);
 
@@ -148,22 +151,6 @@ export class ProfessionalsService {
     if (!found) throw new NotFoundException('Profissional não encontrado.');
   }
 
-  private normalizePhone(value?: string): string | null {
-    if (value === undefined) return null;
-    const digits = value.replace(/\D/g, '');
-    if (!digits) return null;
-    if (digits.length < 10 || digits.length > 13) throw new BadRequestException('Telefone inválido.');
-    return digits.startsWith('55') ? digits : `55${digits}`;
-  }
-
-  private normalizeEmail(value?: string): string | null {
-    if (value === undefined) return null;
-    const email = value.trim().toLowerCase();
-    if (!email) return null;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('E-mail inválido.');
-    return email;
-  }
-
   private normalizeUrl(value?: string): string | null {
     if (value === undefined) return null;
     const v = value.trim();
@@ -172,20 +159,19 @@ export class ProfessionalsService {
     return v;
   }
 
+  // Telefone, e-mail e CPF viviam copiados aqui dentro, com a mesma regra dos
+  // comuns. Cópia de regra não fica igual sozinha — foi assim que a lista de
+  // slugs reservados e o telefone do negócio divergiram. Agora só o CPF tem
+  // método próprio, porque o comum devolve boolean e aqui a resposta é a
+  // mensagem que o dono lê.
+  //
+  // O `?? ''` cobre o campo ausente: todos os normalizadores tratam vazio como
+  // "limpa" (null). Havia um helper aqui só pra distinguir undefined de '', e
+  // apagá-lo não mudou nenhum teste — os dois caminhos já davam no mesmo.
   private normalizeCpf(value?: string): string | null {
-    if (value === undefined) return null;
-    const cpf = value.replace(/\D/g, '');
+    const cpf = normalizarCpf(value ?? '');
     if (!cpf) return null;
-    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) throw new BadRequestException('CPF inválido.');
-    const digit = (len: number): number => {
-      let sum = 0;
-      for (let i = 0; i < len; i++) sum += Number(cpf[i]) * (len + 1 - i);
-      const rest = (sum * 10) % 11;
-      return rest === 10 ? 0 : rest;
-    };
-    if (digit(9) !== Number(cpf[9]) || digit(10) !== Number(cpf[10])) {
-      throw new BadRequestException('CPF inválido.');
-    }
+    if (!isValidCpf(cpf)) throw new BadRequestException('CPF inválido.');
     return cpf;
   }
 
